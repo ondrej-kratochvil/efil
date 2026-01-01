@@ -38,9 +38,12 @@ try {
             f.price,
             f.seller,
             f.purchase_date as date,
+            f.spool_type_id as spool_id,
+            COALESCE(sl.weight_grams, 0) as spool_weight,
             (f.initial_weight_grams + COALESCE(SUM(cl.amount_grams), 0)) as g
         FROM filaments f
         LEFT JOIN consumption_log cl ON f.id = cl.filament_id
+        LEFT JOIN spool_library sl ON f.spool_type_id = sl.id
         WHERE f.inventory_id = ?
         GROUP BY f.id
         ORDER BY g DESC

@@ -49,6 +49,8 @@ $price = !empty($input['price']) ? (int)$input['price'] : null;
 $seller = $input['seller'] ?? '';
 $date = !empty($input['date']) ? $input['date'] : null;
 
+$spoolId = !empty($input['spool_id']) ? (int)$input['spool_id'] : null;
+
 // Basic validation
 if (!$mat || !$color) {
     jsonResponse(['error' => 'Missing required fields'], 400);
@@ -77,10 +79,10 @@ try {
         
         $sql = "UPDATE filaments SET 
                 material = ?, manufacturer = ?, color_name = ?, color_hex = ?, 
-                location = ?, price = ?, seller = ?, purchase_date = ?, initial_weight_grams = ?
+                location = ?, price = ?, seller = ?, purchase_date = ?, initial_weight_grams = ?, spool_type_id = ?
                 WHERE id = ?";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$mat, $man, $color, $hex, $loc, $price, $seller, $date, $weight, $id]);
+        $stmt->execute([$mat, $man, $color, $hex, $loc, $price, $seller, $date, $weight, $spoolId, $id]);
         
         jsonResponse(['message' => 'Updated', 'id' => $id]);
 
@@ -94,10 +96,10 @@ try {
         $sql = "INSERT INTO filaments (
                     inventory_id, user_display_id, material, manufacturer, 
                     color_name, color_hex, initial_weight_grams, location, 
-                    price, seller, purchase_date
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    price, seller, purchase_date, spool_type_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$inventoryId, $nextId, $mat, $man, $color, $hex, $weight, $loc, $price, $seller, $date]);
+        $stmt->execute([$inventoryId, $nextId, $mat, $man, $color, $hex, $weight, $loc, $price, $seller, $date, $spoolId]);
         
         jsonResponse(['message' => 'Created', 'id' => $pdo->lastInsertId()], 201);
     }
