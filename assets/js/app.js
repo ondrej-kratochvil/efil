@@ -277,6 +277,9 @@ function renderAuth(v) {
         <button onclick="login('demo@efil.cz', 'demo1234')" class="mt-3 w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold border border-slate-200">
             Vyzkoušet Demo
         </button>
+        <button onclick="joinInventory()" class="mt-2 w-full py-3 bg-white text-indigo-600 rounded-xl font-bold border border-indigo-100">
+            Mám kód pozvánky
+        </button>
         ` : ''}
         <div class="mt-6 text-center text-sm">
             ${isLogin ? 'Nemáte účet?' : 'Již máte účet?'} 
@@ -287,6 +290,39 @@ function renderAuth(v) {
     `;
     v.appendChild(container);
 }
+
+// --- SHARE LOGIC ---
+window.generateShareCode = async () => {
+    try {
+        const res = await fetch(`${API_BASE}/inventory/share.php`, { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+            document.getElementById('share-code-display').innerText = data.code;
+            document.getElementById('share-section').classList.remove('hidden');
+        } else {
+            showToast('Chyba generování kódu');
+        }
+    } catch (e) { showToast('Chyba sítě'); }
+};
+
+window.joinInventory = async () => {
+    const code = prompt("Zadejte kód pozvánky:");
+    if(!code) return;
+    try {
+        const res = await fetch(`${API_BASE}/inventory/join.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code })
+        });
+        const data = await res.json();
+        if(res.ok) {
+            showToast('Připojeno! Načítám...');
+            await loadData();
+        } else {
+            showToast(data.error || 'Chyba připojení');
+        }
+    } catch(e) { showToast('Chyba sítě'); }
+};
 
 // --- STATS ---
 function renderStats(v) {
@@ -317,7 +353,17 @@ function renderStats(v) {
             </div>
         </div>
 
-        <button onclick="window.resetApp()" class="w-full py-4 bg-indigo-50 text-indigo-600 rounded-2xl font-bold shadow-sm mt-8">Zpět na sklad</button>
+        <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 text-center space-y-2">
+            <h3 class="font-bold text-indigo-900">Sdílení skladu</h3>
+            <p class="text-xs text-indigo-600">Vygenerujte kód pro kolegy, aby mohli spravovat tento sklad.</p>
+            <button onclick="generateShareCode()" class="bg-white text-indigo-600 px-4 py-2 rounded-xl font-bold text-sm shadow-sm">Vygenerovat kód</button>
+            <div id="share-section" class="hidden mt-2 pt-2 border-t border-indigo-200">
+                <div class="text-xs text-slate-400 uppercase font-bold">Váš kód:</div>
+                <div id="share-code-display" class="text-xl font-black tracking-widest select-all"></div>
+            </div>
+        </div>
+
+        <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm mt-4">Zpět na sklad</button>
     `;
     v.appendChild(container);
 }
