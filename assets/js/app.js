@@ -3,6 +3,7 @@ const API_BASE = 'api';
 
 // State
 let filaments = [];
+let options = { materials: [], manufacturers: [], locations: [], sellers: [] };
 let user = null;
 let state = {
     view: 'loading', // loading, auth, wizard, form
@@ -72,7 +73,6 @@ async function register(email, password) {
         });
         const data = await res.json();
         if (res.ok) {
-            // Auto login after register or ask to login
             login(email, password);
         } else {
             showToast(data.error || 'Chyba registrace');
@@ -92,13 +92,46 @@ async function logout() {
 }
 
 // --- DATA ---
-// Placeholder for Phase 2
 async function loadData() {
-    // In Phase 1 we just simulate or fetch empty list if endpoint doesn't exist yet
-    // For now we can keep filaments empty or mock it if needed for UI testing
-    filaments = []; 
-    // TODO: Phase 2 - implement fetch from api/filaments/list.php
-    render();
+    try {
+        const [resFilaments, resOptions] = await Promise.all([
+            fetch(`${API_BASE}/filaments/list.php`),
+            fetch(`${API_BASE}/data/options.php`)
+        ]);
+        
+        if (resFilaments.ok) filaments = await resFilaments.json();
+        if (resOptions.ok) options = await resOptions.json();
+        
+        render();
+    } catch (err) {
+        console.error('Data load error', err);
+        showToast('Chyba načítání dat');
+    }
+}
+
+async function saveFilament(data) {
+    try {
+        const res = await fetch(`${API_BASE}/filaments/save.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        if (res.ok) {
+            showToast('Uloženo');
+            await loadData();
+            state.view = 'wizard';
+            // Reset filters to see the new item if possible, or just stay
+            state.filters = { mat: null, color: null };
+            state.currentStep = 1;
+            render();
+        } else {
+            const err = await res.json();
+            showToast(err.error || 'Chyba ukládání');
+        }
+    } catch (e) {
+        showToast('Chyba sítě');
+    }
 }
 
 // --- UI HELPER ---
@@ -113,12 +146,27 @@ function showToast(msg) {
     }, 3000);
 }
 
+function getClosestColorName(hex) {
+    function hexToRgb(h) {
+        let r = parseInt(h.slice(1, 3), 16), g = parseInt(h.slice(3, 5), 16), b = parseInt(h.slice(5, 7), 16);
+        return [r, g, b];
+    }
+    const target = hexToRgb(hex);
+    let minDist = Infinity;
+    let closest = 'Vlastní barva';
+    colorNames.forEach(c => {
+        const curr = hexToRgb(c.hex);
+        const dist = Math.sqrt(Math.pow(target[0]-curr[0],2) + Math.pow(target[1]-curr[1],2) + Math.pow(target[2]-curr[2],2));
+        if (dist < minDist) { minDist = dist; closest = c.name; }
+    });
+    return minDist < 60 ? closest : 'Vlastní barva';
+}
+
 // --- RENDER ---
 function render() {
     const appView = document.getElementById('app-view');
     const loadingScreen = document.getElementById('loading-screen');
     
-    // Global visibility handling
     if (state.view === 'loading') {
         loadingScreen.classList.remove('hidden');
         appView.classList.add('hidden');
@@ -131,11 +179,9 @@ function render() {
     updateHeader();
     appView.innerHTML = '';
 
-    if (state.view === 'auth') {
-        renderAuth(appView);
-    } else if (state.view === 'form') {
-        renderForm(appView);
-    } else {
+    if (state.view === 'auth') renderAuth(appView);
+    else if (state.view === 'form') renderForm(appView);
+    else {
         if (state.currentStep === 1) renderMaterials(appView);
         else if (state.currentStep === 2) renderColors(appView);
         else if (state.currentStep === 3) renderDetails(appView);
@@ -203,6 +249,111 @@ function renderAuth(v) {
     v.appendChild(container);
 }
 
+// --- FORM LOGIC ---
+
+window.renderFieldInput = (key, list, value) => {
+    const isSelect = state.formFieldsStatus[key] === 'select';
+    if (isSelect && list.length > 0) {
+        return `
+            <select id="f-${key}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold appearance-none">
+                <option value="" disabled ${!value ? 'selected' : ''}>Vybrat...</option>
+                ${list.map(i => `<option value="${i}" ${i === value ? 'selected' : ''}>${i}</option>`).join('')}
+            </select>
+            <button onclick="toggleField('${key}')" class="bg-indigo-100 text-indigo-600 p-3 rounded-xl font-bold">+</button>
+        `;
+    }
+    return `
+        <input id="f-${key}" type="text" value="${value || ''}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="Zadejte novou hodnotu">
+        ${list.length > 0 ? `<button onclick="toggleField('${key}')" class="bg-slate-200 text-slate-500 p-3 rounded-xl font-bold">zpět</button>` : ''}
+    `;
+};
+
+window.toggleField = (key) => {
+    state.formFieldsStatus[key] = state.formFieldsStatus[key] === 'select' ? 'input' : 'select';
+    render();
+};
+
+window.handleColorChange = (hex) => {
+    const nameInput = document.getElementById('f-color');
+    const hexInput = document.getElementById('f-hex');
+    hexInput.value = hex;
+    if (nameInput) nameInput.value = getClosestColorName(hex);
+};
+
+window.handleFormSubmit = (e) => {
+    e.preventDefault();
+    const item = {
+        id: state.editingId,
+        mat: document.getElementById('f-mat').value,
+        color: document.getElementById('f-color').value,
+        hex: document.getElementById('f-hex').value,
+        man: document.getElementById('f-man').value,
+        g: parseInt(document.getElementById('f-g').value),
+        loc: document.getElementById('f-loc').value,
+        price: document.getElementById('f-price').value,
+        seller: document.getElementById('f-seller') ? document.getElementById('f-seller').value : '', // Seller might be select or input
+        date: document.getElementById('f-date').value
+    };
+    saveFilament(item);
+};
+
+function renderForm(v) {
+    const item = state.editingId ? filaments.find(i => i.id === state.editingId) : { mat: '', color: '', hex: '#4f46e5', man: '', g: 1000, loc: '', price: '', date: '', seller: '' };
+    
+    // Ensure we have lists even if empty
+    const mats = options.materials || [];
+    const mans = options.manufacturers || [];
+    const locs = options.locations || [];
+    const sellers = options.sellers || [];
+
+    // If lists are empty, force input mode
+    if(mats.length===0) state.formFieldsStatus.mat = 'input';
+    if(mans.length===0) state.formFieldsStatus.man = 'input';
+    if(locs.length===0) state.formFieldsStatus.loc = 'input';
+    if(sellers.length===0) state.formFieldsStatus.seller = 'input';
+
+    const form = document.createElement('div');
+    form.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 max-w-lg mx-auto space-y-5";
+    form.innerHTML = `
+        <div class="field-container">
+            <label class="block text-[10px] font-bold text-slate-400 uppercase">Barva (Paleta a Název)</label>
+            <div class="flex gap-2">
+                <input id="f-hex" type="color" value="${item.hex}" oninput="window.handleColorChange(this.value)" class="w-16 h-12 bg-transparent border-none p-0 cursor-pointer">
+                <input id="f-color" type="text" value="${item.color}" placeholder="Název" class="flex-1 bg-slate-50 border-none rounded-xl p-3 font-bold">
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Materiál</label><div class="input-group">${renderFieldInput('mat', mats, item.mat)}</div></div>
+            <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Výrobce</label><div class="input-group">${renderFieldInput('man', mans, item.man)}</div></div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Hmotnost (g)</label><input id="f-g" type="number" value="${item.g}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold"></div>
+            <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Umístění</label><div class="input-group">${renderFieldInput('loc', locs, item.loc)}</div></div>
+        </div>
+        
+        <div class="border-t border-slate-100 pt-4 space-y-4">
+            <h3 class="text-xs font-bold text-slate-400 uppercase">Obchodní údaje</h3>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="field-container">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase">Cena (Kč)</label>
+                    <input id="f-price" type="number" value="${item.price || ''}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold">
+                </div>
+                <div class="field-container">
+                    <label class="text-[10px] font-bold text-slate-400 uppercase">Datum pořízení</label>
+                    <input id="f-date" type="date" value="${item.date || ''}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold">
+                </div>
+            </div>
+             <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Prodejce</label><div class="input-group">${renderFieldInput('seller', sellers, item.seller)}</div></div>
+        </div>
+
+        <div class="flex gap-3 pt-4">
+            <button onclick="window.resetApp()" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">Zrušit</button>
+            <button onclick="window.handleFormSubmit(event)" class="flex-[2] py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">Uložit</button>
+        </div>
+    `;
+    v.appendChild(form);
+}
+
 window.handleAuthSubmit = (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -219,15 +370,11 @@ window.toggleAuthView = () => {
 };
 
 window.resetApp = () => {
-    // If we are deep in wizard or form, go back to start of wizard
     state.filters = { mat: null, color: null };
     state.currentStep = 1;
     state.view = 'wizard';
     render();
 };
-
-// --- EXISTING WIZARD RENDER FUNCTIONS (Simplified/Copied) ---
-// (Keeping the logic from original file but adapting to new structure if needed)
 
 const formatKg = (g) => (g / 1000).toFixed(1).replace('.', ',') + ' kg';
 const getContrast = (hex) => {
@@ -240,7 +387,6 @@ function renderMaterials(v) {
     const data = state.filters.color ? filaments.filter(i => i.color === state.filters.color) : filaments;
     const stats = data.reduce((acc, i) => { acc[i.mat] = (acc[i.mat] || 0) + (parseInt(i.g) || 0); return acc; }, {});
     
-    // If no data, show message (relevant for empty DB)
     if (Object.keys(stats).length === 0) {
         v.innerHTML = `<div class="text-center py-10 text-slate-400">Žádná data.<br>Přidejte filament v menu.</div>`;
         return;
@@ -280,7 +426,10 @@ function renderDetails(v) {
     else filtered.forEach(item => {
         const card = document.createElement('div');
         card.className = "bg-white p-4 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm cursor-pointer";
-        // card.onclick = () => window.openForm(item.id); // TODO: Re-enable edit
+        card.onclick = () => {
+             state.editingId = item.id;
+             openForm();
+        };
         card.innerHTML = `
             <div class="flex items-center gap-4">
                 <div class="w-10 h-10 rounded-full border border-slate-100 shadow-inner" style="background-color: ${item.hex}"></div>
@@ -302,17 +451,6 @@ function renderDetails(v) {
     btn.innerText = "Vymazat filtry"; btn.onclick = window.resetApp; v.appendChild(btn);
 }
 
-// TODO: Implement renderForm for adding/editing items (Phase 2)
-function renderForm(v) {
-    v.innerHTML = '<p class="text-center p-10">Form editor placeholder</p>';
-    const btn = document.createElement('button');
-    btn.innerText = 'Zpět';
-    btn.className = "mt-4 p-2 bg-slate-200 rounded";
-    btn.onclick = () => { state.view = 'wizard'; render(); };
-    v.appendChild(btn);
-}
-
-// Navigation helpers
 window.setStep = (s) => { state.currentStep = s; render(); };
 window.toggleActionMenu = () => {
     const menu = document.getElementById('action-menu');
@@ -320,10 +458,14 @@ window.toggleActionMenu = () => {
 };
 window.openForm = () => {
     state.view = 'form';
-    state.editingId = null;
+    // If opening fresh (not edit), reset editingId
+    if (state.view === 'form' && !state.editingId) {
+        state.editingId = null; 
+    }
+    // We update this via onclick in renderDetails so editingId is set before this call if editing
+    
     document.getElementById('action-menu').classList.add('hidden');
     render();
 };
 
-// Init
 checkAuth();
