@@ -4,13 +4,16 @@ const API_BASE = 'api';
 // State
 let filaments = [];
 let options = { materials: [], manufacturers: [], locations: [], sellers: [] };
+let spoolTemplates = [];
 let user = null;
 let state = {
-    view: 'loading', // loading, auth, wizard, form
+    view: 'loading', // loading, auth, wizard, form, consume
     authView: 'login', // login, register
     currentStep: 1,
     filters: { mat: null, color: null },
     editingId: null,
+    consumeId: null,
+    consumeMode: 'used', // used (subtract), weight (calculate from gross)
     formFieldsStatus: { mat: 'select', man: 'select', loc: 'select', seller: 'select' }
 };
 
@@ -94,13 +97,15 @@ async function logout() {
 // --- DATA ---
 async function loadData() {
     try {
-        const [resFilaments, resOptions] = await Promise.all([
+        const [resFilaments, resOptions, resSpools] = await Promise.all([
             fetch(`${API_BASE}/filaments/list.php`),
-            fetch(`${API_BASE}/data/options.php`)
+            fetch(`${API_BASE}/data/options.php`),
+            fetch(`${API_BASE}/spools/list.php`)
         ]);
         
         if (resFilaments.ok) filaments = await resFilaments.json();
         if (resOptions.ok) options = await resOptions.json();
+        if (resSpools.ok) spoolTemplates = await resSpools.json();
         
         render();
     } catch (err) {
@@ -121,13 +126,34 @@ async function saveFilament(data) {
             showToast('Uloženo');
             await loadData();
             state.view = 'wizard';
-            // Reset filters to see the new item if possible, or just stay
             state.filters = { mat: null, color: null };
             state.currentStep = 1;
             render();
         } else {
             const err = await res.json();
             showToast(err.error || 'Chyba ukládání');
+        }
+    } catch (e) {
+        showToast('Chyba sítě');
+    }
+}
+
+async function consumeFilament(filamentId, amount, description) {
+    try {
+        const res = await fetch(`${API_BASE}/filaments/consume.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filament_id: filamentId, amount, description })
+        });
+        
+        if (res.ok) {
+            showToast('Zapsáno');
+            await loadData();
+            state.view = 'wizard'; 
+            render();
+        } else {
+            const err = await res.json();
+            showToast(err.error || 'Chyba zápisu');
         }
     } catch (e) {
         showToast('Chyba sítě');
@@ -181,6 +207,7 @@ function render() {
 
     if (state.view === 'auth') renderAuth(appView);
     else if (state.view === 'form') renderForm(appView);
+    else if (state.view === 'consume') renderConsume(appView);
     else {
         if (state.currentStep === 1) renderMaterials(appView);
         else if (state.currentStep === 2) renderColors(appView);
@@ -202,9 +229,10 @@ function updateHeader() {
     
     menuTrigger.classList.remove('hidden');
 
-    if (state.view === 'form') { 
+    if (state.view === 'form' || state.view === 'consume') { 
         nav.classList.add('hidden'); 
         fTitle.classList.remove('hidden'); 
+        fTitle.innerText = state.view === 'form' ? 'Editor' : 'Vážení';
     } else {
         nav.classList.remove('hidden'); 
         fTitle.classList.add('hidden');
@@ -244,6 +272,86 @@ function renderAuth(v) {
             <span onclick="toggleAuthView()" class="text-indigo-600 font-bold cursor-pointer hover:underline">
                 ${isLogin ? 'Registrovat' : 'Přihlásit'}
             </span>
+        </div>
+    `;
+    v.appendChild(container);
+}
+
+// --- CONSUME LOGIC ---
+
+window.setConsumeMode = (mode) => {
+    state.consumeMode = mode;
+    render();
+}
+
+window.handleConsumeSubmit = (e) => {
+    e.preventDefault();
+    const item = filaments.find(i => i.id === state.consumeId);
+    if(!item) return;
+
+    let grams = 0;
+    const desc = document.getElementById('c-desc').value || 'Tisk';
+    
+    if(state.consumeMode === 'used') {
+        grams = -1 * parseInt(document.getElementById('c-val').value);
+    } else {
+        // Weight mode: NewNetto = MeasuredGross - SpoolWeight
+        // Diff = NewNetto - OldNetto
+        const measuredGross = parseInt(document.getElementById('c-val').value);
+        const spoolWeight = item.spool_weight || 0;
+        const currentNetto = item.g;
+        
+        const newNetto = measuredGross - spoolWeight;
+        grams = newNetto - currentNetto;
+    }
+
+    consumeFilament(item.id, grams, desc);
+}
+
+function renderConsume(v) {
+    const item = filaments.find(i => i.id === state.consumeId);
+    if (!item) { state.view = 'wizard'; render(); return; }
+
+    const isUsed = state.consumeMode === 'used';
+    const hasSpool = !!item.spool_id;
+    const spoolWeight = item.spool_weight || 0;
+    const grossWeight = item.g + spoolWeight;
+
+    const container = document.createElement('div');
+    container.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 max-w-lg mx-auto space-y-6";
+    container.innerHTML = `
+        <div class="text-center">
+            <h2 class="text-xl font-black text-slate-800">${item.mat} ${item.color}</h2>
+            <div class="text-sm text-slate-500 font-bold uppercase mt-1">Aktuálně: ${item.g}g (Netto)</div>
+        </div>
+        
+        <div class="flex p-1 bg-slate-100 rounded-xl">
+            <button onclick="setConsumeMode('used')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-all ${isUsed ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}">Spotřebováno</button>
+            <button onclick="setConsumeMode('weight')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-all ${!isUsed ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}">Zváženo (Brutto)</button>
+        </div>
+
+        <div class="space-y-4">
+            ${!isUsed && !hasSpool ? `<div class="bg-amber-50 text-amber-600 p-3 rounded-xl text-xs font-bold border border-amber-100">⚠ Pozor: U této cívky není nastavena Tára. Výpočet bude nepřesný (bude se počítat Tára 0g).</div>` : ''}
+            
+            <div class="text-center">
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">
+                    ${isUsed ? 'Kolik gramů jste spotřebovali?' : 'Kolik váží cívka na váze?'}
+                </label>
+                <div class="flex items-center justify-center gap-2">
+                    <input id="c-val" type="number" autofocus class="w-32 text-center text-3xl font-black bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 ring-indigo-500 outline-none" placeholder="0">
+                    <span class="text-xl font-bold text-slate-300">g</span>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Poznámka (Volitelné)</label>
+                <input id="c-desc" type="text" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold text-sm" placeholder="Např. Projekt XY">
+            </div>
+        </div>
+
+        <div class="flex gap-3 pt-2">
+            <button onclick="window.resetApp()" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">Zrušit</button>
+            <button onclick="window.handleConsumeSubmit(event)" class="flex-[2] py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">Zapsat</button>
         </div>
     `;
     v.appendChild(container);
@@ -291,8 +399,9 @@ window.handleFormSubmit = (e) => {
         g: parseInt(document.getElementById('f-g').value),
         loc: document.getElementById('f-loc').value,
         price: document.getElementById('f-price').value,
-        seller: document.getElementById('f-seller') ? document.getElementById('f-seller').value : '', // Seller might be select or input
-        date: document.getElementById('f-date').value
+        seller: document.getElementById('f-seller') ? document.getElementById('f-seller').value : '',
+        date: document.getElementById('f-date').value,
+        spool_id: document.getElementById('f-spool').value
     };
     saveFilament(item);
 };
@@ -327,10 +436,18 @@ function renderForm(v) {
             <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Výrobce</label><div class="input-group">${renderFieldInput('man', mans, item.man)}</div></div>
         </div>
         <div class="grid grid-cols-2 gap-4">
-            <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Hmotnost (g)</label><input id="f-g" type="number" value="${item.g}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold"></div>
+            <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Počáteční hmotnost (g)</label><input id="f-g" type="number" value="${item.initial_weight_grams || item.g}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold"></div>
             <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Umístění</label><div class="input-group">${renderFieldInput('loc', locs, item.loc)}</div></div>
         </div>
         
+        <div class="field-container">
+             <label class="text-[10px] font-bold text-slate-400 uppercase">Typ Cívky (Tára)</label>
+             <select id="f-spool" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold appearance-none">
+                <option value="" ${!item.spool_id ? 'selected' : ''}>Žádná / Neznámá</option>
+                ${spoolTemplates.map(s => `<option value="${s.id}" ${s.id == item.spool_id ? 'selected' : ''}>${s.manufacturer} - ${s.weight_grams}g (${s.visual_description || 'Standard'})</option>`).join('')}
+            </select>
+        </div>
+
         <div class="border-t border-slate-100 pt-4 space-y-4">
             <h3 class="text-xs font-bold text-slate-400 uppercase">Obchodní údaje</h3>
             <div class="grid grid-cols-2 gap-4">
@@ -440,7 +557,7 @@ function renderDetails(v) {
                 </div>
             </div>
             <div class="text-right">
-                <div class="text-xl font-black text-indigo-600 leading-none">${item.g}<span class="text-xs ml-0.5">g</span></div>
+                <div onclick="event.stopPropagation(); window.openConsume(${item.id})" class="text-xl font-black text-indigo-600 leading-none bg-indigo-50 px-2 py-1 rounded-lg hover:bg-indigo-100 transition-colors">${item.g}<span class="text-xs ml-0.5">g</span></div>
                 <div class="text-[9px] text-slate-400 font-bold mt-1 uppercase">Zůstatek</div>
             </div>
         `;
@@ -467,5 +584,12 @@ window.openForm = () => {
     document.getElementById('action-menu').classList.add('hidden');
     render();
 };
+
+window.openConsume = (id) => {
+    state.consumeId = id;
+    state.view = 'consume';
+    state.consumeMode = 'used';
+    render();
+}
 
 checkAuth();
