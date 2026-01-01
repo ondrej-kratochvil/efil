@@ -5,9 +5,10 @@ const API_BASE = 'api';
 let filaments = [];
 let options = { materials: [], manufacturers: [], locations: [], sellers: [] };
 let spoolTemplates = [];
+let stats = null;
 let user = null;
 let state = {
-    view: 'loading', // loading, auth, wizard, form, consume
+    view: 'loading', // loading, auth, wizard, form, consume, stats
     authView: 'login', // login, register
     currentStep: 1,
     filters: { mat: null, color: null },
@@ -97,15 +98,17 @@ async function logout() {
 // --- DATA ---
 async function loadData() {
     try {
-        const [resFilaments, resOptions, resSpools] = await Promise.all([
+        const [resFilaments, resOptions, resSpools, resStats] = await Promise.all([
             fetch(`${API_BASE}/filaments/list.php`),
             fetch(`${API_BASE}/data/options.php`),
-            fetch(`${API_BASE}/spools/list.php`)
+            fetch(`${API_BASE}/spools/list.php`),
+            fetch(`${API_BASE}/dashboard/stats.php`)
         ]);
         
         if (resFilaments.ok) filaments = await resFilaments.json();
         if (resOptions.ok) options = await resOptions.json();
         if (resSpools.ok) spoolTemplates = await resSpools.json();
+        if (resStats.ok) stats = await resStats.json();
         
         render();
     } catch (err) {
@@ -208,6 +211,7 @@ function render() {
     if (state.view === 'auth') renderAuth(appView);
     else if (state.view === 'form') renderForm(appView);
     else if (state.view === 'consume') renderConsume(appView);
+    else if (state.view === 'stats') renderStats(appView);
     else {
         if (state.currentStep === 1) renderMaterials(appView);
         else if (state.currentStep === 2) renderColors(appView);
@@ -229,10 +233,12 @@ function updateHeader() {
     
     menuTrigger.classList.remove('hidden');
 
-    if (state.view === 'form' || state.view === 'consume') { 
+    if (state.view === 'form' || state.view === 'consume' || state.view === 'stats') { 
         nav.classList.add('hidden'); 
         fTitle.classList.remove('hidden'); 
-        fTitle.innerText = state.view === 'form' ? 'Editor' : 'Vážení';
+        if (state.view === 'form') fTitle.innerText = 'Editor';
+        else if (state.view === 'consume') fTitle.innerText = 'Vážení';
+        else fTitle.innerText = 'Přehled skladu';
     } else {
         nav.classList.remove('hidden'); 
         fTitle.classList.add('hidden');
@@ -267,6 +273,11 @@ function renderAuth(v) {
                 ${isLogin ? 'Přihlásit se' : 'Vytvořit účet'}
             </button>
         </form>
+        ${isLogin ? `
+        <button onclick="login('demo@efil.cz', 'demo1234')" class="mt-3 w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold border border-slate-200">
+            Vyzkoušet Demo
+        </button>
+        ` : ''}
         <div class="mt-6 text-center text-sm">
             ${isLogin ? 'Nemáte účet?' : 'Již máte účet?'} 
             <span onclick="toggleAuthView()" class="text-indigo-600 font-bold cursor-pointer hover:underline">
@@ -275,6 +286,46 @@ function renderAuth(v) {
         </div>
     `;
     v.appendChild(container);
+}
+
+// --- STATS ---
+function renderStats(v) {
+    if(!stats) {
+        v.innerHTML = '<p class="text-center p-10">Žádná data</p>';
+        return;
+    }
+
+    const container = document.createElement('div');
+    container.className = "space-y-4";
+    container.innerHTML = `
+        <div class="grid grid-cols-2 gap-4">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
+                <div class="text-[10px] font-bold text-slate-400 uppercase">Celkem na skladě</div>
+                <div class="text-2xl font-black text-indigo-600 mt-1">${formatKg(stats.total_weight_grams)}</div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
+                <div class="text-[10px] font-bold text-slate-400 uppercase">Odhad hodnoty</div>
+                <div class="text-2xl font-black text-slate-800 mt-1">${stats.total_value_czk} Kč</div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
+                <div class="text-[10px] font-bold text-slate-400 uppercase">Počet cívek</div>
+                <div class="text-2xl font-black text-slate-800 mt-1">${stats.total_count} ks</div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
+                <div class="text-[10px] font-bold text-slate-400 uppercase">Spotřeba (30 dní)</div>
+                <div class="text-2xl font-black text-slate-800 mt-1">${formatKg(stats.consumed_30_days_grams)}</div>
+            </div>
+        </div>
+
+        <button onclick="window.resetApp()" class="w-full py-4 bg-indigo-50 text-indigo-600 rounded-2xl font-bold shadow-sm mt-8">Zpět na sklad</button>
+    `;
+    v.appendChild(container);
+}
+
+window.openStats = () => {
+    state.view = 'stats';
+    document.getElementById('action-menu').classList.add('hidden');
+    render();
 }
 
 // --- CONSUME LOGIC ---
@@ -589,6 +640,12 @@ window.openConsume = (id) => {
     state.consumeId = id;
     state.view = 'consume';
     state.consumeMode = 'used';
+    render();
+}
+
+window.openStats = () => {
+    state.view = 'stats';
+    document.getElementById('action-menu').classList.add('hidden');
     render();
 }
 
