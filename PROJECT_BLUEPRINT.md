@@ -51,23 +51,23 @@ Správa cívek (Tára)
  * Statistiky: Celková hmotnost skladu, celková investice (cena), čerpání za poslední týden/měsíc.
 6. TODO List & Harmonogram
 Fáze 0: Příprava (AI Kontext)
- * [ ] Vytvořit soubor .env a config.php pro DB spojení.
- * [ ] Vytvořit SQL migrační skript pro inicializaci MariaDB.
+ * [x] Vytvořit soubor .env a config.php pro DB spojení.
+ * [x] Vytvořit SQL migrační skript pro inicializaci MariaDB.
 Fáze 1: Core Backend & Auth
- * [ ] Implementovat registraci, login a systém rolí.
- * [ ] Vytvořit "God mode" pro Admin eFil účet.
- * [ ] Realizovat systém přístupových kódů (hashes) pro sdílení evidencí.
+ * [x] Implementovat registraci, login a systém rolí.
+ * [x] Vytvořit "God mode" pro Admin eFil účet.
+ * [x] Realizovat systém přístupových kódů (hashes) pro sdílení evidencí.
 Fáze 2: Rozhraní a Evidence (AJAX)
- * [ ] Implementovat "Chytré Selecty" s možností přidání nové hodnoty (MAT, VÝR, LOC).
- * [ ] Vytvořit filtr (Wizard) MAT -> BAR -> VÝR se synchronizací filtrů.
- * [ ] Implementovat logiku předvyplňování názvu barvy z hex kódu.
+ * [x] Implementovat "Chytré Selecty" s možností přidání nové hodnoty (MAT, VÝR, LOC).
+ * [x] Vytvořit filtr (Wizard) MAT -> BAR -> VÝR se synchronizací filtrů.
+ * [x] Implementovat logiku předvyplňování názvu barvy z hex kódu.
 Fáze 3: Čerpání a Hmotnost
- * [ ] Vytvořit modul "Čerpání" (klik na hmotnost -> modal pro zápis gramů).
- * [ ] Implementovat komunitní knihovnu cívek (Spool Library).
- * [ ] Integrovat automatický přepočet Netto/Brutto váhy.
+ * [x] Vytvořit modul "Čerpání" (klik na hmotnost -> modal pro zápis gramů).
+ * [x] Implementovat komunitní knihovnu cívek (Spool Library).
+ * [x] Integrovat automatický přepočet Netto/Brutto váhy.
 Fáze 4: Dashboard a Demo
- * [ ] Vytvořit sekci Statistiky s agregovanými daty z DB.
- * [ ] Implementovat logiku Demo účtu pro neregistrované návštěvníky.
+ * [x] Vytvořit sekci Statistiky s agregovanými daty z DB.
+ * [x] Implementovat logiku Demo účtu pro neregistrované návštěvníky.
 Fáze 5: Optimalizace
- * [ ] Refaktorizace CSS do proměnných.
- * [ ] Vytvořit testovací skripty pro validaci matematických výpočtů zůstatků.
+ * [x] Refaktorizace CSS do proměnných.
+ * [x] Vytvořit testovací skripty pro validaci matematických výpočtů zůstatků.
