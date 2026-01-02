@@ -15,11 +15,12 @@ try {
     
     // Join with manufacturers to get name
     $sql = "
-        SELECT s.id, s.weight_grams, s.visual_description, m.name as manufacturer 
+        SELECT s.id, s.weight_grams, s.color, s.material, s.outer_diameter_mm, s.width_mm, s.visual_description, 
+               COALESCE(m.name, 'Neznámý') as manufacturer 
         FROM spool_library s
-        JOIN manufacturers m ON s.manufacturer_id = m.id
+        LEFT JOIN manufacturers m ON s.manufacturer_id = m.id
         WHERE s.created_by IS NULL OR s.created_by = ?
-        ORDER BY m.name, s.weight_grams
+        ORDER BY s.color, s.material, s.outer_diameter_mm, s.weight_grams
     ";
     
     $stmt = $pdo->prepare($sql);

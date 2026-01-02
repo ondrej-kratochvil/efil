@@ -1,6 +1,7 @@
 <?php
 // tests/balance_test.php
 require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/helpers.php';
 
 echo "Running Balance Calculation Tests...\n";
 echo "------------------------------------\n";
@@ -14,7 +15,7 @@ try {
     $stmt = $pdo->prepare("INSERT INTO users (email, password_hash) VALUES (?, 'hash')");
     $stmt->execute([$testEmail]);
     $userId = $pdo->lastInsertId();
-    
+
     $stmt = $pdo->prepare("INSERT INTO inventories (owner_id, name) VALUES (?, 'Test Inv')");
     $stmt->execute([$userId]);
     $invId = $pdo->lastInsertId();
@@ -84,7 +85,7 @@ function getBalance($pdo, $fid) {
 
 function getBrutto($pdo, $fid) {
     $stmt = $pdo->prepare("
-        SELECT 
+        SELECT
             (f.initial_weight_grams + COALESCE(SUM(cl.amount_grams), 0) + COALESCE(sl.weight_grams, 0)) as brutto
         FROM filaments f
         LEFT JOIN consumption_log cl ON f.id = cl.filament_id
@@ -101,11 +102,4 @@ function logConsumption($pdo, $fid, $amount) {
     $stmt->execute([$fid, $amount]);
 }
 
-function assertResult($name, $expected, $actual) {
-    if ($expected === $actual) {
-        echo "[PASS] $name: Expected $expected, Got $actual\n";
-    } else {
-        echo "[FAIL] $name: Expected $expected, Got $actual\n";
-        exit(1);
-    }
-}
+// assertResult() is now in helpers.php

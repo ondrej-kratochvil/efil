@@ -27,15 +27,23 @@ if (!$filamentId || $amount == 0) {
 }
 
 try {
-    // Verify ownership via inventory
+    // Verify access via inventory (owner or member with write/manage permission)
     $stmt = $pdo->prepare("
-        SELECT f.id 
-        FROM filaments f 
-        JOIN inventories i ON f.inventory_id = i.id 
-        WHERE f.id = ? AND i.owner_id = ?
+        SELECT f.id
+        FROM filaments f
+        JOIN inventories i ON f.inventory_id = i.id
+        WHERE f.id = ? AND (
+            i.owner_id = ?
+            OR EXISTS (
+                SELECT 1 FROM inventory_members im
+                WHERE im.inventory_id = i.id
+                AND im.user_id = ?
+                AND im.role IN ('write', 'manage')
+            )
+        )
     ");
-    $stmt->execute([$filamentId, $userId]);
-    
+    $stmt->execute([$filamentId, $userId, $userId]);
+
     if (!$stmt->fetch()) {
         http_response_code(403);
         echo json_encode(['error' => 'Access denied']);

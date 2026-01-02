@@ -26,19 +26,31 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $input = json_decode(file_get_contents('php://input'), true);
 $userId = $_SESSION['user_id'];
 
-// Get user's inventory
-$stmtInv = $pdo->prepare("SELECT id FROM inventories WHERE owner_id = ? LIMIT 1");
-$stmtInv->execute([$userId]);
+// Get user's inventory (owned or shared with write/manage permission)
+$sql = "
+    SELECT i.id, 'owner' as role
+    FROM inventories i
+    WHERE i.owner_id = ?
+    UNION
+    SELECT i.id, im.role
+    FROM inventories i
+    JOIN inventory_members im ON i.id = im.inventory_id
+    WHERE im.user_id = ? AND im.role IN ('write', 'manage')
+    LIMIT 1
+";
+$stmtInv = $pdo->prepare($sql);
+$stmtInv->execute([$userId, $userId]);
 $inv = $stmtInv->fetch();
 
 if (!$inv) {
-    jsonResponse(['error' => 'No inventory found'], 404);
+    jsonResponse(['error' => 'No inventory found or insufficient permissions'], 404);
 }
 
 $inventoryId = $inv['id'];
 
 // Determine if Update or Create
 $id = $input['id'] ?? null;
+$userDisplayId = !empty($input['user_display_id']) ? (int)$input['user_display_id'] : null;
 $mat = $input['mat'] ?? '';
 $man = $input['man'] ?? '';
 $color = $input['color'] ?? '';
@@ -57,6 +69,19 @@ if (!$mat || !$color) {
 }
 
 try {
+    // Ensure manufacturer exists in manufacturers table
+    if (!empty($man)) {
+        $stmtMan = $pdo->prepare("SELECT id FROM manufacturers WHERE name = ?");
+        $stmtMan->execute([$man]);
+        $existingMan = $stmtMan->fetch();
+
+        if (!$existingMan) {
+            // Create new manufacturer
+            $stmtInsert = $pdo->prepare("INSERT INTO manufacturers (name) VALUES (?)");
+            $stmtInsert->execute([$man]);
+        }
+    }
+
     if ($id) {
         // UPDATE
         // Verify ownership
@@ -70,37 +95,58 @@ try {
         // For simple edit, we update 'initial_weight_grams' but we must account for existing logs?
         // Actually, 'initial_weight_grams' usually means weight when spool was added.
         // If user edits "Current Weight" in form, we might need to adjust initial or add a "correction" log.
-        // For simplicity in Phase 2, let's assume the form edits static properties. 
+        // For simplicity in Phase 2, let's assume the form edits static properties.
         // Changing weight directly is usually an "inventory correction" -> consumption_log.
-        // Let's assume input['g'] is the NEW Initial Weight if we are editing properties, 
-        // OR we just update the static fields. 
+        // Let's assume input['g'] is the NEW Initial Weight if we are editing properties,
+        // OR we just update the static fields.
         // BUT Blueprint says: "Aktuální zůstatek (Netto) = initial + SUM(log)".
         // If user edits the "Weight" field in editor, they probably mean "This was the initial weight".
-        
-        $sql = "UPDATE filaments SET 
-                material = ?, manufacturer = ?, color_name = ?, color_hex = ?, 
+
+        // Check for duplicate user_display_id if provided
+        if ($userDisplayId !== null) {
+            $checkDup = $pdo->prepare("SELECT id FROM filaments WHERE inventory_id = ? AND user_display_id = ? AND id != ?");
+            $checkDup->execute([$inventoryId, $userDisplayId, $id]);
+            if ($checkDup->fetch()) {
+                jsonResponse(['error' => 'Číslo filamentu již existuje v této evidenci. Zvolte jiné číslo.'], 400);
+            }
+        }
+
+        $sql = "UPDATE filaments SET
+                user_display_id = COALESCE(?, user_display_id),
+                material = ?, manufacturer = ?, color_name = ?, color_hex = ?,
                 location = ?, price = ?, seller = ?, purchase_date = ?, initial_weight_grams = ?, spool_type_id = ?
                 WHERE id = ?";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$mat, $man, $color, $hex, $loc, $price, $seller, $date, $weight, $spoolId, $id]);
-        
+        $stmt->execute([$userDisplayId, $mat, $man, $color, $hex, $loc, $price, $seller, $date, $weight, $spoolId, $id]);
+
         jsonResponse(['message' => 'Updated', 'id' => $id]);
 
     } else {
         // CREATE
-        // Generate user_display_id
-        $stmtMax = $pdo->prepare("SELECT MAX(user_display_id) as maxid FROM filaments WHERE inventory_id = ?");
-        $stmtMax->execute([$inventoryId]);
-        $nextId = ($stmtMax->fetch()['maxid'] ?? 0) + 1;
+        // Determine user_display_id: use provided or generate next available
+        if ($userDisplayId !== null) {
+            // Check for duplicate
+            $checkDup = $pdo->prepare("SELECT id FROM filaments WHERE inventory_id = ? AND user_display_id = ?");
+            $checkDup->execute([$inventoryId, $userDisplayId]);
+            if ($checkDup->fetch()) {
+                jsonResponse(['error' => 'Číslo filamentu již existuje v této evidenci. Zvolte jiné číslo.'], 400);
+            }
+            $finalDisplayId = $userDisplayId;
+        } else {
+            // Generate user_display_id automatically
+            $stmtMax = $pdo->prepare("SELECT MAX(user_display_id) as maxid FROM filaments WHERE inventory_id = ?");
+            $stmtMax->execute([$inventoryId]);
+            $finalDisplayId = ($stmtMax->fetch()['maxid'] ?? 0) + 1;
+        }
 
         $sql = "INSERT INTO filaments (
-                    inventory_id, user_display_id, material, manufacturer, 
-                    color_name, color_hex, initial_weight_grams, location, 
+                    inventory_id, user_display_id, material, manufacturer,
+                    color_name, color_hex, initial_weight_grams, location,
                     price, seller, purchase_date, spool_type_id
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$inventoryId, $nextId, $mat, $man, $color, $hex, $weight, $loc, $price, $seller, $date, $spoolId]);
-        
+        $stmt->execute([$inventoryId, $finalDisplayId, $mat, $man, $color, $hex, $weight, $loc, $price, $seller, $date, $spoolId]);
+
         jsonResponse(['message' => 'Created', 'id' => $pdo->lastInsertId()], 201);
     }
 

@@ -15,14 +15,54 @@ let state = {
     editingId: null,
     consumeId: null,
     consumeMode: 'used', // used (subtract), weight (calculate from gross)
-    formFieldsStatus: { mat: 'select', man: 'select', loc: 'select', seller: 'select' }
+    formFieldsStatus: { mat: 'select', man: 'select', loc: 'select', seller: 'select', spool: 'select' }
 };
 
 const colorNames = [
     { name: 'Černá', hex: '#000000' }, { name: 'Bílá', hex: '#ffffff' }, { name: 'Červená', hex: '#ff0000' },
     { name: 'Zelená', hex: '#00ff00' }, { name: 'Modrá', hex: '#0000ff' }, { name: 'Žlutá', hex: '#ffff00' },
     { name: 'Oranžová', hex: '#ffa500' }, { name: 'Šedá', hex: '#808080' }, { name: 'Stříbrná', hex: '#c0c0c0' },
-    { name: 'Zlatá', hex: '#ffd700' }, { name: 'Fialová', hex: '#800080' }, { name: 'Hnědá', hex: '#a52a2a' }
+    { name: 'Zlatá', hex: '#ffd700' }, { name: 'Fialová', hex: '#800080' }, { name: 'Hnědá', hex: '#a52a2a' },
+    { name: 'Růžová', hex: '#ffc0cb' }, { name: 'Azurová', hex: '#00ffff' }, { name: 'Limetková', hex: '#00ff00' },
+    { name: 'Tmavě modrá', hex: '#000080' }
+];
+
+// Paleta 32 barev pro color picker
+const colorPalette = [
+    // Prvních 16 barev
+    { name: 'Černá', hex: '#000000' },
+    { name: 'Bílá', hex: '#FFFFFF' },
+    { name: 'Šedá', hex: '#8E9089' },
+    { name: 'Stříbrná', hex: '#A6A9AA' },
+    { name: 'Červená', hex: '#C12E1F' },
+    { name: 'Modrá', hex: '#0A2989' },
+    { name: 'Zelená', hex: '#3F8E43' },
+    { name: 'Žlutá', hex: '#FEC600' },
+    { name: 'Oranžová', hex: '#FF6A13' },
+    { name: 'Hnědá', hex: '#6F5034' },
+    { name: 'Fialová', hex: '#5E43B7' },
+    { name: 'Růžová', hex: '#F55A74' },
+    { name: 'Zlatá', hex: '#E4BD68' },
+    { name: 'Průhledná / Čirá', hex: '#E8E8E8' },
+    { name: 'Námořnická modrá', hex: '#001F3F' },
+    { name: 'Vojenská zelená', hex: '#4B5320' },
+    // Dalších 16 barev
+    { name: 'Azurová', hex: '#00AEEF' },
+    { name: 'Purpurová', hex: '#EC008C' },
+    { name: 'Limetková', hex: '#BECF00' },
+    { name: 'Tyrkysová', hex: '#40E0D0' },
+    { name: 'Vínová', hex: '#800000' },
+    { name: 'Béžová / Tělová', hex: '#F7E6DE' },
+    { name: 'Bronzová', hex: '#847D48' },
+    { name: 'Měděná', hex: '#B87333' },
+    { name: 'Mentolová', hex: '#AAF0D1' },
+    { name: 'Levandulová', hex: '#B1BCD9' },
+    { name: 'Antracitová', hex: '#333333' },
+    { name: 'Neonová zelená', hex: '#39FF14' },
+    { name: 'Neonová žlutá', hex: '#FFFF00' },
+    { name: 'Mramorová', hex: '#FFFFFF' }, // Bílá s tečkami - použijeme bílou
+    { name: 'Galaxy černá', hex: '#000000' }, // Černá se třpytkami - použijeme černou
+    { name: 'Vícebarevná', hex: '#FF00FF' } // Rainbow - použijeme fialovou jako placeholder
 ];
 
 // --- AUTH ---
@@ -87,6 +127,8 @@ async function register(email, password) {
 }
 
 async function logout() {
+    // Close menu before logout
+    document.getElementById('action-menu').classList.add('hidden');
     await fetch(`${API_BASE}/auth/logout.php`);
     user = null;
     state.view = 'auth';
@@ -104,12 +146,18 @@ async function loadData() {
             fetch(`${API_BASE}/spools/list.php`),
             fetch(`${API_BASE}/dashboard/stats.php`)
         ]);
-        
+
         if (resFilaments.ok) filaments = await resFilaments.json();
-        if (resOptions.ok) options = await resOptions.json();
+        if (resOptions.ok) {
+            const optionsData = await resOptions.json();
+            options = optionsData;
+            console.log('Options loaded:', options); // Debug
+        } else {
+            console.error('Options request failed:', resOptions.status);
+        }
         if (resSpools.ok) spoolTemplates = await resSpools.json();
         if (resStats.ok) stats = await resStats.json();
-        
+
         render();
     } catch (err) {
         console.error('Data load error', err);
@@ -124,7 +172,7 @@ async function saveFilament(data) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        
+
         if (res.ok) {
             showToast('Uloženo');
             await loadData();
@@ -148,11 +196,11 @@ async function consumeFilament(filamentId, amount, description) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ filament_id: filamentId, amount, description })
         });
-        
+
         if (res.ok) {
             showToast('Zapsáno');
             await loadData();
-            state.view = 'wizard'; 
+            state.view = 'wizard';
             render();
         } else {
             const err = await res.json();
@@ -195,7 +243,7 @@ function getClosestColorName(hex) {
 function render() {
     const appView = document.getElementById('app-view');
     const loadingScreen = document.getElementById('loading-screen');
-    
+
     if (state.view === 'loading') {
         loadingScreen.classList.remove('hidden');
         appView.classList.add('hidden');
@@ -223,24 +271,24 @@ function updateHeader() {
     const nav = document.getElementById('wizard-nav');
     const fTitle = document.getElementById('form-title');
     const menuTrigger = document.getElementById('menu-trigger');
-    
+
     if (state.view === 'auth') {
         nav.classList.add('hidden');
         fTitle.classList.add('hidden');
         menuTrigger.classList.add('hidden');
         return;
     }
-    
+
     menuTrigger.classList.remove('hidden');
 
-    if (state.view === 'form' || state.view === 'consume' || state.view === 'stats') { 
-        nav.classList.add('hidden'); 
-        fTitle.classList.remove('hidden'); 
+    if (state.view === 'form' || state.view === 'consume' || state.view === 'stats') {
+        nav.classList.add('hidden');
+        fTitle.classList.remove('hidden');
         if (state.view === 'form') fTitle.innerText = 'Editor';
         else if (state.view === 'consume') fTitle.innerText = 'Vážení';
         else fTitle.innerText = 'Přehled skladu';
     } else {
-        nav.classList.remove('hidden'); 
+        nav.classList.remove('hidden');
         fTitle.classList.add('hidden');
         ['nav-mat', 'nav-bar', 'nav-vyr'].forEach((id, idx) => {
             const el = document.getElementById(id);
@@ -282,7 +330,7 @@ function renderAuth(v) {
         </button>
         ` : ''}
         <div class="mt-6 text-center text-sm">
-            ${isLogin ? 'Nemáte účet?' : 'Již máte účet?'} 
+            ${isLogin ? 'Nemáte účet?' : 'Již máte účet?'}
             <span onclick="toggleAuthView()" class="text-indigo-600 font-bold cursor-pointer hover:underline">
                 ${isLogin ? 'Registrovat' : 'Přihlásit'}
             </span>
@@ -388,7 +436,7 @@ window.handleConsumeSubmit = (e) => {
 
     let grams = 0;
     const desc = document.getElementById('c-desc').value || 'Tisk';
-    
+
     if(state.consumeMode === 'used') {
         grams = -1 * parseInt(document.getElementById('c-val').value);
     } else {
@@ -397,7 +445,7 @@ window.handleConsumeSubmit = (e) => {
         const measuredGross = parseInt(document.getElementById('c-val').value);
         const spoolWeight = item.spool_weight || 0;
         const currentNetto = item.g;
-        
+
         const newNetto = measuredGross - spoolWeight;
         grams = newNetto - currentNetto;
     }
@@ -421,25 +469,26 @@ function renderConsume(v) {
             <h2 class="text-xl font-black text-slate-800">${item.mat} ${item.color}</h2>
             <div class="text-sm text-slate-500 font-bold uppercase mt-1">Aktuálně: ${item.g}g (Netto)</div>
         </div>
-        
+
         <div class="flex p-1 bg-slate-100 rounded-xl">
-            <button onclick="setConsumeMode('used')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-all ${isUsed ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}">Spotřebováno</button>
-            <button onclick="setConsumeMode('weight')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-all ${!isUsed ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}">Zváženo (Brutto)</button>
+            <button onclick="setConsumeMode('used')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-all ${isUsed ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}">Přesný úbytek</button>
+            <button onclick="setConsumeMode('weight')" class="flex-1 py-2 rounded-lg font-bold text-sm transition-all ${!isUsed ? 'bg-white shadow text-indigo-600' : 'text-slate-500'}">Vážení s cívkou</button>
         </div>
 
         <div class="space-y-4">
             ${!isUsed && !hasSpool ? `<div class="bg-amber-50 text-amber-600 p-3 rounded-xl text-xs font-bold border border-amber-100">⚠ Pozor: U této cívky není nastavena Tára. Výpočet bude nepřesný (bude se počítat Tára 0g).</div>` : ''}
-            
+            ${!isUsed && hasSpool ? `<div class="bg-indigo-50 text-indigo-600 p-3 rounded-xl text-xs font-bold border border-indigo-100">ℹ️ Tára cívky: ${spoolWeight}g - bude automaticky odečtena od zadané hmotnosti</div>` : ''}
+
             <div class="text-center">
                 <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">
-                    ${isUsed ? 'Kolik gramů jste spotřebovali?' : 'Kolik váží cívka na váze?'}
+                    ${isUsed ? 'Kolik gramů jste spotřebovali? (zadejte úbytek)' : 'Kolik váží cívka s filamentem? (váha na váze)'}
                 </label>
                 <div class="flex items-center justify-center gap-2">
                     <input id="c-val" type="number" autofocus class="w-32 text-center text-3xl font-black bg-slate-50 border-none rounded-2xl p-4 focus:ring-2 ring-indigo-500 outline-none" placeholder="0">
                     <span class="text-xl font-bold text-slate-300">g</span>
                 </div>
             </div>
-            
+
             <div>
                 <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Poznámka (Volitelné)</label>
                 <input id="c-desc" type="text" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold text-sm" placeholder="Např. Projekt XY">
@@ -457,92 +506,464 @@ function renderConsume(v) {
 // --- FORM LOGIC ---
 
 window.renderFieldInput = (key, list, value) => {
+    // Check if list is an object with top/others structure or a plain array
+    const hasGroups = list && typeof list === 'object' && !Array.isArray(list) && list.top && list.others;
+    const listArray = hasGroups ? [...(list.top || []), ...(list.others || [])] : (Array.isArray(list) ? list : []);
     const isSelect = state.formFieldsStatus[key] === 'select';
-    if (isSelect && list.length > 0) {
+
+    // If list is empty and in select mode, show input instead (user can add new value)
+    if (isSelect && listArray.length > 0) {
+        let optionsHtml = `<option value="" disabled ${!value ? 'selected' : ''}>Vybrat...</option>`;
+
+        if (hasGroups && list.top && list.top.length > 0) {
+            // Render with optgroups
+            optionsHtml += `<optgroup label="Nejčastější">`;
+            optionsHtml += list.top.map(i => `<option value="${i}" ${i === value ? 'selected' : ''}>${i}</option>`).join('');
+            optionsHtml += `</optgroup>`;
+
+            if (list.others && list.others.length > 0) {
+                optionsHtml += `<optgroup label="Ostatní">`;
+                optionsHtml += list.others.map(i => `<option value="${i}" ${i === value ? 'selected' : ''}>${i}</option>`).join('');
+                optionsHtml += `</optgroup>`;
+            }
+        } else {
+            // Render as plain list
+            optionsHtml += listArray.map(i => `<option value="${i}" ${i === value ? 'selected' : ''}>${i}</option>`).join('');
+        }
+
         return `
             <select id="f-${key}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold appearance-none">
-                <option value="" disabled ${!value ? 'selected' : ''}>Vybrat...</option>
-                ${list.map(i => `<option value="${i}" ${i === value ? 'selected' : ''}>${i}</option>`).join('')}
+                ${optionsHtml}
             </select>
-            <button onclick="toggleField('${key}')" class="bg-indigo-100 text-indigo-600 p-3 rounded-xl font-bold">+</button>
+            <button type="button" onclick="toggleField('${key}')" class="bg-indigo-100 text-indigo-600 p-3 rounded-xl font-bold">+</button>
         `;
     }
+    // Show input if list is empty or in input mode
     return `
         <input id="f-${key}" type="text" value="${value || ''}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="Zadejte novou hodnotu">
-        ${list.length > 0 ? `<button onclick="toggleField('${key}')" class="bg-slate-200 text-slate-500 p-3 rounded-xl font-bold">zpět</button>` : ''}
+        ${listArray.length > 0 ? `<button type="button" onclick="toggleField('${key}')" class="bg-slate-200 text-slate-500 p-3 rounded-xl font-bold">zpět</button>` : ''}
     `;
 };
 
-window.toggleField = (key) => {
-    state.formFieldsStatus[key] = state.formFieldsStatus[key] === 'select' ? 'input' : 'select';
-    render();
+window.renderSpoolInput = (selectedId) => {
+    const isSelect = state.formFieldsStatus.spool === 'select';
+
+    if (isSelect) {
+        const formatSpoolLabel = (s) => {
+            const parts = [];
+            if (s.color) parts.push(s.color);
+            if (s.material) parts.push(s.material);
+            if (s.outer_diameter_mm) parts.push(`Ø${s.outer_diameter_mm}mm`);
+            if (s.width_mm) parts.push(`${s.width_mm}mm`);
+            if (s.weight_grams) parts.push(`${s.weight_grams}g`);
+            if (s.visual_description) parts.push(`(${s.visual_description})`);
+            return parts.length > 0 ? parts.join(' • ') : 'Neznámá cívka';
+        };
+
+        return `
+            <select id="f-spool" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold appearance-none">
+                <option value="" disabled ${!selectedId ? 'selected' : ''}>Vybrat...</option>
+                <option value="" ${selectedId === null || selectedId === '' ? 'selected' : ''}>Žádná / Neznámá</option>
+                ${spoolTemplates.map(s => `<option value="${s.id}" ${s.id == selectedId ? 'selected' : ''}>${formatSpoolLabel(s)}</option>`).join('')}
+            </select>
+            <button type="button" onclick="toggleSpoolField()" class="bg-indigo-100 text-indigo-600 p-3 rounded-xl font-bold">+</button>
+        `;
+    }
+
+    // Save current values before switching
+    const savedValues = state.spoolInputValues || {};
+
+    return `
+        <div class="w-full space-y-2">
+            <div class="grid grid-cols-2 gap-2">
+                <input id="f-spool-color" type="text" value="${savedValues.color || ''}" placeholder="Barva (černá, šedá...)" class="bg-slate-50 border-none rounded-xl p-3 font-bold">
+                <input id="f-spool-material" type="text" value="${savedValues.material || ''}" placeholder="Materiál (PC, PS, ABS...)" class="bg-slate-50 border-none rounded-xl p-3 font-bold">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <input id="f-spool-diameter" type="number" value="${savedValues.diameter || ''}" placeholder="Vnější průměr (mm)" class="bg-slate-50 border-none rounded-xl p-3 font-bold">
+                <input id="f-spool-width" type="number" value="${savedValues.width || ''}" placeholder="Šířka (mm)" class="bg-slate-50 border-none rounded-xl p-3 font-bold">
+            </div>
+            <input id="f-spool-weight" type="number" value="${savedValues.weight || ''}" placeholder="Hmotnost (g) - zadejte, až když bude cívka prázdná" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold">
+            <input id="f-spool-desc" type="text" value="${savedValues.desc || ''}" placeholder="Popis (s otvory, s reliéfem...)" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold">
+            ${spoolTemplates.length > 0 ? `<button type="button" onclick="toggleSpoolField()" class="bg-slate-200 text-slate-500 p-3 rounded-xl font-bold w-full">zpět</button>` : ''}
+        </div>
+    `;
 };
 
-window.handleColorChange = (hex) => {
+window.toggleSpoolField = () => {
+    // Save all form values before switching (including spool values)
+    saveFormValues();
+
+    // Save current spool input values before switching
+    if (state.formFieldsStatus.spool === 'input') {
+        state.spoolInputValues = {
+            color: document.getElementById('f-spool-color')?.value || '',
+            material: document.getElementById('f-spool-material')?.value || '',
+            diameter: document.getElementById('f-spool-diameter')?.value || '',
+            width: document.getElementById('f-spool-width')?.value || '',
+            weight: document.getElementById('f-spool-weight')?.value || '',
+            desc: document.getElementById('f-spool-desc')?.value || ''
+        };
+    }
+
+    state.formFieldsStatus.spool = state.formFieldsStatus.spool === 'select' ? 'input' : 'select';
+    render();
+
+    // Restore all form values after render
+    restoreFormValues();
+
+    if (state.formFieldsStatus.spool === 'input') {
+        setTimeout(() => {
+            const input = document.getElementById('f-spool-color');
+            if (input) {
+                input.focus();
+            }
+        }, 50);
+    }
+};
+
+window.toggleField = (key) => {
+    // Save all form values before switching
+    saveFormValues();
+
+    const wasSelect = state.formFieldsStatus[key] === 'select';
+    state.formFieldsStatus[key] = wasSelect ? 'input' : 'select';
+    render();
+
+    // Restore form values after render
+    restoreFormValues();
+
+    // Pokud jsme přepnuli do input módu, nastav focus na input pole
+    if (wasSelect) {
+        setTimeout(() => {
+            const input = document.getElementById(`f-${key}`);
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }, 50);
+    }
+};
+
+// Save all form values to state
+window.saveFormValues = () => {
+    if (!state.formValues) state.formValues = {};
+
+    // Save all form fields
+    const fields = ['user_display_id', 'mat', 'man', 'loc', 'seller', 'color', 'hex', 'g', 'price', 'date', 'spool'];
+    fields.forEach(field => {
+        const el = document.getElementById(`f-${field}`);
+        if (el) {
+            state.formValues[field] = el.value;
+        }
+    });
+
+    // Save weight mode
+    const weightModeEl = document.getElementById('f-weight-mode');
+    if (weightModeEl) {
+        state.formValues.weightMode = weightModeEl.value;
+    }
+
+    // Save spool input values
+    if (!state.formValues.spoolInput) state.formValues.spoolInput = {};
+    const spoolFields = ['spool-color', 'spool-material', 'spool-diameter', 'spool-width', 'spool-weight', 'spool-desc'];
+    spoolFields.forEach(field => {
+        const el = document.getElementById(`f-${field}`);
+        if (el) {
+            state.formValues.spoolInput[field] = el.value;
+        }
+    });
+};
+
+// Restore all form values from state
+window.restoreFormValues = () => {
+    if (!state.formValues) return;
+
+    // Restore all form fields
+    Object.keys(state.formValues).forEach(field => {
+        if (field === 'weightMode') {
+            const el = document.getElementById('f-weight-mode');
+            if (el) {
+                el.value = state.formValues[field];
+                state.weightMode = state.formValues[field];
+                updateWeightInfo();
+            }
+        } else if (field === 'spoolInput') {
+            // Restore spool input values
+            if (state.formValues.spoolInput) {
+                // Map spool input field names to actual input IDs
+                const fieldMap = {
+                    'spool-color': 'f-spool-color',
+                    'spool-material': 'f-spool-material',
+                    'spool-diameter': 'f-spool-diameter',
+                    'spool-width': 'f-spool-width',
+                    'spool-weight': 'f-spool-weight',
+                    'spool-desc': 'f-spool-desc'
+                };
+                Object.keys(state.formValues.spoolInput).forEach(spoolField => {
+                    const inputId = fieldMap[spoolField] || `f-${spoolField}`;
+                    const el = document.getElementById(inputId);
+                    if (el) {
+                        el.value = state.formValues.spoolInput[spoolField];
+                    }
+                });
+                // Also update state.spoolInputValues for renderSpoolInput
+                if (!state.spoolInputValues) state.spoolInputValues = {};
+                state.spoolInputValues.color = state.formValues.spoolInput['spool-color'] || '';
+                state.spoolInputValues.material = state.formValues.spoolInput['spool-material'] || '';
+                state.spoolInputValues.diameter = state.formValues.spoolInput['spool-diameter'] || '';
+                state.spoolInputValues.width = state.formValues.spoolInput['spool-width'] || '';
+                state.spoolInputValues.weight = state.formValues.spoolInput['spool-weight'] || '';
+                state.spoolInputValues.desc = state.formValues.spoolInput['spool-desc'] || '';
+            }
+        } else {
+            const el = document.getElementById(`f-${field}`);
+            if (el) {
+                el.value = state.formValues[field];
+            }
+        }
+    });
+
+    // Also restore from state.spoolInputValues if formValues doesn't have spoolInput
+    if (state.spoolInputValues && (!state.formValues.spoolInput || Object.keys(state.formValues.spoolInput).length === 0)) {
+        const spoolFieldMap = {
+            color: 'f-spool-color',
+            material: 'f-spool-material',
+            diameter: 'f-spool-diameter',
+            width: 'f-spool-width',
+            weight: 'f-spool-weight',
+            desc: 'f-spool-desc'
+        };
+        Object.keys(state.spoolInputValues).forEach(key => {
+            const inputId = spoolFieldMap[key];
+            if (inputId) {
+                const el = document.getElementById(inputId);
+                if (el) {
+                    el.value = state.spoolInputValues[key] || '';
+                }
+            }
+        });
+    }
+
+    // Restore color preview
+    const hex = state.formValues.hex;
+    const preview = document.getElementById('color-preview');
+    if (hex && preview) {
+        preview.style.backgroundColor = hex;
+    }
+};
+
+window.selectColor = (hex, name) => {
+    // Save current form values before changing color
+    saveFormValues();
+
     const nameInput = document.getElementById('f-color');
     const hexInput = document.getElementById('f-hex');
-    hexInput.value = hex;
-    if (nameInput) nameInput.value = getClosestColorName(hex);
+    const preview = document.getElementById('color-preview');
+
+    if (hexInput) hexInput.value = hex;
+    if (nameInput) nameInput.value = name || getClosestColorName(hex);
+    if (preview) preview.style.backgroundColor = hex;
+
+    // Update saved values
+    if (!state.formValues) state.formValues = {};
+    state.formValues.hex = hex;
+    state.formValues.color = name || getClosestColorName(hex);
+
+    // Update all color buttons to show selected state
+    document.querySelectorAll('[onclick^="window.selectColor"]').forEach(btn => {
+        const btnHex = btn.getAttribute('onclick').match(/'([^']+)'/)?.[1];
+        if (btnHex === hex) {
+            btn.classList.remove('border-slate-200');
+            btn.classList.add('border-indigo-600', 'ring-2', 'ring-indigo-200');
+        } else {
+            btn.classList.remove('border-indigo-600', 'ring-2', 'ring-indigo-200');
+            btn.classList.add('border-slate-200');
+        }
+    });
 };
 
-window.handleFormSubmit = (e) => {
+window.handleFormSubmit = async (e) => {
     e.preventDefault();
+
+    // Handle spool creation if in input mode
+    let spoolId = null;
+    let spoolWeight = null;
+
+    if (state.formFieldsStatus.spool === 'input') {
+        const spoolColor = document.getElementById('f-spool-color')?.value || '';
+        const spoolMaterial = document.getElementById('f-spool-material')?.value || '';
+        const spoolDiameter = document.getElementById('f-spool-diameter')?.value ? parseInt(document.getElementById('f-spool-diameter').value) : null;
+        const spoolWidth = document.getElementById('f-spool-width')?.value ? parseInt(document.getElementById('f-spool-width').value) : null;
+        const spoolWeightInput = document.getElementById('f-spool-weight')?.value ? parseInt(document.getElementById('f-spool-weight').value) : null;
+        const spoolDesc = document.getElementById('f-spool-desc')?.value || '';
+
+        // Create spool if at least one identifying field is provided
+        if (spoolColor || spoolMaterial || spoolDiameter || spoolWidth || spoolDesc) {
+            try {
+                const res = await fetch(`${API_BASE}/spools/save.php`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        color: spoolColor,
+                        material: spoolMaterial,
+                        outer_diameter_mm: spoolDiameter,
+                        width_mm: spoolWidth,
+                        weight_grams: spoolWeightInput,
+                        visual_description: spoolDesc
+                    })
+                });
+                const newSpool = await res.json();
+                if (res.ok && newSpool.id) {
+                    spoolId = newSpool.id;
+                    spoolWeight = newSpool.weight_grams;
+                    // Reload spools list
+                    const resSpools = await fetch(`${API_BASE}/spools/list.php`);
+                    if (resSpools.ok) spoolTemplates = await resSpools.json();
+                }
+            } catch (err) {
+                console.error('Error creating spool:', err);
+            }
+        }
+    } else {
+        spoolId = document.getElementById('f-spool')?.value || null;
+        if (spoolId) {
+            const selectedSpool = spoolTemplates.find(s => s.id == spoolId);
+            spoolWeight = selectedSpool?.weight_grams || null;
+        }
+    }
+
+    // Handle weight mode (with/without spool)
+    const weightMode = document.getElementById('f-weight-mode')?.value || 'netto';
+    let weight = parseInt(document.getElementById('f-g').value);
+
+    if (weightMode === 'gross' && spoolWeight) {
+        // Calculate netto weight from gross
+        weight = weight - spoolWeight;
+    }
+
+    const userDisplayId = document.getElementById('f-user_display_id')?.value;
+
     const item = {
         id: state.editingId,
+        user_display_id: userDisplayId ? parseInt(userDisplayId) : null,
         mat: document.getElementById('f-mat').value,
         color: document.getElementById('f-color').value,
         hex: document.getElementById('f-hex').value,
         man: document.getElementById('f-man').value,
-        g: parseInt(document.getElementById('f-g').value),
+        g: weight,
         loc: document.getElementById('f-loc').value,
         price: document.getElementById('f-price').value,
         seller: document.getElementById('f-seller') ? document.getElementById('f-seller').value : '',
         date: document.getElementById('f-date').value,
-        spool_id: document.getElementById('f-spool').value
+        spool_id: spoolId
     };
     saveFilament(item);
 };
 
 function renderForm(v) {
-    const item = state.editingId ? filaments.find(i => i.id === state.editingId) : { mat: '', color: '', hex: '#4f46e5', man: '', g: 1000, loc: '', price: '', date: '', seller: '' };
-    
+    // Use saved values if available, otherwise use item values
+    const baseItem = state.editingId ? filaments.find(i => i.id === state.editingId) : { mat: '', color: '', hex: '#4f46e5', man: '', g: 1000, loc: '', price: '', date: '', seller: '' };
+
+    // Calculate next available user_display_id for new filament
+    let suggestedDisplayId = null;
+    if (!state.editingId && filaments.length > 0) {
+        const maxId = Math.max(...filaments.map(f => parseInt(f.user_display_id) || 0));
+        suggestedDisplayId = maxId + 1;
+    } else if (!state.editingId) {
+        suggestedDisplayId = 1;
+    }
+
+    const item = state.formValues ? {
+        ...baseItem,
+        user_display_id: state.formValues.user_display_id !== undefined ? state.formValues.user_display_id : (baseItem.user_display_id || suggestedDisplayId),
+        mat: state.formValues.mat !== undefined ? state.formValues.mat : baseItem.mat,
+        man: state.formValues.man !== undefined ? state.formValues.man : baseItem.man,
+        loc: state.formValues.loc !== undefined ? state.formValues.loc : baseItem.loc,
+        seller: state.formValues.seller !== undefined ? state.formValues.seller : baseItem.seller,
+        color: state.formValues.color !== undefined ? state.formValues.color : baseItem.color,
+        hex: state.formValues.hex !== undefined ? state.formValues.hex : baseItem.hex,
+        g: state.formValues.g !== undefined ? parseInt(state.formValues.g) : (baseItem.initial_weight_grams || baseItem.g),
+        price: state.formValues.price !== undefined ? state.formValues.price : baseItem.price,
+        date: state.formValues.date !== undefined ? state.formValues.date : baseItem.date,
+        spool_id: state.formValues.spool !== undefined ? state.formValues.spool : baseItem.spool_id
+    } : { ...baseItem, user_display_id: baseItem.user_display_id || suggestedDisplayId };
+
+    // Update weight mode from saved values
+    if (state.formValues && state.formValues.weightMode) {
+        state.weightMode = state.formValues.weightMode;
+    }
+
     // Ensure we have lists even if empty
     const mats = options.materials || [];
     const mans = options.manufacturers || [];
     const locs = options.locations || [];
     const sellers = options.sellers || [];
 
-    // If lists are empty, force input mode
-    if(mats.length===0) state.formFieldsStatus.mat = 'input';
-    if(mans.length===0) state.formFieldsStatus.man = 'input';
-    if(locs.length===0) state.formFieldsStatus.loc = 'input';
-    if(sellers.length===0) state.formFieldsStatus.seller = 'input';
+    // Don't force input mode - always show select with + button, even if list is empty
+    // Users can manually switch to input mode if they want to add a new value
+
+    // Initialize spool status if not set
+    if (!state.formFieldsStatus.spool) state.formFieldsStatus.spool = 'select';
+    if (!state.weightMode) state.weightMode = 'netto';
 
     const form = document.createElement('div');
     form.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 max-w-lg mx-auto space-y-5";
     form.innerHTML = `
         <div class="field-container">
-            <label class="block text-[10px] font-bold text-slate-400 uppercase">Barva (Paleta a Název)</label>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">Barva (Paleta a Název) <span class="text-red-500">*</span></label>
+            <div class="grid grid-cols-8 gap-2 mb-2">
+                ${colorPalette.map(c => {
+                    const isSelected = item.hex && item.hex.toLowerCase() === c.hex.toLowerCase();
+                    // Speciální styly pro průhlednou barvu
+                    const bgStyle = c.name === 'Průhledná / Čirá'
+                        ? 'background: linear-gradient(45deg, #E8E8E8 25%, transparent 25%), linear-gradient(-45deg, #E8E8E8 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #E8E8E8 75%), linear-gradient(-45deg, transparent 75%, #E8E8E8 75%); background-size: 8px 8px; background-position: 0 0, 0 4px, 4px -4px, -4px 0px;'
+                        : `background-color: ${c.hex}`;
+                    return `
+                    <button type="button" onclick="window.selectColor('${c.hex}', '${c.name}')"
+                        class="w-10 h-10 rounded-lg border-2 ${isSelected ? 'border-indigo-600 ring-2 ring-indigo-200' : 'border-slate-200'} cursor-pointer hover:scale-110 transition-transform"
+                        style="${bgStyle}"
+                        title="${c.name}">
+                    </button>
+                `;
+                }).join('')}
+            </div>
             <div class="flex gap-2">
-                <input id="f-hex" type="color" value="${item.hex}" oninput="window.handleColorChange(this.value)" class="w-16 h-12 bg-transparent border-none p-0 cursor-pointer">
-                <input id="f-color" type="text" value="${item.color}" placeholder="Název" class="flex-1 bg-slate-50 border-none rounded-xl p-3 font-bold">
+                <input id="f-hex" type="hidden" value="${item.hex}">
+                <div class="w-16 h-12 rounded-xl border-2 border-slate-200" style="background-color: ${item.hex}" id="color-preview"></div>
+                <input id="f-color" type="text" value="${item.color}" placeholder="Název barvy" class="flex-1 bg-slate-50 border-none rounded-xl p-3 font-bold">
             </div>
         </div>
         <div class="grid grid-cols-2 gap-4">
-            <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Materiál</label><div class="input-group">${renderFieldInput('mat', mats, item.mat)}</div></div>
+            <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Materiál <span class="text-red-500">*</span></label><div class="input-group">${renderFieldInput('mat', mats, item.mat)}</div></div>
             <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Výrobce</label><div class="input-group">${renderFieldInput('man', mans, item.man)}</div></div>
         </div>
-        <div class="grid grid-cols-2 gap-4">
-            <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Počáteční hmotnost (g)</label><input id="f-g" type="number" value="${item.initial_weight_grams || item.g}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold"></div>
-            <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Umístění</label><div class="input-group">${renderFieldInput('loc', locs, item.loc)}</div></div>
+        <div class="field-container">
+            <label class="text-[10px] font-bold text-slate-400 uppercase">Počáteční hmotnost (g) <span class="text-red-500">*</span></label>
+            <div class="flex gap-2">
+                <select id="f-weight-mode" onchange="updateWeightInfo()" class="bg-slate-50 border-none rounded-xl p-3 font-bold text-sm">
+                    <option value="netto" ${!state.weightMode || state.weightMode === 'netto' ? 'selected' : ''}>Bez cívky</option>
+                    <option value="gross" ${state.weightMode === 'gross' ? 'selected' : ''}>S cívkou</option>
+                </select>
+                <input id="f-g" type="number" value="${item.initial_weight_grams || item.g}" class="flex-1 bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="Hmotnost">
+            </div>
+            <div id="f-weight-info" class="text-[9px] text-slate-400 mt-1"></div>
         </div>
-        
         <div class="field-container">
              <label class="text-[10px] font-bold text-slate-400 uppercase">Typ Cívky (Tára)</label>
-             <select id="f-spool" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold appearance-none">
-                <option value="" ${!item.spool_id ? 'selected' : ''}>Žádná / Neznámá</option>
-                ${spoolTemplates.map(s => `<option value="${s.id}" ${s.id == item.spool_id ? 'selected' : ''}>${s.manufacturer} - ${s.weight_grams}g (${s.visual_description || 'Standard'})</option>`).join('')}
-            </select>
+             <div class="input-group">
+                 ${renderSpoolInput(item.spool_id)}
+             </div>
+        </div>
+
+        <div class="field-container">
+            <label class="text-[10px] font-bold text-slate-400 uppercase">Umístění</label>
+            <div class="input-group">${renderFieldInput('loc', locs, item.loc)}</div>
+        </div>
+        <div class="field-container">
+            <label class="text-[10px] font-bold text-slate-400 uppercase">Číslo filamentu</label>
+            <input id="f-user_display_id" type="number" value="${item.user_display_id || ''}" min="1" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="Automaticky navržené">
+            <div class="text-[9px] text-slate-400 mt-1">Číslo pro identifikaci filamentu v evidenci. Musí být jedinečné.</div>
         </div>
 
         <div class="border-t border-slate-100 pt-4 space-y-4">
@@ -600,9 +1021,17 @@ function renderMaterials(v) {
     const grid = document.createElement('div'); grid.className = "card-grid";
     const data = state.filters.color ? filaments.filter(i => i.color === state.filters.color) : filaments;
     const stats = data.reduce((acc, i) => { acc[i.mat] = (acc[i.mat] || 0) + (parseInt(i.g) || 0); return acc; }, {});
-    
+
     if (Object.keys(stats).length === 0) {
-        v.innerHTML = `<div class="text-center py-10 text-slate-400">Žádná data.<br>Přidejte filament v menu.</div>`;
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = "text-center py-10 space-y-4";
+        emptyDiv.innerHTML = `
+            <p class="text-slate-400">Žádná data.</p>
+            <button onclick="openForm()" class="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-colors">
+                Přidat nový filament
+            </button>
+        `;
+        v.appendChild(emptyDiv);
         return;
     }
 
@@ -620,7 +1049,7 @@ function renderColors(v) {
     const grid = document.createElement('div'); grid.className = "card-grid";
     const data = state.filters.mat ? filaments.filter(i => i.mat === state.filters.mat) : filaments;
     const stats = data.reduce((acc, i) => { if(!acc[i.color]) acc[i.color]={g:0, hex:i.hex}; acc[i.color].g+=(parseInt(i.g)||0); return acc; }, {});
-    
+
     Object.keys(stats).sort((a,b)=>stats[b].g-stats[a].g).forEach(c => {
         const info = stats[c], contrast = getContrast(info.hex), card = document.createElement('div');
         card.className = "aspect-square rounded-2xl p-3 flex items-center justify-center text-center shadow-sm relative cursor-pointer";
@@ -650,7 +1079,7 @@ function renderDetails(v) {
                 <div>
                     <div class="font-bold text-slate-900 flex items-center gap-2">${item.man}</div>
                     <div class="text-xs text-slate-500 font-medium uppercase mt-0.5">${item.mat} • ${item.color}</div>
-                    <div class="text-[10px] text-indigo-500 font-bold mt-1 uppercase">#${item.id}</div>
+                    <div class="text-[10px] text-indigo-500 font-bold mt-1 uppercase">#${item.user_display_id || item.id}</div>
                 </div>
             </div>
             <div class="text-right">
@@ -670,16 +1099,52 @@ window.toggleActionMenu = () => {
     const menu = document.getElementById('action-menu');
     menu.classList.toggle('hidden');
 };
+window.updateWeightInfo = () => {
+    const mode = document.getElementById('f-weight-mode')?.value;
+    const spoolSelect = document.getElementById('f-spool');
+    const infoDiv = document.getElementById('f-weight-info');
+
+    if (!infoDiv) return;
+
+    if (mode === 'gross' && spoolSelect && spoolSelect.value) {
+        const selectedSpool = spoolTemplates.find(s => s.id == spoolSelect.value);
+        if (selectedSpool && selectedSpool.weight_grams) {
+            infoDiv.textContent = `Tára cívky: ${selectedSpool.weight_grams}g - bude odečtena automaticky`;
+        } else {
+            infoDiv.textContent = 'Vyberte cívku pro automatický výpočet';
+        }
+    } else {
+        infoDiv.textContent = '';
+    }
+};
+
 window.openForm = () => {
     state.view = 'form';
-    // If opening fresh (not edit), reset editingId
-    if (state.view === 'form' && !state.editingId) {
-        state.editingId = null; 
+    // If opening fresh (not edit), reset editingId and form status
+    if (!state.editingId) {
+        state.editingId = null;
+        // Reset form fields to select mode
+        state.formFieldsStatus = { mat: 'select', man: 'select', loc: 'select', seller: 'select', spool: 'select' };
+        state.weightMode = 'netto';
+        state.formValues = null; // Clear saved values when opening new form
     }
     // We update this via onclick in renderDetails so editingId is set before this call if editing
-    
+
     document.getElementById('action-menu').classList.add('hidden');
     render();
+
+    // Update weight info after render
+    setTimeout(() => {
+        updateWeightInfo();
+        const spoolSelect = document.getElementById('f-spool');
+        if (spoolSelect) {
+            spoolSelect.addEventListener('change', updateWeightInfo);
+        }
+        // Restore form values if they exist (for when switching between modes)
+        if (state.formValues) {
+            restoreFormValues();
+        }
+    }, 100);
 };
 
 window.openConsume = (id) => {
@@ -694,5 +1159,25 @@ window.openStats = () => {
     document.getElementById('action-menu').classList.add('hidden');
     render();
 }
+
+// Close menu when clicking outside or pressing ESC
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('action-menu');
+    const trigger = document.getElementById('menu-trigger');
+
+    // Close menu if clicking outside of it and the trigger button
+    if (!menu.contains(e.target) && !trigger.contains(e.target) && !menu.classList.contains('hidden')) {
+        menu.classList.add('hidden');
+    }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const menu = document.getElementById('action-menu');
+        if (!menu.classList.contains('hidden')) {
+            menu.classList.add('hidden');
+        }
+    }
+});
 
 checkAuth();

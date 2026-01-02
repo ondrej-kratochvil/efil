@@ -12,18 +12,29 @@ if (!isset($_SESSION['user_id'])) {
 $userId = $_SESSION['user_id'];
 
 try {
-    // 1. Get Inventory ID
-    $stmtInv = $pdo->prepare("SELECT id FROM inventories WHERE owner_id = ? LIMIT 1");
-    $stmtInv->execute([$userId]);
+    // 1. Get Inventory ID (owned or shared)
+    $sql = "
+        SELECT i.id
+        FROM inventories i
+        WHERE i.owner_id = ?
+        UNION
+        SELECT i.id
+        FROM inventories i
+        JOIN inventory_members im ON i.id = im.inventory_id
+        WHERE im.user_id = ?
+        LIMIT 1
+    ";
+    $stmtInv = $pdo->prepare($sql);
+    $stmtInv->execute([$userId, $userId]);
     $inv = $stmtInv->fetch();
-    
+
     if (!$inv) { echo json_encode([]); exit; }
     $invId = $inv['id'];
 
     // 2. Total Weight & Value Calculation
     // We need to fetch individual filaments to calculate value proportional to remaining weight
     $sql = "
-        SELECT 
+        SELECT
             f.price,
             f.initial_weight_grams,
             (f.initial_weight_grams + COALESCE(SUM(cl.amount_grams), 0)) as current_weight
@@ -62,7 +73,7 @@ try {
         SELECT SUM(cl.amount_grams) as consumed
         FROM consumption_log cl
         JOIN filaments f ON cl.filament_id = f.id
-        WHERE f.inventory_id = ? 
+        WHERE f.inventory_id = ?
           AND cl.amount_grams < 0
           AND cl.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
     ";
