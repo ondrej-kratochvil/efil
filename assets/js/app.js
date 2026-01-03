@@ -421,8 +421,79 @@ function updateHeader() {
 }
 
 function renderAuth(v) {
+    // Add intro section for login page
+    const introSection = document.createElement('div');
+    introSection.id = 'app-intro';
+    introSection.className = 'mb-8 bg-gradient-to-br from-indigo-50 to-white p-8 rounded-3xl border border-indigo-100 shadow-sm';
+    introSection.innerHTML = `
+        <div class="flex items-center gap-3 mb-4">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-indigo-600">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+            <h1 class="text-3xl font-black text-indigo-900">eFil</h1>
+        </div>
+        <h2 class="text-xl font-bold text-slate-800 mb-3">Evidence Filamentů pro 3D tisk</h2>
+        <p class="text-slate-600 mb-4">Profesionální správa 3D tiskových materiálů s přesným sledováním spotřeby na základě reálného čerpání, nikoliv jen odhadů.</p>
+        
+        <div class="space-y-3 mb-6">
+            <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                <div>
+                    <span class="font-bold text-slate-800">Přehled zásob</span>
+                    <span class="text-slate-600"> - Přesná evidence hmotnosti a hodnoty skladu</span>
+                </div>
+            </div>
+            <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                <div>
+                    <span class="font-bold text-slate-800">Sledování spotřeby</span>
+                    <span class="text-slate-600"> - Záznamy čerpání s datem a popisem projektů</span>
+                </div>
+            </div>
+            <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                <div>
+                    <span class="font-bold text-slate-800">Sdílení s týmem</span>
+                    <span class="text-slate-600"> - Více uživatelů s různými oprávněními</span>
+                </div>
+            </div>
+            <div class="flex items-start gap-3">
+                <svg class="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                <div>
+                    <span class="font-bold text-slate-800">Chytré vážení</span>
+                    <span class="text-slate-600"> - Automatický výpočet s tárou cívky</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl border border-slate-200">
+            <p class="text-sm text-slate-600 mb-2">
+                <span class="font-bold text-indigo-600">Vyvinuto společností</span> 
+                <a href="https://sensio.cz" target="_blank" class="font-bold text-slate-800 hover:text-indigo-600 transition-colors">Sensio.cz s.r.o.</a>
+            </p>
+            <p class="text-xs text-slate-500">
+                Vaše zpětná vazba nám pomůže aplikaci dále vylepšovat. 
+                <a href="mailto:podpora@sensio.cz" class="text-indigo-600 hover:underline">Napište nám</a>
+            </p>
+        </div>
+        
+        ${state.authView === 'login' ? `
+        <div class="mt-6 text-center lg:hidden">
+            <button onclick="document.getElementById('login-form-section').scrollIntoView({behavior:'smooth'})" class="text-indigo-600 font-bold hover:underline flex items-center justify-center gap-2 mx-auto">
+                <span>Přejít na přihlášení</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+        </div>
+        ` : ''}
+    `;
+    
+    v.appendChild(introSection);
+    
     const container = document.createElement('div');
-    container.className = 'auth-container bg-white rounded-3xl shadow-sm border border-slate-200 mt-10';
+    container.id = 'login-form-section';
+    container.className = 'auth-container bg-white rounded-3xl shadow-sm border border-slate-200';
     
     if (state.authView === 'forgotPassword') {
         container.innerHTML = `
@@ -646,10 +717,14 @@ function renderStats(v) {
 }
 
 window.openStats = () => {
-    state.view = 'stats';
     document.getElementById('action-menu').classList.add('hidden');
-    render();
-}
+    router.push('/stats');
+};
+
+window.openAccount = () => {
+    document.getElementById('action-menu').classList.add('hidden');
+    router.push('/account');
+};
 
 // --- CONSUME LOGIC ---
 
@@ -1443,14 +1518,191 @@ function renderHelp(v) {
 
 function renderAccount(v) {
     const container = document.createElement('div');
-    container.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4";
+    container.className = "max-w-2xl mx-auto space-y-4";
     container.innerHTML = `
-        <h2 class="text-2xl font-black text-slate-800">Můj účet</h2>
-        <p class="text-slate-600">Zde bude správa účtu (změna hesla, emailu, smazání).</p>
+        <!-- Current Account Info -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-black text-slate-800 mb-4">Informace o účtu</h2>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <span class="text-slate-500 font-medium">Email:</span>
+                    <span class="font-bold">${user?.email || 'Nenačteno'}</span>
+                </div>
+                <div class="flex justify-between py-2 border-b border-slate-100">
+                    <span class="text-slate-500 font-medium">Role:</span>
+                    <span class="font-bold">${user?.role === 'admin_efil' ? 'Administrátor eFil' : 'Uživatel'}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Change Password -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h3 class="text-lg font-black text-slate-800 mb-4">Změna hesla</h3>
+            <form onsubmit="handleChangePassword(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Současné heslo</label>
+                    <input type="password" name="current_password" required class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Nové heslo</label>
+                    <input type="password" name="new_password" required minlength="6" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold">
+                </div>
+                <button type="submit" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">
+                    Změnit heslo
+                </button>
+            </form>
+        </div>
+
+        <!-- Change Email -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h3 class="text-lg font-black text-slate-800 mb-4">Změna emailu</h3>
+            <form onsubmit="handleChangeEmail(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Nový email</label>
+                    <input type="email" name="new_email" required class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Heslo pro potvrzení</label>
+                    <input type="password" name="password" required class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold">
+                </div>
+                <button type="submit" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">
+                    Změnit email
+                </button>
+            </form>
+        </div>
+
+        <!-- Delete Account -->
+        <div class="bg-red-50 p-6 rounded-3xl shadow-sm border border-red-200">
+            <h3 class="text-lg font-black text-red-600 mb-2">Nebezpečná zóna</h3>
+            <p class="text-sm text-red-600 mb-4">Smazáním účtu nevratně ztratíte všechna data včetně evidencí a filamentů.</p>
+            <button onclick="showDeleteAccountForm()" class="w-full py-3 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors">
+                Smazat účet
+            </button>
+        </div>
+
+        <!-- Delete Account Confirmation (hidden by default) -->
+        <div id="delete-account-form" class="hidden bg-red-50 p-6 rounded-3xl shadow-sm border-2 border-red-300">
+            <h3 class="text-lg font-black text-red-600 mb-4">⚠️ Potvrzení smazání účtu</h3>
+            <form onsubmit="handleDeleteAccount(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-red-600 uppercase mb-1">Heslo</label>
+                    <input type="password" name="password" required class="w-full bg-white border-2 border-red-300 rounded-xl p-3 font-bold">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-red-600 uppercase mb-1">Pro potvrzení napište: SMAZAT</label>
+                    <input type="text" name="confirmation" required class="w-full bg-white border-2 border-red-300 rounded-xl p-3 font-bold" placeholder="SMAZAT">
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" onclick="hideDeleteAccountForm()" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">
+                        Zrušit
+                    </button>
+                    <button type="submit" class="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors">
+                        Smazat navždy
+                    </button>
+                </div>
+            </form>
+        </div>
+
         <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
     `;
     v.appendChild(container);
 }
+
+// Account management handlers
+window.handleChangePassword = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    
+    try {
+        const res = await fetch(`${API_BASE}/account/change-password.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                current_password: fd.get('current_password'),
+                new_password: fd.get('new_password')
+            })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            showToast('Heslo bylo změněno');
+            e.target.reset();
+        } else {
+            showToast(data.error || 'Chyba při změně hesla');
+        }
+    } catch (err) {
+        showToast('Chyba sítě');
+    }
+};
+
+window.handleChangeEmail = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    
+    try {
+        const res = await fetch(`${API_BASE}/account/change-email.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                new_email: fd.get('new_email'),
+                password: fd.get('password')
+            })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            showToast('Email byl změněn');
+            // Update user object
+            user.email = fd.get('new_email');
+            e.target.reset();
+            render();
+        } else {
+            showToast(data.error || 'Chyba při změně emailu');
+        }
+    } catch (err) {
+        showToast('Chyba sítě');
+    }
+};
+
+window.showDeleteAccountForm = () => {
+    document.getElementById('delete-account-form').classList.remove('hidden');
+};
+
+window.hideDeleteAccountForm = () => {
+    document.getElementById('delete-account-form').classList.add('hidden');
+};
+
+window.handleDeleteAccount = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    
+    if (!confirm('Jste si opravdu jisti? Tato akce je nevratná!')) {
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API_BASE}/account/delete.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                password: fd.get('password'),
+                confirmation: fd.get('confirmation')
+            })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            showToast('Účet byl smazán');
+            // Redirect to login
+            user = null;
+            router.push('/');
+        } else {
+            showToast(data.error || 'Chyba při mazání účtu');
+        }
+    } catch (err) {
+        showToast('Chyba sítě');
+    }
+};
 
 function renderUsers(v) {
     const container = document.createElement('div');

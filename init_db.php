@@ -105,13 +105,13 @@ try {
 
     // 9. Seed data - Create Filaments
     $filaments = [
-        ['PLA', 'Prusa Polymers', 'Galaxy Black', '#333333', 850, 'Hlavní regál'],
-        ['PLA', 'Prusa Polymers', 'Prusa Orange', '#ff8800', 400, 'Hlavní regál'],
-        ['PETG', 'Prusa Polymers', 'Urban Grey', '#888888', 950, 'Box 1'],
-        ['PETG', 'Devil Design', 'Transparent', '#ffffff', 200, 'Box 1'],
-        ['ASA', 'Prusa Polymers', 'Galaxy Black', '#333333', 1000, 'Garáž'],
-        ['PLA', 'Gembird', 'Red', '#ff0000', 700, 'Šuplík'],
-        ['FLEX', 'Fiberlogy', 'Black', '#000000', 450, 'Box 2'],
+        ['PLA (Standard)', 'Prusa Polymers', 'Galaxy černá', '#333333', 850, 'Hlavní regál'],
+        ['PLA (Standard)', 'Prusa Polymers', 'Prusa Oranžová', '#FF6A13', 400, 'Hlavní regál'],
+        ['PETG', 'Prusa Polymers', 'Šedá', '#8E9089', 950, 'Box 1'],
+        ['PETG', 'Devil Design', 'Průhledná / Čirá', '#E8E8E8', 200, 'Box 1'],
+        ['ASA', 'Prusa Polymers', 'Černá', '#000000', 1000, 'Garáž'],
+        ['PLA (Standard)', 'Gembird', 'Červená', '#C12E1F', 700, 'Šuplík'],
+        ['TPU 95A (Flexibilní)', 'Fiberlogy', 'Černá', '#000000', 450, 'Box 2'],
     ];
 
     $stmt = $pdo->prepare("INSERT INTO filaments (inventory_id, user_display_id, material, manufacturer, color_name, color_hex, initial_weight_grams, location, purchase_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");

@@ -28,30 +28,9 @@ try {
     $stmtInv->execute([$userId, $userId]);
     $inv = $stmtInv->fetch();
 
-    // Default materials list
-    $defaultMaterials = [
-        'PLA (Standard)', 'PLA+ / Tough PLA', 'HT-PLA (High Temp)', 'Silk PLA (Lesklý)',
-        'Matte PLA (Matný)', 'Wood PLA (Dřevěný kompozit)', 'Carbon Fiber PLA', 'Glow-in-the-dark PLA',
-        'PETG', 'PETG-CF (s uhlíkem)', 'ABS', 'ABS+', 'ASA', 'TPU 95A (Flexibilní)',
-        'TPU 85A (Měkký/Flexibilní)', 'TPE', 'Nylon (PA)', 'PA12-CF (Nylon s uhlíkem)',
-        'PC (Polykarbonát)', 'PC-ABS', 'PP (Polypropylen)', 'PVA (Vodorozpustný)',
-        'BVOH (Vodorozpustný)', 'HIPS (HIPS/Support)', 'PEEK', 'PEI (Ultem)',
-        'PCTG', 'PVB', 'PMMA', 'ESD-safe Filament', 'Flame Retardant (Samozhášivý)'
-    ];
-
-    // Default manufacturers list
-    $defaultManufacturers = [
-        'Prusament (Prusa Research)', 'Fillamentum', 'Plasty Mladeč (PM)', 'Aurapol', 'Devil Design',
-        'Sunlu', 'eSUN', 'Polymaker', 'ColorFabb', 'FormFutura', 'Extrudr', 'Fiberlogy',
-        'Spectrum Filaments', 'Creality', 'Bambu Lab', 'Elegoo', 'Overture', 'Hatchbox',
-        'Anycubic', '3DXTECH', 'BASF Forward AM', 'Kimya', 'Verbatim', 'Gembird',
-        'C-TECH', 'AzureFilm', 'Eryone', 'Geeetech', 'Jayo', 'Nebula', '3DPower',
-        'Kexcelled', 'Ziro'
-    ];
-
-    // Initialize with defaults (ensure they are indexed arrays)
-    $materials = array_values($defaultMaterials);
-    $manufacturers = array_values($defaultManufacturers);
+    // Initialize empty arrays - will be populated from DB only
+    $materials = [];
+    $manufacturers = [];
     $locations = [];
     $sellers = [];
 
@@ -80,12 +59,9 @@ try {
         $stmt->execute();
         $dbManufacturers = $stmt->fetchAll(PDO::FETCH_COLUMN);
         
-        // Merge default with database values (combine both, remove duplicates, sort alphabetically)
-        $allMaterials = array_values(array_unique(array_merge($dbMaterials, $defaultMaterials)));
-        sort($allMaterials);
-        
-        $allManufacturers = array_values(array_unique(array_merge($dbManufacturers, $defaultManufacturers)));
-        sort($allManufacturers);
+        // Use only database values (no defaults)
+        $allMaterials = $dbMaterials;
+        $allManufacturers = $dbManufacturers;
         
         // Split into top and others for materials
         if (!empty($topMaterials)) {

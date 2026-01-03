@@ -14,3 +14,17 @@ input, select { font-size: 16px !important; }
 .auth-input { width: 100%; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #e2e8f0; margin-bottom: 1rem; }
 .auth-btn { width: 100%; padding: 0.75rem; border-radius: 0.5rem; background-color: #4f46e5; color: white; font-weight: bold; }
 .auth-link { color: #4f46e5; cursor: pointer; text-decoration: underline; }
+
+/* Responsive layout for login page - side by side on desktop */
+@media (min-width: 1024px) {
+    #app-view:has(#app-intro) {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+    #app-intro {
+        margin-bottom: 0 !important;
+    }
+}

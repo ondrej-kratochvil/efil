@@ -4,17 +4,30 @@ Aplikace pro komplexní správu 3D tiskových materiálů (filamentů). Poskytuj
 
 ## 🚀 Funkce
 
+### Správa dat
 - **Správa filamentů** - Evidence materiálů s detailními informacemi (materiál, barva, výrobce, hmotnost)
-- **Sledování spotřeby** - Záznam čerpání materiálu s možností vážení nebo manuálního zadání
-- **Sdílení evidencí** - Sdílení skladu s dalšími uživateli pomocí přístupových kódů
+- **Sledování spotřeby** - Záznam čerpání materiálu s datem a možností vážení nebo manuálního zadání
 - **Statistiky** - Přehled celkové hmotnosti, hodnoty a spotřeby
 - **Chytré filtry** - Navigace MAT → BAR → VÝR pro snadné vyhledávání
 - **Knihovna cívek** - Správa typů cívek s tárou pro přesné vážení
+
+### Multiuser funkce
+- **Sdílení evidencí** - Sdílení skladu s dalšími uživateli pomocí přístupových kódů
+- **Správa uživatelů** - Přidávání uživatelů, změna oprávnění (read/write/manage)
+- **Email notifikace** - Automatické notifikace o změnách v evidenci
+- **Správa účtu** - Změna hesla, emailu, smazání účtu
+- **Zapomenuté heslo** - Obnovení hesla pomocí emailového odkazu
+- **Demo režim** - Read-only režim pro vyzkoušení aplikace
+
+### UI/UX vylepšení
+- **Routování** - Podpora tlačítek Zpět/Vpřed v prohlížeči
 - **Chytré rozbalovací seznamy** - Optgroups s nejčastějšími hodnotami (materiály, výrobci)
-- **Automatické vytváření výrobců** - Noví výrobci se automaticky přidají do databáze při ukládání filamentu
-- **Vylepšené zobrazení cívek** - Detailní informace o cívkách (barva, materiál, průměr, šířka, hmotnost, popis)
-- **Režim vážení** - Volba mezi "Bez cívky" (netto) a "S cívkou" (brutto) s automatickým výpočtem
-- **Persistentní formuláře** - Hodnoty formuláře se zachovávají při přepínání mezi select/input módy
+- **Automatické vytváření výrobců** - Noví výrobci se automaticky přidají do databáze
+- **Vylepšené zobrazení cívek** - Detailní informace o cívkách
+- **Režim vážení** - Volba mezi "Bez cívky" (netto) a "S cívkou" (brutto)
+- **Persistentní formuláře** - Hodnoty se zachovávají při přepínání mezi módy
+- **Smazání filamentů** - Možnost smazat filament s potvrzením
+- **Skrytí prázdných filamentů** - Automaticky se nezobrazují filamenty s nulovou hmotností
 
 ## 📋 Požadavky
 
