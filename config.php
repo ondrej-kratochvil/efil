@@ -16,6 +16,19 @@ $user = $_ENV['DB_USER'] ?? 'root';
 $pass = $_ENV['DB_PASS'] ?? '';
 $charset = 'utf8mb4';
 
+// JWT Secret for token generation
+$jwtSecret = $_ENV['JWT_SECRET'] ?? 'default-insecure-secret-change-in-production';
+
+// SMTP Configuration
+$smtpConfig = [
+    'host' => $_ENV['SMTP_HOST'] ?? 'smtp.gmail.com',
+    'port' => $_ENV['SMTP_PORT'] ?? 587,
+    'username' => $_ENV['SMTP_USERNAME'] ?? '',
+    'password' => $_ENV['SMTP_PASSWORD'] ?? '',
+    'from_email' => $_ENV['SMTP_FROM_EMAIL'] ?? 'noreply@efil.cz',
+    'from_name' => $_ENV['SMTP_FROM_NAME'] ?? 'eFil - Evidence Filamentů'
+];
+
 $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
 $options = [
     PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,

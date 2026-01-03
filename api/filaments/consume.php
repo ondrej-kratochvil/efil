@@ -27,9 +27,9 @@ if (!$filamentId || $amount == 0) {
 }
 
 try {
-    // Verify access via inventory (owner or member with write/manage permission)
+    // Verify access via inventory (owner or member with write/manage permission) and check if demo
     $stmt = $pdo->prepare("
-        SELECT f.id
+        SELECT f.id, i.is_demo
         FROM filaments f
         JOIN inventories i ON f.inventory_id = i.id
         WHERE f.id = ? AND (
@@ -43,10 +43,24 @@ try {
         )
     ");
     $stmt->execute([$filamentId, $userId, $userId]);
+    $filamentData = $stmt->fetch();
 
-    if (!$stmt->fetch()) {
+    if (!$filamentData) {
         http_response_code(403);
         echo json_encode(['error' => 'Access denied']);
+        exit;
+    }
+
+    // Check if user is admin_efil
+    $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch();
+    $isAdmin = ($user && $user['role'] === 'admin_efil');
+
+    // Check if demo mode (and user is not admin)
+    if ($filamentData['is_demo'] && !$isAdmin) {
+        http_response_code(403);
+        echo json_encode(['error' => 'V demo režimu nelze upravovat data. Vytvořte si vlastní účet pro plný přístup.']);
         exit;
     }
 

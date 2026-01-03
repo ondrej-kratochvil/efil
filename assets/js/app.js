@@ -8,8 +8,8 @@ let spoolTemplates = [];
 let stats = null;
 let user = null;
 let state = {
-    view: 'loading', // loading, auth, wizard, form, consume, stats
-    authView: 'login', // login, register
+    view: 'loading', // loading, auth, wizard, form, consume, stats, help, account, users, spools, adminStats, inventorySwitch
+    authView: 'login', // login, register, forgotPassword, resetPassword
     currentStep: 1,
     filters: { mat: null, color: null },
     editingId: null,
@@ -17,6 +17,115 @@ let state = {
     consumeMode: 'used', // used (subtract), weight (calculate from gross)
     formFieldsStatus: { mat: 'select', man: 'select', loc: 'select', seller: 'select', spool: 'select' }
 };
+
+// Router - History API support
+const router = {
+    // Navigate to a new route
+    push(path, stateData = {}) {
+        window.history.pushState({ ...stateData, path }, '', path);
+        this.handleRoute(path, stateData);
+    },
+    
+    // Replace current route
+    replace(path, stateData = {}) {
+        window.history.replaceState({ ...stateData, path }, '', path);
+        this.handleRoute(path, stateData);
+    },
+    
+    // Handle route changes
+    handleRoute(path, stateData = {}) {
+        // Parse path
+        const segments = path.split('/').filter(s => s);
+        
+        if (!segments.length || segments[0] === '') {
+            // Root - show auth or wizard based on login state
+            if (user) {
+                state.view = 'wizard';
+                state.currentStep = 1;
+                state.filters = { mat: null, color: null };
+            } else {
+                state.view = 'auth';
+                state.authView = 'login';
+            }
+        } else if (segments[0] === 'wizard') {
+            state.view = 'wizard';
+            if (segments[1] === 'mat') state.currentStep = 1;
+            else if (segments[1] === 'bar') state.currentStep = 2;
+            else if (segments[1] === 'vyr') state.currentStep = 3;
+            else state.currentStep = 1;
+        } else if (segments[0] === 'form') {
+            state.view = 'form';
+            state.editingId = segments[1] ? parseInt(segments[1]) : null;
+        } else if (segments[0] === 'consume') {
+            state.view = 'consume';
+            state.consumeId = segments[1] ? parseInt(segments[1]) : null;
+        } else if (segments[0] === 'stats') {
+            state.view = 'stats';
+        } else if (segments[0] === 'help') {
+            state.view = 'help';
+        } else if (segments[0] === 'account') {
+            state.view = 'account';
+        } else if (segments[0] === 'users') {
+            state.view = 'users';
+        } else if (segments[0] === 'spools') {
+            state.view = 'spools';
+        } else if (segments[0] === 'admin-stats') {
+            state.view = 'adminStats';
+        } else if (segments[0] === 'inventory-switch') {
+            state.view = 'inventorySwitch';
+        } else if (segments[0] === 'forgot-password') {
+            state.view = 'auth';
+            state.authView = 'forgotPassword';
+        } else if (segments[0] === 'reset-password') {
+            state.view = 'auth';
+            state.authView = 'resetPassword';
+            state.resetToken = new URLSearchParams(window.location.search).get('token');
+        }
+        
+        render();
+    },
+    
+    // Get current route path based on state
+    getPath() {
+        if (state.view === 'auth') {
+            if (state.authView === 'forgotPassword') return '/forgot-password';
+            if (state.authView === 'resetPassword') return '/reset-password';
+            return '/';
+        } else if (state.view === 'wizard') {
+            if (state.currentStep === 1) return '/wizard/mat';
+            if (state.currentStep === 2) return '/wizard/bar';
+            if (state.currentStep === 3) return '/wizard/vyr';
+        } else if (state.view === 'form') {
+            return state.editingId ? `/form/${state.editingId}` : '/form';
+        } else if (state.view === 'consume') {
+            return `/consume/${state.consumeId}`;
+        } else if (state.view === 'stats') {
+            return '/stats';
+        } else if (state.view === 'help') {
+            return '/help';
+        } else if (state.view === 'account') {
+            return '/account';
+        } else if (state.view === 'users') {
+            return '/users';
+        } else if (state.view === 'spools') {
+            return '/spools';
+        } else if (state.view === 'adminStats') {
+            return '/admin-stats';
+        } else if (state.view === 'inventorySwitch') {
+            return '/inventory-switch';
+        }
+        return '/';
+    }
+};
+
+// Listen to browser back/forward buttons
+window.addEventListener('popstate', (e) => {
+    if (e.state && e.state.path) {
+        router.handleRoute(e.state.path, e.state);
+    } else {
+        router.handleRoute(window.location.pathname);
+    }
+});
 
 const colorNames = [
     { name: 'Černá', hex: '#000000' }, { name: 'Bílá', hex: '#ffffff' }, { name: 'Červená', hex: '#ff0000' },
@@ -73,17 +182,21 @@ async function checkAuth() {
         const data = await res.json();
         if (data.authenticated) {
             user = data.user;
-            document.getElementById('sync-status').classList.replace('bg-slate-200', 'bg-green-500');
-            state.view = 'wizard'; // Default logged in view
             loadData();
+            // Navigate to current URL or default to wizard
+            const path = window.location.pathname;
+            if (path === '/' || path === '') {
+                router.replace('/wizard/mat');
+            } else {
+                router.handleRoute(path);
+            }
         } else {
-            state.view = 'auth';
+            router.replace('/');
         }
     } catch (err) {
         console.error('Auth check failed', err);
-        state.view = 'auth'; // Fallback
+        router.replace('/');
     }
-    render();
 }
 
 async function login(email, password) {
@@ -96,10 +209,8 @@ async function login(email, password) {
         const data = await res.json();
         if (res.ok) {
             user = data.user;
-            state.view = 'wizard';
-            document.getElementById('sync-status').classList.replace('bg-slate-200', 'bg-green-500');
             loadData();
-            render();
+            router.push('/wizard/mat');
         } else {
             showToast(data.error || 'Chyba přihlášení');
         }
@@ -131,10 +242,8 @@ async function logout() {
     document.getElementById('action-menu').classList.add('hidden');
     await fetch(`${API_BASE}/auth/logout.php`);
     user = null;
-    state.view = 'auth';
     state.authView = 'login';
-    document.getElementById('sync-status').classList.replace('bg-green-500', 'bg-slate-200');
-    render();
+    router.push('/');
 }
 
 // --- DATA ---
@@ -176,10 +285,8 @@ async function saveFilament(data) {
         if (res.ok) {
             showToast('Uloženo');
             await loadData();
-            state.view = 'wizard';
             state.filters = { mat: null, color: null };
-            state.currentStep = 1;
-            render();
+            router.push('/wizard/mat');
         } else {
             const err = await res.json();
             showToast(err.error || 'Chyba ukládání');
@@ -200,8 +307,7 @@ async function consumeFilament(filamentId, amount, description) {
         if (res.ok) {
             showToast('Zapsáno');
             await loadData();
-            state.view = 'wizard';
-            render();
+            router.push('/wizard/mat');
         } else {
             const err = await res.json();
             showToast(err.error || 'Chyba zápisu');
@@ -260,6 +366,12 @@ function render() {
     else if (state.view === 'form') renderForm(appView);
     else if (state.view === 'consume') renderConsume(appView);
     else if (state.view === 'stats') renderStats(appView);
+    else if (state.view === 'help') renderHelp(appView);
+    else if (state.view === 'account') renderAccount(appView);
+    else if (state.view === 'users') renderUsers(appView);
+    else if (state.view === 'spools') renderSpools(appView);
+    else if (state.view === 'adminStats') renderAdminStats(appView);
+    else if (state.view === 'inventorySwitch') renderInventorySwitch(appView);
     else {
         if (state.currentStep === 1) renderMaterials(appView);
         else if (state.currentStep === 2) renderColors(appView);
@@ -281,12 +393,18 @@ function updateHeader() {
 
     menuTrigger.classList.remove('hidden');
 
-    if (state.view === 'form' || state.view === 'consume' || state.view === 'stats') {
+    if (['form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'adminStats', 'inventorySwitch'].includes(state.view)) {
         nav.classList.add('hidden');
         fTitle.classList.remove('hidden');
         if (state.view === 'form') fTitle.innerText = 'Editor';
         else if (state.view === 'consume') fTitle.innerText = 'Vážení';
-        else fTitle.innerText = 'Přehled skladu';
+        else if (state.view === 'stats') fTitle.innerText = 'Přehled skladu';
+        else if (state.view === 'help') fTitle.innerText = 'Nápověda';
+        else if (state.view === 'account') fTitle.innerText = 'Můj účet';
+        else if (state.view === 'users') fTitle.innerText = 'Správa uživatelů';
+        else if (state.view === 'spools') fTitle.innerText = 'Správa typů cívek';
+        else if (state.view === 'adminStats') fTitle.innerText = 'Statistiky eFil';
+        else if (state.view === 'inventorySwitch') fTitle.innerText = 'Přepnout evidenci';
     } else {
         nav.classList.remove('hidden');
         fTitle.classList.add('hidden');
@@ -303,41 +421,152 @@ function updateHeader() {
 }
 
 function renderAuth(v) {
-    const isLogin = state.authView === 'login';
     const container = document.createElement('div');
     container.className = 'auth-container bg-white rounded-3xl shadow-sm border border-slate-200 mt-10';
-    container.innerHTML = `
-        <h2 class="text-2xl font-black text-center mb-6 text-slate-800">${isLogin ? 'Přihlášení' : 'Registrace'}</h2>
-        <form onsubmit="handleAuthSubmit(event)" class="flex flex-col gap-4">
-            <div>
-                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label>
-                <input type="email" name="email" required class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="name@example.com">
+    
+    if (state.authView === 'forgotPassword') {
+        container.innerHTML = `
+            <h2 class="text-2xl font-black text-center mb-6 text-slate-800">Zapomenuté heslo</h2>
+            <p class="text-sm text-slate-600 mb-4 text-center">Zadejte svou emailovou adresu a my vám pošleme odkaz pro obnovení hesla.</p>
+            <form onsubmit="handleForgotPassword(event)" class="flex flex-col gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label>
+                    <input type="email" name="email" required class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="name@example.com">
+                </div>
+                <button type="submit" class="mt-2 w-full py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 active:scale-95 transition-transform">
+                    Odeslat odkaz
+                </button>
+            </form>
+            <div class="mt-6 text-center text-sm">
+                <span onclick="state.authView='login'; render();" class="text-indigo-600 font-bold cursor-pointer hover:underline">
+                    ← Zpět na přihlášení
+                </span>
             </div>
-            <div>
-                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Heslo</label>
-                <input type="password" name="password" required class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="********">
-            </div>
-            <button type="submit" class="mt-2 w-full py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 active:scale-95 transition-transform">
-                ${isLogin ? 'Přihlásit se' : 'Vytvořit účet'}
+        `;
+    } else if (state.authView === 'resetPassword') {
+        container.innerHTML = `
+            <h2 class="text-2xl font-black text-center mb-6 text-slate-800">Nastavení hesla</h2>
+            <p class="text-sm text-slate-600 mb-4 text-center">Zadejte nové heslo pro váš účet.</p>
+            <form onsubmit="handleResetPassword(event)" class="flex flex-col gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Nové heslo</label>
+                    <input type="password" name="password" required minlength="6" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="Alespoň 6 znaků">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Potvrdit heslo</label>
+                    <input type="password" name="password_confirm" required minlength="6" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="Zadejte znovu">
+                </div>
+                <button type="submit" class="mt-2 w-full py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 active:scale-95 transition-transform">
+                    Nastavit heslo
+                </button>
+            </form>
+        `;
+    } else {
+        const isLogin = state.authView === 'login';
+        container.innerHTML = `
+            <h2 class="text-2xl font-black text-center mb-6 text-slate-800">${isLogin ? 'Přihlášení' : 'Registrace'}</h2>
+            <form onsubmit="handleAuthSubmit(event)" class="flex flex-col gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label>
+                    <input type="email" name="email" required class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="name@example.com">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Heslo</label>
+                    <input type="password" name="password" required class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="********">
+                </div>
+                ${isLogin ? `
+                <div class="text-right">
+                    <span onclick="state.authView='forgotPassword'; render();" class="text-xs text-indigo-600 font-bold cursor-pointer hover:underline">
+                        Zapomněli jste heslo?
+                    </span>
+                </div>
+                ` : ''}
+                <button type="submit" class="mt-2 w-full py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 active:scale-95 transition-transform">
+                    ${isLogin ? 'Přihlásit se' : 'Vytvořit účet'}
+                </button>
+            </form>
+            ${isLogin ? `
+            <button onclick="login('demo@efil.cz', 'demo1234')" class="mt-3 w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold border border-slate-200">
+                Vyzkoušet Demo
             </button>
-        </form>
-        ${isLogin ? `
-        <button onclick="login('demo@efil.cz', 'demo1234')" class="mt-3 w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold border border-slate-200">
-            Vyzkoušet Demo
-        </button>
-        <button onclick="joinInventory()" class="mt-2 w-full py-3 bg-white text-indigo-600 rounded-xl font-bold border border-indigo-100">
-            Mám kód pozvánky
-        </button>
-        ` : ''}
-        <div class="mt-6 text-center text-sm">
-            ${isLogin ? 'Nemáte účet?' : 'Již máte účet?'}
-            <span onclick="toggleAuthView()" class="text-indigo-600 font-bold cursor-pointer hover:underline">
-                ${isLogin ? 'Registrovat' : 'Přihlásit'}
-            </span>
-        </div>
-    `;
+            <button onclick="joinInventory()" class="mt-2 w-full py-3 bg-white text-indigo-600 rounded-xl font-bold border border-indigo-100">
+                Mám kód pozvánky
+            </button>
+            ` : ''}
+            <div class="mt-6 text-center text-sm">
+                ${isLogin ? 'Nemáte účet?' : 'Již máte účet?'}
+                <span onclick="toggleAuthView()" class="text-indigo-600 font-bold cursor-pointer hover:underline">
+                    ${isLogin ? 'Registrovat' : 'Přihlásit'}
+                </span>
+            </div>
+        `;
+    }
     v.appendChild(container);
 }
+
+// Forgot password handler
+window.handleForgotPassword = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const email = fd.get('email');
+    
+    try {
+        const res = await fetch(`${API_BASE}/auth/forgot-password.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            showToast('Email s instrukcemi byl odeslán');
+            state.authView = 'login';
+            render();
+        } else {
+            showToast(data.error || 'Chyba při odesílání emailu');
+        }
+    } catch (err) {
+        showToast('Chyba sítě');
+    }
+};
+
+// Reset password handler
+window.handleResetPassword = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const password = fd.get('password');
+    const passwordConfirm = fd.get('password_confirm');
+    
+    if (password !== passwordConfirm) {
+        showToast('Hesla se neshodují');
+        return;
+    }
+    
+    const token = state.resetToken;
+    if (!token) {
+        showToast('Chybí token');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API_BASE}/auth/reset-password.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token, password })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            showToast('Heslo bylo změněno');
+            state.authView = 'login';
+            router.push('/');
+        } else {
+            showToast(data.error || 'Chyba při změně hesla');
+        }
+    } catch (err) {
+        showToast('Chyba sítě');
+    }
+};
 
 // --- SHARE LOGIC ---
 window.generateShareCode = async () => {
@@ -426,7 +655,7 @@ window.openStats = () => {
 
 window.setConsumeMode = (mode) => {
     state.consumeMode = mode;
-    render();
+    render(); // Just re-render, don't change URL
 }
 
 window.handleConsumeSubmit = (e) => {
@@ -455,7 +684,7 @@ window.handleConsumeSubmit = (e) => {
 
 function renderConsume(v) {
     const item = filaments.find(i => i.id === state.consumeId);
-    if (!item) { state.view = 'wizard'; render(); return; }
+    if (!item) { router.push('/wizard/mat'); return; }
 
     const isUsed = state.consumeMode === 'used';
     const hasSpool = !!item.spool_id;
@@ -983,11 +1212,41 @@ function renderForm(v) {
 
         <div class="flex gap-3 pt-4">
             <button onclick="window.resetApp()" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">Zrušit</button>
+            ${state.editingId ? `
+            <button onclick="window.deleteFilament(${state.editingId})" type="button" class="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors">Smazat</button>
+            ` : ''}
             <button onclick="window.handleFormSubmit(event)" class="flex-[2] py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">Uložit</button>
         </div>
     `;
     v.appendChild(form);
 }
+
+// Delete filament handler
+window.deleteFilament = async (id) => {
+    if (!confirm('Opravdu chcete smazat tento filament? Tato akce je nevratná.')) {
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API_BASE}/filaments/delete.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            showToast('Filament smazán');
+            await loadData();
+            state.filters = { mat: null, color: null };
+            router.push('/wizard/mat');
+        } else {
+            showToast(data.error || 'Chyba při mazání');
+        }
+    } catch (e) {
+        showToast('Chyba sítě');
+    }
+};
 
 window.handleAuthSubmit = (e) => {
     e.preventDefault();
@@ -1001,14 +1260,13 @@ window.handleAuthSubmit = (e) => {
 
 window.toggleAuthView = () => {
     state.authView = state.authView === 'login' ? 'register' : 'login';
-    render();
+    render(); // Just re-render, stay on same URL
 };
 
 window.resetApp = () => {
     state.filters = { mat: null, color: null };
     state.currentStep = 1;
-    state.view = 'wizard';
-    render();
+    router.push('/wizard/mat');
 };
 
 const formatKg = (g) => (g / 1000).toFixed(1).replace('.', ',') + ' kg';
@@ -1019,7 +1277,9 @@ const getContrast = (hex) => {
 
 function renderMaterials(v) {
     const grid = document.createElement('div'); grid.className = "card-grid";
-    const data = state.filters.color ? filaments.filter(i => i.color === state.filters.color) : filaments;
+    // Filter out filaments with zero or negative weight
+    const activeFilaments = filaments.filter(i => parseInt(i.g) > 0);
+    const data = state.filters.color ? activeFilaments.filter(i => i.color === state.filters.color) : activeFilaments;
     const stats = data.reduce((acc, i) => { acc[i.mat] = (acc[i.mat] || 0) + (parseInt(i.g) || 0); return acc; }, {});
 
     if (Object.keys(stats).length === 0) {
@@ -1038,7 +1298,12 @@ function renderMaterials(v) {
     Object.keys(stats).sort((a,b)=>stats[b]-stats[a]).forEach(m => {
         const card = document.createElement('div');
         card.className = "aspect-square bg-white border border-slate-200 rounded-2xl p-3 flex items-center justify-center text-center relative shadow-sm cursor-pointer hover:border-indigo-300 transition-colors";
-        card.onclick = () => { state.filters.mat = m; state.currentStep = state.filters.color ? 3 : 2; render(); };
+        card.onclick = () => { 
+            state.filters.mat = m; 
+            const nextStep = state.filters.color ? 3 : 2;
+            state.currentStep = nextStep;
+            router.push(nextStep === 2 ? '/wizard/bar' : '/wizard/vyr');
+        };
         card.innerHTML = `<div class="text-[10px] font-bold text-slate-400 absolute top-2 right-2">${formatKg(stats[m])}</div><div class="text-base font-black uppercase tracking-tight">${m}</div>`;
         grid.appendChild(card);
     });
@@ -1047,7 +1312,9 @@ function renderMaterials(v) {
 
 function renderColors(v) {
     const grid = document.createElement('div'); grid.className = "card-grid";
-    const data = state.filters.mat ? filaments.filter(i => i.mat === state.filters.mat) : filaments;
+    // Filter out filaments with zero or negative weight
+    const activeFilaments = filaments.filter(i => parseInt(i.g) > 0);
+    const data = state.filters.mat ? activeFilaments.filter(i => i.mat === state.filters.mat) : activeFilaments;
     const stats = data.reduce((acc, i) => { if(!acc[i.color]) acc[i.color]={g:0, hex:i.hex}; acc[i.color].g+=(parseInt(i.g)||0); return acc; }, {});
 
     Object.keys(stats).sort((a,b)=>stats[b].g-stats[a].g).forEach(c => {
@@ -1055,7 +1322,12 @@ function renderColors(v) {
         card.className = "aspect-square rounded-2xl p-3 flex items-center justify-center text-center shadow-sm relative cursor-pointer";
         card.style.backgroundColor = info.hex; card.style.color = contrast;
         if(info.hex.toLowerCase()==='#ffffff') card.classList.add('border','border-slate-200');
-        card.onclick = () => { state.filters.color = c; state.currentStep = state.filters.mat ? 3 : 1; render(); };
+        card.onclick = () => { 
+            state.filters.color = c; 
+            const nextStep = state.filters.mat ? 3 : 1;
+            state.currentStep = nextStep;
+            router.push(nextStep === 1 ? '/wizard/mat' : '/wizard/vyr');
+        };
         card.innerHTML = `<div class="text-[10px] font-bold absolute top-2 right-2 opacity-70">${formatKg(info.g)}</div><div class="text-[13px] font-black uppercase px-1">${c}</div>`;
         grid.appendChild(card);
     });
@@ -1064,7 +1336,9 @@ function renderColors(v) {
 
 function renderDetails(v) {
     const container = document.createElement('div'); container.className = "flex flex-col gap-3 w-full";
-    const filtered = filaments.filter(i => (!state.filters.mat || i.mat===state.filters.mat) && (!state.filters.color || i.color===state.filters.color)).sort((a,b)=>b.g-a.g);
+    // Filter out filaments with zero or negative weight
+    const activeFilaments = filaments.filter(i => parseInt(i.g) > 0);
+    const filtered = activeFilaments.filter(i => (!state.filters.mat || i.mat===state.filters.mat) && (!state.filters.color || i.color===state.filters.color)).sort((a,b)=>b.g-a.g);
     if(filtered.length === 0) container.innerHTML = `<div class="text-center py-20 text-slate-400 bg-white rounded-3xl border-2 border-dashed">Žádné položky</div>`;
     else filtered.forEach(item => {
         const card = document.createElement('div');
@@ -1079,13 +1353,10 @@ function renderDetails(v) {
                 <div>
                     <div class="font-bold text-slate-900 flex items-center gap-2">${item.man}</div>
                     <div class="text-xs text-slate-500 font-medium uppercase mt-0.5">${item.mat} • ${item.color}</div>
-                    <div class="text-[10px] text-indigo-500 font-bold mt-1 uppercase">#${item.user_display_id || item.id}</div>
+                    <div class="text-[10px] text-indigo-500 font-bold mt-1 uppercase">${item.loc ? `${item.loc} | ` : ''}#${item.user_display_id || item.id}</div>
                 </div>
             </div>
-            <div class="text-right">
-                <div onclick="event.stopPropagation(); window.openConsume(${item.id})" class="text-xl font-black text-indigo-600 leading-none bg-indigo-50 px-2 py-1 rounded-lg hover:bg-indigo-100 transition-colors">${item.g}<span class="text-xs ml-0.5">g</span></div>
-                <div class="text-[9px] text-slate-400 font-bold mt-1 uppercase">Zůstatek</div>
-            </div>
+            <div onclick="event.stopPropagation(); window.openConsume(${item.id})" class="text-2xl font-black text-indigo-600 leading-none bg-indigo-50 px-4 py-3 rounded-lg hover:bg-indigo-100 transition-colors cursor-pointer">${item.g}<span class="text-sm ml-1">g</span></div>
         `;
         container.appendChild(card);
     });
@@ -1094,7 +1365,11 @@ function renderDetails(v) {
     btn.innerText = "Vymazat filtry"; btn.onclick = window.resetApp; v.appendChild(btn);
 }
 
-window.setStep = (s) => { state.currentStep = s; render(); };
+window.setStep = (s) => { 
+    state.currentStep = s; 
+    const path = s === 1 ? '/wizard/mat' : (s === 2 ? '/wizard/bar' : '/wizard/vyr');
+    router.push(path);
+};
 window.toggleActionMenu = () => {
     const menu = document.getElementById('action-menu');
     menu.classList.toggle('hidden');
@@ -1119,7 +1394,6 @@ window.updateWeightInfo = () => {
 };
 
 window.openForm = () => {
-    state.view = 'form';
     // If opening fresh (not edit), reset editingId and form status
     if (!state.editingId) {
         state.editingId = null;
@@ -1131,7 +1405,9 @@ window.openForm = () => {
     // We update this via onclick in renderDetails so editingId is set before this call if editing
 
     document.getElementById('action-menu').classList.add('hidden');
-    render();
+    
+    const path = state.editingId ? `/form/${state.editingId}` : '/form';
+    router.push(path);
 
     // Update weight info after render
     setTimeout(() => {
@@ -1149,15 +1425,75 @@ window.openForm = () => {
 
 window.openConsume = (id) => {
     state.consumeId = id;
-    state.view = 'consume';
     state.consumeMode = 'used';
-    render();
+    router.push(`/consume/${id}`);
 }
 
-window.openStats = () => {
-    state.view = 'stats';
-    document.getElementById('action-menu').classList.add('hidden');
-    render();
+// Placeholder render functions for new views (will be implemented in next tasks)
+function renderHelp(v) {
+    const container = document.createElement('div');
+    container.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4";
+    container.innerHTML = `
+        <h2 class="text-2xl font-black text-slate-800">Nápověda</h2>
+        <p class="text-slate-600">Zde bude podrobná nápověda k aplikaci.</p>
+        <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
+    `;
+    v.appendChild(container);
+}
+
+function renderAccount(v) {
+    const container = document.createElement('div');
+    container.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4";
+    container.innerHTML = `
+        <h2 class="text-2xl font-black text-slate-800">Můj účet</h2>
+        <p class="text-slate-600">Zde bude správa účtu (změna hesla, emailu, smazání).</p>
+        <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
+    `;
+    v.appendChild(container);
+}
+
+function renderUsers(v) {
+    const container = document.createElement('div');
+    container.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4";
+    container.innerHTML = `
+        <h2 class="text-2xl font-black text-slate-800">Správa uživatelů</h2>
+        <p class="text-slate-600">Zde bude správa uživatelů evidence.</p>
+        <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
+    `;
+    v.appendChild(container);
+}
+
+function renderSpools(v) {
+    const container = document.createElement('div');
+    container.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4";
+    container.innerHTML = `
+        <h2 class="text-2xl font-black text-slate-800">Správa typů cívek</h2>
+        <p class="text-slate-600">Zde bude správa typů cívek s vazbami na výrobce.</p>
+        <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
+    `;
+    v.appendChild(container);
+}
+
+function renderAdminStats(v) {
+    const container = document.createElement('div');
+    container.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4";
+    container.innerHTML = `
+        <h2 class="text-2xl font-black text-slate-800">Statistiky eFil</h2>
+        <p class="text-slate-600">Zde budou statistiky pro admin_efil (počet uživatelů, evidencí, atd.).</p>
+        <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
+    `;
+    v.appendChild(container);
+}
+
+function renderInventorySwitch(v) {
+    const container = document.createElement('div');
+    container.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4";
+    container.innerHTML = `
+        <h2 class="text-2xl font-black text-slate-800">Přepnout evidenci</h2>
+        <p class="text-slate-600">Zde bude přepínač mezi evidencemi.</p>
+        <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
+    `;
+    v.appendChild(container);
 }
 
 // Close menu when clicking outside or pressing ESC

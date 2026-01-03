@@ -82,6 +82,9 @@ CREATE TABLE IF NOT EXISTS consumption_log (
     filament_id INT NOT NULL,
     amount_grams INT NOT NULL,
     description TEXT,
+    consumption_date DATE NOT NULL,
+    created_by INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (filament_id) REFERENCES filaments(id) ON DELETE CASCADE
+    FOREIGN KEY (filament_id) REFERENCES filaments(id) ON DELETE CASCADE,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
