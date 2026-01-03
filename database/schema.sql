@@ -45,7 +45,6 @@ CREATE TABLE IF NOT EXISTS manufacturers (
 
 CREATE TABLE IF NOT EXISTS spool_library (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    manufacturer_id INT,
     weight_grams INT,
     color VARCHAR(50),
     material VARCHAR(50),
@@ -54,8 +53,18 @@ CREATE TABLE IF NOT EXISTS spool_library (
     visual_description TEXT,
     created_by INT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (manufacturer_id) REFERENCES manufacturers(id) ON DELETE SET NULL,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
+
+-- M:N relationship between spool types and manufacturers
+CREATE TABLE IF NOT EXISTS spool_manufacturer (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    spool_id INT NOT NULL,
+    manufacturer_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY spool_manufacturer_unique (spool_id, manufacturer_id),
+    FOREIGN KEY (spool_id) REFERENCES spool_library(id) ON DELETE CASCADE,
+    FOREIGN KEY (manufacturer_id) REFERENCES manufacturers(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE IF NOT EXISTS filaments (

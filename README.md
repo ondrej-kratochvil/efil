@@ -7,27 +7,35 @@ Aplikace pro komplexní správu 3D tiskových materiálů (filamentů). Poskytuj
 ### Správa dat
 - **Správa filamentů** - Evidence materiálů s detailními informacemi (materiál, barva, výrobce, hmotnost)
 - **Sledování spotřeby** - Záznam čerpání materiálu s datem a možností vážení nebo manuálního zadání
-- **Statistiky** - Přehled celkové hmotnosti, hodnoty a spotřeby
+- **Historie čerpání** - Kompletní přehled všech čerpání s možností editace a mazání
+- **Statistiky** - Přehled celkové hmotnosti, hodnoty a spotřeby za různá období
 - **Chytré filtry** - Navigace MAT → BAR → VÝR pro snadné vyhledávání
-- **Knihovna cívek** - Správa typů cívek s tárou pro přesné vážení
+- **Knihovna cívek** - Správa typů cívek s tárou a vazbou na výrobce
+- **Groupování cívek** - Automatické seskupování více cívek stejného materiálu a barvy
+- **Chytré třídění** - Optgroups pro typy cívek podle vybraného výrobce
 
 ### Multiuser funkce
-- **Sdílení evidencí** - Sdílení skladu s dalšími uživateli pomocí přístupových kódů
-- **Správa uživatelů** - Přidávání uživatelů, změna oprávnění (read/write/manage)
-- **Email notifikace** - Automatické notifikace o změnách v evidenci
+- **Sdílení evidencí** - Sdílení skladu s dalšími uživateli pomocí přístupových kódů nebo emailu
+- **Správa uživatelů** - Přidávání uživatelů, změna oprávnění (read/write/manage/owner)
+- **Email notifikace** - Automatické notifikace o změnách v evidenci, pozváních, změnách rolí
 - **Správa účtu** - Změna hesla, emailu, smazání účtu
-- **Zapomenuté heslo** - Obnovení hesla pomocí emailového odkazu
-- **Demo režim** - Read-only režim pro vyzkoušení aplikace
+- **Zapomenuté heslo** - Obnovení hesla pomocí JWT tokenu v emailovém odkazu
+- **Přepínání evidencí** - Snadný přepínač mezi více evidencemi pro uživatele s přístupem k více skladům
+- **Demo režim** - Read-only režim pro vyzkoušení aplikace (admin má plná práva)
+- **Admin účet** - Speciální účet administrátora s přehledem všech evidencí a statistik systému
 
 ### UI/UX vylepšení
-- **Routování** - Podpora tlačítek Zpět/Vpřed v prohlížeči
+- **Routování** - Podpora tlačítek Zpět/Vpřed v prohlížeči pomocí History API
 - **Chytré rozbalovací seznamy** - Optgroups s nejčastějšími hodnotami (materiály, výrobci)
 - **Automatické vytváření výrobců** - Noví výrobci se automaticky přidají do databáze
-- **Vylepšené zobrazení cívek** - Detailní informace o cívkách
+- **Vylepšené zobrazení cívek** - Detailní informace o cívkách s možností správy
 - **Režim vážení** - Volba mezi "Bez cívky" (netto) a "S cívkou" (brutto)
 - **Persistentní formuláře** - Hodnoty se zachovávají při přepínání mezi módy
 - **Smazání filamentů** - Možnost smazat filament s potvrzením
 - **Skrytí prázdných filamentů** - Automaticky se nezobrazují filamenty s nulovou hmotností
+- **Intro na login stránce** - Přehledné představení aplikace s funkcemi a kontaktem
+- **Nápověda** - Komplexní nápověda s návody k používání všech funkcí
+- **Intuitivní groupování** - Více cívek stejného typu zobrazeno jako jedna položka s možností rozbalení
 
 ## 📋 Požadavky
 
@@ -99,41 +107,55 @@ php update_spool_schema.php
 3. **Přihlaste se pomocí demo účtu:**
    - **Email:** `demo@efil.cz`
    - **Heslo:** `demo1234`
+   
+   Nebo vytvořte vlastní účet pomocí registrace.
+
+**Poznámka:** Demo účet je read-only. Pro plný přístup si vytvořte vlastní účet.
 
 ## 📁 Struktura projektu
 
 ```
 efil-github/
-├── api/                    # Backend API endpointy
-│   ├── auth/              # Autentizace (login, register, logout)
-│   ├── dashboard/         # Statistiky
-│   ├── data/              # Data pro selecty (materiály, výrobci, atd.)
-│   ├── filaments/        # Správa filamentů (list, save, consume)
-│   ├── inventory/        # Sdílení evidencí (join, share)
-│   └── spools/           # Knihovna cívek
+├── api/                           # Backend API endpointy
+│   ├── account/                  # Správa účtu (změna hesla, emailu, smazání)
+│   ├── admin/                    # Admin funkce (statistiky eFil)
+│   ├── auth/                     # Autentizace (login, register, logout, forgot-password, reset-password)
+│   ├── consumption/              # Historie čerpání (list, update, delete, get)
+│   ├── dashboard/                # Statistiky skladu
+│   ├── data/                     # Data pro selecty (materiály, výrobci, atd.)
+│   ├── filaments/               # Správa filamentů (list, save, consume, delete)
+│   ├── helpers/                  # Pomocné funkce (JWT, email)
+│   ├── inventory/               # Správa evidencí (list, switch, share, join)
+│   ├── spools/                  # Knihovna cívek (list, create, update, delete)
+│   └── users/                   # Správa uživatelů (list, add, update-role, remove)
 ├── assets/
-│   ├── css/              # Styly
-│   └── js/               # Frontend JavaScript
+│   ├── css/                     # Styly (Tailwind CSS)
+│   └── js/                      # Frontend JavaScript (ES6+, History API)
 ├── database/
-│   └── schema.sql        # Databázové schéma
-├── config.php            # Konfigurace databáze
-├── init_db.php           # Inicializační skript
-├── update_schema.php     # Migrační skript
-├── index.html            # Hlavní HTML soubor
-└── README.md             # Tento soubor
+│   └── schema.sql               # Kompletní databázové schéma
+├── tests/                       # Testovací skripty
+├── config.php                   # Konfigurace databáze a aplikace
+├── .env.example                 # Příklad konfigurace prostředí
+├── init_db.php                  # Inicializační skript
+├── update_*.php                 # Migrační skripty
+├── index.html                   # Hlavní HTML soubor
+├── CHANGELOG.md                 # Seznam změn
+├── UPGRADE.md                   # Návod na upgrade
+└── README.md                    # Tento soubor
 ```
 
 ## 🗄️ Databázové schéma
 
 Aplikace používá následující hlavní tabulky:
 
-- **users** - Uživatelé systému
-- **inventories** - Evidence skladů
+- **users** - Uživatelé systému (role: user, admin_efil)
+- **inventories** - Evidence skladů (včetně demo režimu)
 - **inventory_access** - Přístupové kódy pro sdílení
-- **inventory_members** - Členové sdílených evidencí
+- **inventory_members** - Členové sdílených evidencí (role: read, write, manage, owner)
 - **filaments** - Filamenty ve skladu
-- **consumption_log** - Záznamy spotřeby
+- **consumption_log** - Záznamy spotřeby s datem a autorem
 - **spool_library** - Knihovna typů cívek
+- **spool_manufacturer** - Vazební tabulka M:N mezi cívkami a výrobci
 - **manufacturers** - Výrobci
 
 ## 🔐 API Endpointy
@@ -143,21 +165,50 @@ Aplikace používá následující hlavní tabulky:
 - `POST /api/auth/register.php` - Registrace
 - `GET /api/auth/logout.php` - Odhlášení
 - `GET /api/auth/me.php` - Informace o přihlášeném uživateli
+- `POST /api/auth/forgot-password.php` - Zapomenuté heslo
+- `POST /api/auth/reset-password.php` - Nastavení nového hesla
 
 ### Filamenty
 - `GET /api/filaments/list.php` - Seznam filamentů
 - `POST /api/filaments/save.php` - Uložení/úprava filamentu
-- `POST /api/filaments/consume.php` - Záznam spotřeby
+- `POST /api/filaments/consume.php` - Záznam spotřeby s datem
+- `POST /api/filaments/delete.php` - Smazání filamentu
+
+### Čerpání
+- `GET /api/consumption/list.php` - Historie čerpání (pro celý inventář nebo konkrétní filament)
+- `GET /api/consumption/get.php` - Detail jednoho záznamu čerpání
+- `POST /api/consumption/update.php` - Úprava záznamu čerpání
+- `POST /api/consumption/delete.php` - Smazání záznamu čerpání
 
 ### Data
 - `GET /api/data/options.php` - Možnosti pro selecty (materiály, výrobci, atd.) s optgroups pro nejčastější hodnoty
-- `GET /api/spools/list.php` - Seznam typů cívek
-- `POST /api/spools/save.php` - Uložení nového typu cívky
-- `GET /api/dashboard/stats.php` - Statistiky skladu
 
-### Sdílení
+### Cívky
+- `GET /api/spools/list.php` - Seznam typů cívek s vazbami na výrobce
+- `POST /api/spools/create.php` - Vytvoření nového typu cívky
+- `POST /api/spools/update.php` - Úprava typu cívky
+- `POST /api/spools/delete.php` - Smazání typu cívky
+
+### Statistiky
+- `GET /api/dashboard/stats.php` - Statistiky skladu
+- `GET /api/admin/stats.php` - Celkové statistiky eFil (pouze pro admin_efil)
+
+### Evidence
+- `GET /api/inventory/list.php` - Seznam evidencí uživatele
+- `POST /api/inventory/switch.php` - Přepnutí mezi evidencemi
 - `POST /api/inventory/share.php` - Vygenerování sdílecího kódu
 - `POST /api/inventory/join.php` - Připojení k evidenci pomocí kódu
+
+### Uživatelé
+- `GET /api/users/list.php` - Seznam uživatelů v evidenci
+- `POST /api/users/add.php` - Přidání uživatele do evidence
+- `POST /api/users/update-role.php` - Změna role uživatele
+- `POST /api/users/remove.php` - Odebrání uživatele z evidence
+
+### Účet
+- `POST /api/account/change-password.php` - Změna hesla
+- `POST /api/account/change-email.php` - Změna emailu
+- `POST /api/account/delete.php` - Smazání účtu
 
 ## 🎨 Funkce aplikace
 

@@ -15,7 +15,8 @@ let state = {
     editingId: null,
     consumeId: null,
     consumeMode: 'used', // used (subtract), weight (calculate from gross)
-    formFieldsStatus: { mat: 'select', man: 'select', loc: 'select', seller: 'select', spool: 'select' }
+    formFieldsStatus: { mat: 'select', man: 'select', loc: 'select', seller: 'select', spool: 'select' },
+    expandedGroups: new Set() // Track which filament groups are expanded
 };
 
 // Router - History API support
@@ -267,10 +268,68 @@ async function loadData() {
         if (resSpools.ok) spoolTemplates = await resSpools.json();
         if (resStats.ok) stats = await resStats.json();
 
+        // Add admin menu item if user is admin_efil
+        updateAdminMenu();
+        
         render();
     } catch (err) {
         console.error('Data load error', err);
         showToast('Chyba načítání dat');
+    }
+}
+
+async function updateAdminMenu() {
+    const menu = document.getElementById('action-menu');
+    const existingAdminBtn = menu.querySelector('[data-admin-stats]');
+    const existingInvSwitchBtn = menu.querySelector('[data-inventory-switch]');
+    
+    // Remove existing dynamic buttons if present
+    if (existingAdminBtn) existingAdminBtn.remove();
+    if (existingInvSwitchBtn) existingInvSwitchBtn.remove();
+    
+    const logoutBtn = menu.querySelector('button[onclick="logout()"]');
+    if (!logoutBtn) return;
+    
+    // Check if user has access to multiple inventories
+    try {
+        const res = await fetch(`${API_BASE}/inventory/list.php`);
+        if (res.ok) {
+            const inventories = await res.json();
+            
+            // Add inventory switch button if user has access to multiple inventories
+            if (inventories.length > 1) {
+                const invSwitchBtn = document.createElement('button');
+                invSwitchBtn.setAttribute('data-inventory-switch', 'true');
+                invSwitchBtn.onclick = () => {
+                    document.getElementById('action-menu').classList.add('hidden');
+                    router.push('/inventory/switch');
+                };
+                invSwitchBtn.className = 'w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left';
+                invSwitchBtn.innerHTML = `
+                    <div class="bg-blue-100 text-blue-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></div>
+                    Přepnout evidenci
+                `;
+                logoutBtn.parentNode.insertBefore(invSwitchBtn, logoutBtn);
+            }
+        }
+    } catch (err) {
+        console.error('Failed to check inventories:', err);
+    }
+    
+    // Add admin button if user is admin_efil
+    if (user && user.role === 'admin_efil') {
+        const adminBtn = document.createElement('button');
+        adminBtn.setAttribute('data-admin-stats', 'true');
+        adminBtn.onclick = () => {
+            document.getElementById('action-menu').classList.add('hidden');
+            router.push('/admin/stats');
+        };
+        adminBtn.className = 'w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left';
+        adminBtn.innerHTML = `
+            <div class="bg-emerald-100 text-emerald-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg></div>
+            Statistiky eFil
+        `;
+        logoutBtn.parentNode.insertBefore(adminBtn, logoutBtn);
     }
 }
 
@@ -296,12 +355,12 @@ async function saveFilament(data) {
     }
 }
 
-async function consumeFilament(filamentId, amount, description) {
+async function consumeFilament(filamentId, amount, description, date) {
     try {
         const res = await fetch(`${API_BASE}/filaments/consume.php`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filament_id: filamentId, amount, description })
+            body: JSON.stringify({ filament_id: filamentId, amount, description, consumption_date: date })
         });
 
         if (res.ok) {
@@ -673,7 +732,7 @@ window.joinInventory = async () => {
 };
 
 // --- STATS ---
-function renderStats(v) {
+async function renderStats(v) {
     if(!stats) {
         v.innerHTML = '<p class="text-center p-10">Žádná data</p>';
         return;
@@ -710,10 +769,58 @@ function renderStats(v) {
                 <div id="share-code-display" class="text-xl font-black tracking-widest select-all"></div>
             </div>
         </div>
-
-        <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm mt-4">Zpět na sklad</button>
     `;
     v.appendChild(container);
+
+    // Load and display consumption history for inventory
+    try {
+        const res = await fetch(`${API_BASE}/consumption/list.php`);
+        if (res.ok) {
+            const history = await res.json();
+            
+            if (history.length > 0) {
+                const historyContainer = document.createElement('div');
+                historyContainer.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200";
+                historyContainer.innerHTML = `
+                    <h3 class="text-lg font-black text-slate-800 mb-4">Historie čerpání (posledních ${history.length})</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="text-left border-b border-slate-200">
+                                <tr>
+                                    <th class="pb-2 font-bold text-slate-500 uppercase text-xs">Datum</th>
+                                    <th class="pb-2 font-bold text-slate-500 uppercase text-xs">Filament</th>
+                                    <th class="pb-2 font-bold text-slate-500 uppercase text-xs">Spotřeba</th>
+                                    <th class="pb-2 font-bold text-slate-500 uppercase text-xs">Poznámka</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${history.map(h => `
+                                    <tr class="border-b border-slate-100">
+                                        <td class="py-3 text-slate-600">${h.consumption_date}</td>
+                                        <td class="py-3">
+                                            <div class="font-bold text-slate-800">${h.manufacturer}</div>
+                                            <div class="text-xs text-slate-500">${h.material} • ${h.color}</div>
+                                        </td>
+                                        <td class="py-3 font-bold text-indigo-600">${h.consumed_weight}g</td>
+                                        <td class="py-3 text-slate-600 text-xs">${h.note || '-'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                v.appendChild(historyContainer);
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load consumption history:', err);
+    }
+
+    const backBtn = document.createElement('button');
+    backBtn.onclick = window.resetApp;
+    backBtn.className = 'w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm mt-4';
+    backBtn.textContent = 'Zpět na sklad';
+    v.appendChild(backBtn);
 }
 
 window.openStats = () => {
@@ -724,6 +831,21 @@ window.openStats = () => {
 window.openAccount = () => {
     document.getElementById('action-menu').classList.add('hidden');
     router.push('/account');
+};
+
+window.openUsers = () => {
+    document.getElementById('action-menu').classList.add('hidden');
+    router.push('/users');
+};
+
+window.openSpools = () => {
+    document.getElementById('action-menu').classList.add('hidden');
+    router.push('/spools');
+};
+
+window.openHelp = () => {
+    document.getElementById('action-menu').classList.add('hidden');
+    router.push('/help');
 };
 
 // --- CONSUME LOGIC ---
@@ -739,7 +861,8 @@ window.handleConsumeSubmit = (e) => {
     if(!item) return;
 
     let grams = 0;
-    const desc = document.getElementById('c-desc').value || 'Tisk';
+    const desc = document.getElementById('c-desc').value || '';
+    const date = document.getElementById('c-date').value || new Date().toISOString().split('T')[0];
 
     if(state.consumeMode === 'used') {
         grams = -1 * parseInt(document.getElementById('c-val').value);
@@ -754,10 +877,10 @@ window.handleConsumeSubmit = (e) => {
         grams = newNetto - currentNetto;
     }
 
-    consumeFilament(item.id, grams, desc);
+    consumeFilament(item.id, grams, desc, date);
 }
 
-function renderConsume(v) {
+async function renderConsume(v) {
     const item = filaments.find(i => i.id === state.consumeId);
     if (!item) { router.push('/wizard/mat'); return; }
 
@@ -794,6 +917,11 @@ function renderConsume(v) {
             </div>
 
             <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Datum čerpání</label>
+                <input id="c-date" type="date" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold text-sm" value="${new Date().toISOString().split('T')[0]}">
+            </div>
+
+            <div>
                 <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Poznámka (Volitelné)</label>
                 <input id="c-desc" type="text" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold text-sm" placeholder="Např. Projekt XY">
             </div>
@@ -805,6 +933,36 @@ function renderConsume(v) {
         </div>
     `;
     v.appendChild(container);
+
+    // Load and display consumption history
+    try {
+        const res = await fetch(`${API_BASE}/consumption/list.php?filament_id=${item.id}`);
+        if (res.ok) {
+            const history = await res.json();
+            
+            if (history.length > 0) {
+                const historyContainer = document.createElement('div');
+                historyContainer.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 max-w-lg mx-auto mt-6";
+                historyContainer.innerHTML = `
+                    <h3 class="text-lg font-black text-slate-800 mb-4">Historie čerpání</h3>
+                    <div class="space-y-2">
+                        ${history.map(h => `
+                            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg text-sm">
+                                <div class="flex-1">
+                                    <div class="font-bold text-slate-800">${h.consumed_weight}g</div>
+                                    <div class="text-xs text-slate-500">${h.consumption_date}${h.note ? ` • ${h.note}` : ''}</div>
+                                </div>
+                                <button onclick="editConsumption(${h.id})" class="text-indigo-600 font-bold text-xs hover:underline mr-2">Upravit</button>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                v.appendChild(historyContainer);
+            }
+        }
+    } catch (err) {
+        console.error('Failed to load consumption history:', err);
+    }
 }
 
 // --- FORM LOGIC ---
@@ -864,11 +1022,49 @@ window.renderSpoolInput = (selectedId) => {
             return parts.length > 0 ? parts.join(' • ') : 'Neznámá cívka';
         };
 
+        // Get currently selected manufacturer from the form
+        const currentManufacturer = document.getElementById('f-man')?.value || null;
+        
+        // Split spools into two groups: matching manufacturer and others
+        const matchingSpools = [];
+        const otherSpools = [];
+        
+        spoolTemplates.forEach(s => {
+            // Check if this spool is associated with the current manufacturer
+            const hasMatch = s.manufacturers && s.manufacturers.some(m => m.name === currentManufacturer);
+            if (hasMatch) {
+                matchingSpools.push(s);
+            } else {
+                otherSpools.push(s);
+            }
+        });
+
+        let optionsHtml = `
+            <option value="" disabled ${!selectedId ? 'selected' : ''}>Vybrat...</option>
+            <option value="" ${selectedId === null || selectedId === '' ? 'selected' : ''}>Žádná / Neznámá</option>
+        `;
+        
+        // Add matching spools first in optgroup
+        if (matchingSpools.length > 0 && currentManufacturer) {
+            optionsHtml += `<optgroup label="Pro výrobce ${currentManufacturer}">`;
+            optionsHtml += matchingSpools.map(s => `<option value="${s.id}" ${s.id == selectedId ? 'selected' : ''}>${formatSpoolLabel(s)}</option>`).join('');
+            optionsHtml += `</optgroup>`;
+        }
+        
+        // Add other spools
+        if (otherSpools.length > 0) {
+            if (matchingSpools.length > 0 && currentManufacturer) {
+                optionsHtml += `<optgroup label="Ostatní">`;
+            }
+            optionsHtml += otherSpools.map(s => `<option value="${s.id}" ${s.id == selectedId ? 'selected' : ''}>${formatSpoolLabel(s)}</option>`).join('');
+            if (matchingSpools.length > 0 && currentManufacturer) {
+                optionsHtml += `</optgroup>`;
+            }
+        }
+
         return `
             <select id="f-spool" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold appearance-none">
-                <option value="" disabled ${!selectedId ? 'selected' : ''}>Vybrat...</option>
-                <option value="" ${selectedId === null || selectedId === '' ? 'selected' : ''}>Žádná / Neznámá</option>
-                ${spoolTemplates.map(s => `<option value="${s.id}" ${s.id == selectedId ? 'selected' : ''}>${formatSpoolLabel(s)}</option>`).join('')}
+                ${optionsHtml}
             </select>
             <button type="button" onclick="toggleSpoolField()" class="bg-indigo-100 text-indigo-600 p-3 rounded-xl font-bold">+</button>
         `;
@@ -1410,34 +1606,105 @@ function renderColors(v) {
 }
 
 function renderDetails(v) {
-    const container = document.createElement('div'); container.className = "flex flex-col gap-3 w-full";
+    const container = document.createElement('div'); 
+    container.className = "flex flex-col gap-3 w-full";
+    
     // Filter out filaments with zero or negative weight
     const activeFilaments = filaments.filter(i => parseInt(i.g) > 0);
-    const filtered = activeFilaments.filter(i => (!state.filters.mat || i.mat===state.filters.mat) && (!state.filters.color || i.color===state.filters.color)).sort((a,b)=>b.g-a.g);
-    if(filtered.length === 0) container.innerHTML = `<div class="text-center py-20 text-slate-400 bg-white rounded-3xl border-2 border-dashed">Žádné položky</div>`;
-    else filtered.forEach(item => {
-        const card = document.createElement('div');
-        card.className = "bg-white p-4 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm cursor-pointer";
-        card.onclick = () => {
-             state.editingId = item.id;
-             openForm();
-        };
-        card.innerHTML = `
-            <div class="flex items-center gap-4">
-                <div class="w-10 h-10 rounded-full border border-slate-100 shadow-inner" style="background-color: ${item.hex}"></div>
-                <div>
-                    <div class="font-bold text-slate-900 flex items-center gap-2">${item.man}</div>
-                    <div class="text-xs text-slate-500 font-medium uppercase mt-0.5">${item.mat} • ${item.color}</div>
-                    <div class="text-[10px] text-indigo-500 font-bold mt-1 uppercase">${item.loc ? `${item.loc} | ` : ''}#${item.user_display_id || item.id}</div>
-                </div>
-            </div>
-            <div onclick="event.stopPropagation(); window.openConsume(${item.id})" class="text-2xl font-black text-indigo-600 leading-none bg-indigo-50 px-4 py-3 rounded-lg hover:bg-indigo-100 transition-colors cursor-pointer">${item.g}<span class="text-sm ml-1">g</span></div>
-        `;
-        container.appendChild(card);
-    });
+    const filtered = activeFilaments.filter(i => (!state.filters.mat || i.mat===state.filters.mat) && (!state.filters.color || i.color===state.filters.color));
+    
+    if(filtered.length === 0) {
+        container.innerHTML = `<div class="text-center py-20 text-slate-400 bg-white rounded-3xl border-2 border-dashed">Žádné položky</div>`;
+    } else {
+        // Group filaments by manufacturer + material + color
+        const groups = new Map();
+        filtered.forEach(item => {
+            const key = `${item.man}|${item.mat}|${item.color}`;
+            if (!groups.has(key)) {
+                groups.set(key, []);
+            }
+            groups.get(key).push(item);
+        });
+        
+        // Sort groups by total weight (descending)
+        const sortedGroups = Array.from(groups.entries()).sort((a, b) => {
+            const totalA = a[1].reduce((sum, i) => sum + parseInt(i.g), 0);
+            const totalB = b[1].reduce((sum, i) => sum + parseInt(i.g), 0);
+            return totalB - totalA;
+        });
+        
+        sortedGroups.forEach(([key, items]) => {
+            const isMultiple = items.length > 1;
+            const isExpanded = state.expandedGroups.has(key);
+            
+            if (isMultiple && !isExpanded) {
+                // Show grouped item
+                const totalWeight = items.reduce((sum, i) => sum + parseInt(i.g), 0);
+                const firstItem = items[0];
+                
+                const groupCard = document.createElement('div');
+                groupCard.className = "bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-2xl border-2 border-indigo-200 flex items-center justify-between shadow-sm cursor-pointer hover:shadow-md transition-shadow";
+                groupCard.onclick = () => {
+                    state.expandedGroups.add(key);
+                    render();
+                };
+                groupCard.innerHTML = `
+                    <div class="flex items-center gap-4">
+                        <div class="w-10 h-10 rounded-full border-2 border-indigo-300 shadow-inner" style="background-color: ${firstItem.hex}"></div>
+                        <div>
+                            <div class="font-bold text-slate-900 flex items-center gap-2">${firstItem.man}</div>
+                            <div class="text-xs text-slate-500 font-medium uppercase mt-0.5">${firstItem.mat} • ${firstItem.color}</div>
+                            <div class="text-[10px] text-indigo-600 font-bold mt-1 uppercase">${items.length} cívek</div>
+                        </div>
+                    </div>
+                    <div class="text-2xl font-black text-indigo-600 leading-none bg-white px-4 py-3 rounded-lg">${totalWeight}<span class="text-sm ml-1">g</span></div>
+                `;
+                container.appendChild(groupCard);
+            } else {
+                // Show individual items (or single item, or expanded group)
+                items.sort((a,b)=>parseInt(b.g)-parseInt(a.g)).forEach((item, idx) => {
+                    const card = document.createElement('div');
+                    const isInExpandedGroup = isMultiple && isExpanded;
+                    card.className = `bg-white p-4 rounded-2xl border border-slate-200 flex items-center justify-between shadow-sm cursor-pointer ${isInExpandedGroup ? 'ml-6 border-l-4 border-l-indigo-400' : ''}`;
+                    card.onclick = () => {
+                        state.editingId = item.id;
+                        openForm();
+                    };
+                    card.innerHTML = `
+                        <div class="flex items-center gap-4">
+                            <div class="w-10 h-10 rounded-full border border-slate-100 shadow-inner" style="background-color: ${item.hex}"></div>
+                            <div>
+                                <div class="font-bold text-slate-900 flex items-center gap-2">${item.man}</div>
+                                <div class="text-xs text-slate-500 font-medium uppercase mt-0.5">${item.mat} • ${item.color}</div>
+                                <div class="text-[10px] text-indigo-500 font-bold mt-1 uppercase">${item.loc ? `${item.loc} | ` : ''}#${item.user_display_id || item.id}</div>
+                            </div>
+                        </div>
+                        <div onclick="event.stopPropagation(); window.openConsume(${item.id})" class="text-2xl font-black text-indigo-600 leading-none bg-indigo-50 px-4 py-3 rounded-lg hover:bg-indigo-100 transition-colors cursor-pointer">${item.g}<span class="text-sm ml-1">g</span></div>
+                    `;
+                    container.appendChild(card);
+                });
+                
+                // Add collapse button for expanded groups
+                if (isMultiple && isExpanded) {
+                    const collapseBtn = document.createElement('button');
+                    collapseBtn.className = "ml-6 py-2 px-4 bg-indigo-100 text-indigo-600 rounded-lg font-bold text-sm hover:bg-indigo-200 transition-colors";
+                    collapseBtn.textContent = "Sbalit skupinu";
+                    collapseBtn.onclick = () => {
+                        state.expandedGroups.delete(key);
+                        render();
+                    };
+                    container.appendChild(collapseBtn);
+                }
+            }
+        });
+    }
+    
     v.appendChild(container);
-    const btn = document.createElement('button'); btn.className = "mt-6 w-full py-4 text-indigo-600 font-bold text-sm bg-indigo-50 rounded-2xl";
-    btn.innerText = "Vymazat filtry"; btn.onclick = window.resetApp; v.appendChild(btn);
+    const btn = document.createElement('button'); 
+    btn.className = "mt-6 w-full py-4 text-indigo-600 font-bold text-sm bg-indigo-50 rounded-2xl";
+    btn.innerText = "Vymazat filtry"; 
+    btn.onclick = window.resetApp; 
+    v.appendChild(btn);
 }
 
 window.setStep = (s) => { 
@@ -1507,10 +1774,137 @@ window.openConsume = (id) => {
 // Placeholder render functions for new views (will be implemented in next tasks)
 function renderHelp(v) {
     const container = document.createElement('div');
-    container.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4";
+    container.className = "max-w-4xl mx-auto space-y-6";
     container.innerHTML = `
-        <h2 class="text-2xl font-black text-slate-800">Nápověda</h2>
-        <p class="text-slate-600">Zde bude podrobná nápověda k aplikaci.</p>
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h1 class="text-3xl font-black text-slate-800 mb-2">Nápověda eFil</h1>
+            <p class="text-slate-600">Stručný průvodce funkcemi aplikace</p>
+        </div>
+
+        <!-- Začínáme -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-black text-indigo-600 mb-3">🚀 Začínáme</h2>
+            <ol class="list-decimal list-inside space-y-2 text-slate-700">
+                <li>Zaregistrujte se pomocí emailu a hesla</li>
+                <li>Po přihlášení se automaticky vytvoří vaše první evidence</li>
+                <li>Klikněte na <strong>Přidat nový filament</strong> v menu</li>
+                <li>Vyplňte základní informace (materiál, barva, hmotnost)</li>
+                <li>Filament se zobrazí v přehledu skladu</li>
+            </ol>
+        </div>
+
+        <!-- Navigace -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-black text-indigo-600 mb-3">🧭 Navigace skladem</h2>
+            <p class="text-slate-600 mb-3">Aplikace používá třístupňový filtr pro snadné vyhledávání:</p>
+            <ol class="list-decimal list-inside space-y-2 text-slate-700">
+                <li><strong>MAT (Materiál)</strong> - Vyberte typ materiálu (PLA, PETG, ABS...)</li>
+                <li><strong>BAR (Barva)</strong> - Vyberte barvu filamentu</li>
+                <li><strong>VÝR (Výrobce/Detail)</strong> - Zobrazí se konkrétní filamenty</li>
+            </ol>
+            <p class="text-slate-500 text-sm mt-3">💡 Filtry můžete kombinovat nebo resetovat tlačítkem <em>Vymazat filtry</em></p>
+        </div>
+
+        <!-- Zápis čerpání -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-black text-indigo-600 mb-3">⚖️ Zápis čerpání</h2>
+            <p class="text-slate-600 mb-3">Dva způsoby záznamu spotřeby:</p>
+            <div class="space-y-4">
+                <div>
+                    <h3 class="font-bold text-slate-800 mb-2">Přesný úbytek:</h3>
+                    <ol class="list-decimal list-inside space-y-1 text-slate-700 ml-4">
+                        <li>Klikněte na hmotnost filamentu</li>
+                        <li>Zadejte spotřebovanou hmotnost v gramech</li>
+                        <li>Volitelně přidejte poznámku (např. název projektu)</li>
+                        <li>Potvrďte tlačítkem <strong>Zapsat</strong></li>
+                    </ol>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-800 mb-2">Vážení s cívkou:</h3>
+                    <ol class="list-decimal list-inside space-y-1 text-slate-700 ml-4">
+                        <li>Přepněte na režim <em>Vážení s cívkou</em></li>
+                        <li>Zadejte celkovou hmotnost (cívka + filament)</li>
+                        <li>Aplikace automaticky odečte táru cívky</li>
+                        <li>Nový zůstatek se vypočítá automaticky</li>
+                    </ol>
+                </div>
+            </div>
+            <p class="text-slate-500 text-sm mt-3">💡 Pro přesné vážení nastavte typ cívky při přidávání filamentu</p>
+        </div>
+
+        <!-- Správa cívek -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-black text-indigo-600 mb-3">🎯 Typy cívek (Tára)</h2>
+            <ol class="list-decimal list-inside space-y-2 text-slate-700">
+                <li>Při přidávání filamentu vyberte typ cívky ze seznamu</li>
+                <li>Pokud váš typ není v seznamu, klikněte na <strong>+</strong></li>
+                <li>Zadejte charakteristiky (barva, materiál, průměr, šířka)</li>
+                <li><strong>Důležité:</strong> Hmotnost prázdné cívky zadejte až když ji máte prázdnou</li>
+                <li>Typ cívky se uloží a bude dostupný pro další filamenty</li>
+            </ol>
+        </div>
+
+        <!-- Sdílení -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-black text-indigo-600 mb-3">👥 Sdílení evidence s týmem</h2>
+            <ol class="list-decimal list-inside space-y-2 text-slate-700">
+                <li>Otevřete menu → <strong>Přehled skladu</strong></li>
+                <li>Klikněte na <strong>Vygenerovat kód</strong></li>
+                <li>Sdílejte kód s kolegy</li>
+                <li>Kolega klikne <em>Mám kód pozvánky</em> na přihlašovací stránce</li>
+                <li>Po zadání kódu má přístup k vaší evidenci</li>
+            </ol>
+            <p class="text-slate-500 text-sm mt-3">Pro změnu oprávnění použijte menu → <strong>Správa uživatelů</strong></p>
+        </div>
+
+        <!-- Správa uživatelů -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-black text-indigo-600 mb-3">🔐 Správa uživatelů</h2>
+            <p class="text-slate-600 mb-3">Tři úrovně oprávnění:</p>
+            <ul class="space-y-2 ml-6">
+                <li class="text-slate-700"><strong>Jen čtení</strong> - Prohlížení dat bez možnosti editace</li>
+                <li class="text-slate-700"><strong>Zápis</strong> - Přidávání filamentů a zápis čerpání</li>
+                <li class="text-slate-700"><strong>Správa</strong> - Vše včetně správy uživatelů</li>
+            </ul>
+            <p class="text-slate-600 mt-3 font-bold">Přidání uživatele:</p>
+            <ol class="list-decimal list-inside space-y-1 text-slate-700 ml-4 mt-2">
+                <li>Menu → <strong>Správa uživatelů</strong></li>
+                <li>Zadejte email a vyberte oprávnění</li>
+                <li>Pokud uživatel existuje, přidá se do evidence</li>
+                <li>Pokud neexistuje, vytvoří se nový účet a přijde mu email</li>
+            </ol>
+        </div>
+
+        <!-- Můj účet -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-black text-indigo-600 mb-3">⚙️ Správa účtu</h2>
+            <p class="text-slate-600 mb-2">V sekci <strong>Můj účet</strong> můžete:</p>
+            <ul class="space-y-2 ml-6 text-slate-700">
+                <li>• Změnit heslo (zadejte současné a nové)</li>
+                <li>• Změnit emailovou adresu (vyžaduje potvrzení heslem)</li>
+                <li>• Smazat účet (nevratná akce, vyžaduje potvrzení)</li>
+            </ul>
+        </div>
+
+        <!-- Tipy -->
+        <div class="bg-indigo-50 p-6 rounded-3xl border border-indigo-200">
+            <h2 class="text-xl font-black text-indigo-900 mb-3">💡 Tipy a triky</h2>
+            <ul class="space-y-2 text-indigo-900">
+                <li>• Používejte pole <strong>Umístění</strong> pro snadné hledání (např. "Polička A")</li>
+                <li>• Číslo filamentu můžete libovolně měnit podle svého systému</li>
+                <li>• Filamenty s nulovou hmotností se automaticky skrývají</li>
+                <li>• Tlačítka Zpět/Vpřed v prohlížeči fungují pro navigaci v aplikaci</li>
+                <li>• Demo účet slouží pouze k prohlížení, vytvořte si vlastní pro plný přístup</li>
+            </ul>
+        </div>
+
+        <!-- Podpora -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 text-center">
+            <h2 class="text-xl font-black text-slate-800 mb-2">📧 Potřebujete pomoc?</h2>
+            <p class="text-slate-600 mb-4">Kontaktujte nás na <a href="mailto:podpora@sensio.cz" class="text-indigo-600 font-bold hover:underline">podpora@sensio.cz</a></p>
+            <p class="text-sm text-slate-500">Vyvinuto společností <a href="https://sensio.cz" target="_blank" class="text-indigo-600 hover:underline">Sensio.cz s.r.o.</a></p>
+        </div>
+
         <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
     `;
     v.appendChild(container);
@@ -1704,49 +2098,739 @@ window.handleDeleteAccount = async (e) => {
     }
 };
 
-function renderUsers(v) {
+async function renderUsers(v) {
     const container = document.createElement('div');
-    container.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4";
+    container.className = "max-w-3xl mx-auto space-y-4";
+    
+    // Load users
+    let users = [];
+    try {
+        const res = await fetch(`${API_BASE}/users/list.php`);
+        if (res.ok) {
+            users = await res.json();
+        }
+    } catch (err) {
+        console.error('Failed to load users:', err);
+    }
+    
+    const roleNames = {
+        'owner': 'Vlastník',
+        'manage': 'Správa',
+        'write': 'Zápis',
+        'read': 'Jen čtení'
+    };
+    
     container.innerHTML = `
-        <h2 class="text-2xl font-black text-slate-800">Správa uživatelů</h2>
-        <p class="text-slate-600">Zde bude správa uživatelů evidence.</p>
+        <!-- Add User Form -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-black text-slate-800 mb-4">Přidat uživatele</h2>
+            <form onsubmit="handleAddUser(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label>
+                    <input type="email" name="email" required class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="uzivatel@example.com">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Oprávnění</label>
+                    <select name="role" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold">
+                        <option value="read">Jen čtení</option>
+                        <option value="write" selected>Zápis</option>
+                        <option value="manage">Správa</option>
+                    </select>
+                </div>
+                <button type="submit" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">
+                    Přidat uživatele
+                </button>
+            </form>
+        </div>
+
+        <!-- Users List -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-black text-slate-800 mb-4">Uživatelé v evidenci</h2>
+            <div class="space-y-3" id="users-list">
+                ${users.length === 0 ? '<p class="text-slate-400 text-center py-4">Načítání...</p>' : users.map(u => `
+                    <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                        <div>
+                            <div class="font-bold text-slate-900">${u.email}</div>
+                            <div class="text-xs text-slate-500 mt-1">
+                                ${u.is_owner ? '<span class="bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded font-bold">VLASTNÍK</span>' : `
+                                    <select onchange="handleChangeRole(${u.id}, this.value)" class="bg-white border border-slate-200 rounded px-2 py-1 text-xs font-bold" ${u.is_owner ? 'disabled' : ''}>
+                                        <option value="read" ${u.inventory_role === 'read' ? 'selected' : ''}>Jen čtení</option>
+                                        <option value="write" ${u.inventory_role === 'write' ? 'selected' : ''}>Zápis</option>
+                                        <option value="manage" ${u.inventory_role === 'manage' ? 'selected' : ''}>Správa</option>
+                                    </select>
+                                `}
+                            </div>
+                        </div>
+                        ${!u.is_owner ? `
+                            <button onclick="handleRemoveUser(${u.id}, '${u.email}')" class="px-3 py-2 bg-red-50 text-red-600 rounded-lg font-bold text-sm hover:bg-red-100 transition-colors">
+                                Odebrat
+                            </button>
+                        ` : '<div class="text-xs text-slate-400">Nelze odebrat</div>'}
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+
         <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
     `;
+    
     v.appendChild(container);
 }
 
-function renderSpools(v) {
+// User management handlers
+window.handleAddUser = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    
+    try {
+        const res = await fetch(`${API_BASE}/users/add.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                email: fd.get('email'),
+                role: fd.get('role')
+            })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            showToast(data.message || 'Uživatel přidán');
+            e.target.reset();
+            // Refresh users list
+            state.view = 'users';
+            render();
+        } else {
+            showToast(data.error || 'Chyba při přidávání uživatele');
+        }
+    } catch (err) {
+        showToast('Chyba sítě');
+    }
+};
+
+window.handleChangeRole = async (userId, newRole) => {
+    try {
+        const res = await fetch(`${API_BASE}/users/update-role.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: userId,
+                role: newRole
+            })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            showToast('Oprávnění změněna');
+        } else {
+            showToast(data.error || 'Chyba při změně oprávnění');
+            // Refresh to restore original value
+            render();
+        }
+    } catch (err) {
+        showToast('Chyba sítě');
+        render();
+    }
+};
+
+window.handleRemoveUser = async (userId, email) => {
+    if (!confirm(`Opravdu chcete odebrat uživatele ${email}?`)) {
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API_BASE}/users/remove.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            showToast('Uživatel odebrán');
+            // Refresh users list
+            render();
+        } else {
+            showToast(data.error || 'Chyba při odebírání uživatele');
+        }
+    } catch (err) {
+        showToast('Chyba sítě');
+    }
+};
+
+async function renderSpools(v) {
     const container = document.createElement('div');
-    container.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4";
+    container.className = "max-w-4xl mx-auto space-y-6";
+    
+    // Load spools and manufacturers
+    let spools = [];
+    let manufacturers = [];
+    try {
+        const [resSpools, resManuf] = await Promise.all([
+            fetch(`${API_BASE}/spools/list.php`),
+            fetch(`${API_BASE}/data/options.php`)
+        ]);
+        if (resSpools.ok) spools = await resSpools.json();
+        if (resManuf.ok) {
+            const data = await resManuf.json();
+            manufacturers = data.manufacturers || [];
+        }
+    } catch (err) {
+        console.error('Failed to load spools:', err);
+    }
+    
     container.innerHTML = `
-        <h2 class="text-2xl font-black text-slate-800">Správa typů cívek</h2>
-        <p class="text-slate-600">Zde bude správa typů cívek s vazbami na výrobce.</p>
+        <!-- Add/Edit Form -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-black text-slate-800 mb-4" id="spool-form-title">Přidat typ cívky</h2>
+            <form id="spool-form" class="space-y-4">
+                <input type="hidden" id="spool-id" value="">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Barva</label>
+                        <input type="text" id="spool-color" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="např. Černá">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Materiál</label>
+                        <input type="text" id="spool-material" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="např. Plast">
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Ø vnější (mm)</label>
+                        <input type="number" id="spool-diameter" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="200">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Šířka (mm)</label>
+                        <input type="number" id="spool-width" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="70">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Hmotnost (g)</label>
+                        <input type="number" id="spool-weight" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="240">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Výrobci (multiselect)</label>
+                    <select multiple id="spool-manufacturers" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" style="min-height: 100px;">
+                        ${manufacturers.map(m => `<option value="${m}">${m}</option>`).join('')}
+                    </select>
+                    <div class="text-xs text-slate-500 mt-1">Držte Ctrl/Cmd pro výběr více výrobců</div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Poznámka</label>
+                    <textarea id="spool-description" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" rows="2" placeholder="Doplňující informace..."></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" onclick="cancelSpoolEdit()" id="spool-cancel-btn" class="hidden flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">Zrušit</button>
+                    <button type="submit" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">Uložit</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Spools List -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-black text-slate-800 mb-4">Existující typy</h2>
+            <div class="space-y-2" id="spools-list">
+                ${spools.length === 0 ? '<p class="text-slate-400 text-center py-4">Žádné typy cívek</p>' : spools.map(s => {
+                    const isStandard = s.created_by === null;
+                    const manufNames = s.manufacturers.map(m => m.name).join(', ') || 'Žádný výrobce';
+                    const label = `${s.color || '?'} ${s.material || '?'} • Ø${s.outer_diameter_mm || '?'}mm × ${s.width_mm || '?'}mm • ${s.weight_grams || '?'}g`;
+                    return `
+                    <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                        <div>
+                            <div class="font-bold text-slate-800">${label}</div>
+                            <div class="text-xs text-slate-500 mt-1">Výrobci: ${manufNames}</div>
+                            ${s.visual_description ? `<div class="text-xs text-slate-400 mt-1">${s.visual_description}</div>` : ''}
+                            ${isStandard ? '<div class="text-xs text-indigo-600 font-bold mt-1">STANDARDNÍ TYP</div>' : ''}
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="editSpool(${s.id})" class="px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg font-bold text-sm hover:bg-indigo-100">Upravit</button>
+                            ${!isStandard ? `<button onclick="deleteSpool(${s.id})" class="px-3 py-2 bg-red-50 text-red-600 rounded-lg font-bold text-sm hover:bg-red-100">Smazat</button>` : ''}
+                        </div>
+                    </div>
+                `}).join('')}
+            </div>
+        </div>
+
         <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
     `;
+    
+    v.appendChild(container);
+    
+    // Attach form handler
+    document.getElementById('spool-form').onsubmit = handleSpoolSubmit;
+}
+
+async function renderAdminStats(v) {
+    const container = document.createElement('div');
+    container.className = "max-w-6xl mx-auto space-y-6";
+    
+    // Load stats
+    let stats = null;
+    try {
+        const res = await fetch(`${API_BASE}/admin/stats.php`);
+        if (res.ok) {
+            stats = await res.json();
+        } else {
+            const err = await res.json();
+            container.innerHTML = `
+                <div class="bg-red-50 p-6 rounded-3xl border border-red-200">
+                    <p class="text-red-600 font-bold">${err.error || 'Nedostatečná oprávnění'}</p>
+                    <button onclick="window.resetApp()" class="mt-4 w-full py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">Zpět</button>
+                </div>
+            `;
+            v.appendChild(container);
+            return;
+        }
+    } catch (err) {
+        console.error('Failed to load stats:', err);
+    }
+    
+    if (!stats) {
+        container.innerHTML = '<p class="text-slate-400 text-center py-8">Načítání statistik...</p>';
+        v.appendChild(container);
+        return;
+    }
+    
+    container.innerHTML = `
+        <!-- Header -->
+        <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 rounded-3xl shadow-lg text-white">
+            <h1 class="text-3xl font-black mb-2">📊 Statistiky eFil</h1>
+            <p class="opacity-90">Celkový přehled využívání aplikace</p>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <div class="text-sm text-slate-500 font-bold uppercase">Uživatelé</div>
+                <div class="text-3xl font-black text-indigo-600 mt-1">${stats.total_users}</div>
+                <div class="text-xs text-slate-400 mt-1">+${stats.recent_users} za 30 dní</div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <div class="text-sm text-slate-500 font-bold uppercase">Evidence</div>
+                <div class="text-3xl font-black text-purple-600 mt-1">${stats.total_inventories}</div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <div class="text-sm text-slate-500 font-bold uppercase">Filamenty</div>
+                <div class="text-3xl font-black text-pink-600 mt-1">${stats.total_filaments}</div>
+                <div class="text-xs text-slate-400 mt-1">${stats.total_weight_kg} kg celkem</div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <div class="text-sm text-slate-500 font-bold uppercase">Spotřeba</div>
+                <div class="text-3xl font-black text-amber-600 mt-1">${stats.total_consumed_kg}</div>
+                <div class="text-xs text-slate-400 mt-1">${stats.total_consumptions} záznamů</div>
+            </div>
+        </div>
+
+        <!-- Activity Stats -->
+        <div class="grid md:grid-cols-2 gap-6">
+            <!-- Top Inventories -->
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                <h2 class="text-xl font-black text-slate-800 mb-4">🏆 Top 10 evidencí</h2>
+                <div class="space-y-2">
+                    ${stats.top_inventories.length === 0 ? '<p class="text-slate-400">Žádné evidence</p>' : stats.top_inventories.map((inv, idx) => `
+                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-600 font-black flex items-center justify-center text-sm">
+                                    ${idx + 1}
+                                </div>
+                                <div>
+                                    <div class="font-bold text-slate-800">${inv.name || 'Evidence #' + inv.id}</div>
+                                    <div class="text-xs text-slate-500">${inv.filament_count} filamentů • ${Math.round(inv.total_weight / 1000 * 10) / 10} kg</div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- Material Distribution -->
+            <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+                <h2 class="text-xl font-black text-slate-800 mb-4">📦 Materiály</h2>
+                <div class="space-y-2">
+                    ${stats.material_distribution.length === 0 ? '<p class="text-slate-400">Žádné materiály</p>' : stats.material_distribution.map(mat => {
+                        const percent = Math.round((mat.count / stats.total_filaments) * 100);
+                        return `
+                        <div class="space-y-1">
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="font-bold text-slate-700">${mat.material}</span>
+                                <span class="text-slate-500">${mat.count}× • ${Math.round(mat.total_weight / 1000 * 10) / 10} kg</span>
+                            </div>
+                            <div class="w-full bg-slate-100 rounded-full h-2">
+                                <div class="bg-indigo-500 h-2 rounded-full" style="width: ${percent}%"></div>
+                            </div>
+                        </div>
+                    `}).join('')}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-black text-slate-800 mb-4">⚡ Poslední aktivita</h2>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="text-left border-b border-slate-200">
+                        <tr>
+                            <th class="pb-2 font-bold text-slate-500 uppercase text-xs">Datum</th>
+                            <th class="pb-2 font-bold text-slate-500 uppercase text-xs">Filament</th>
+                            <th class="pb-2 font-bold text-slate-500 uppercase text-xs">Spotřeba</th>
+                            <th class="pb-2 font-bold text-slate-500 uppercase text-xs">Evidence</th>
+                            <th class="pb-2 font-bold text-slate-500 uppercase text-xs">Uživatel</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${stats.recent_activity.length === 0 ? '<tr><td colspan="5" class="py-4 text-slate-400 text-center">Žádná aktivita</td></tr>' : stats.recent_activity.map(act => `
+                            <tr class="border-b border-slate-100">
+                                <td class="py-3 text-slate-600">${act.consumption_date}</td>
+                                <td class="py-3">
+                                    <div class="font-bold text-slate-800">${act.manufacturer}</div>
+                                    <div class="text-xs text-slate-500">${act.material} • ${act.color}</div>
+                                </td>
+                                <td class="py-3 font-bold text-indigo-600">${act.consumed_weight}g</td>
+                                <td class="py-3 text-slate-600">${act.inventory_name || '-'}</td>
+                                <td class="py-3 text-slate-500 text-xs">${act.user_email || '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
+    `;
+    
     v.appendChild(container);
 }
 
-function renderAdminStats(v) {
+async function renderInventorySwitch(v) {
     const container = document.createElement('div');
-    container.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4";
+    container.className = "max-w-2xl mx-auto space-y-4";
+    
+    // Load inventories
+    let inventories = [];
+    try {
+        const res = await fetch(`${API_BASE}/inventory/list.php`);
+        if (res.ok) {
+            inventories = await res.json();
+        }
+    } catch (err) {
+        console.error('Failed to load inventories:', err);
+    }
+    
+    const roleNames = {
+        'owner': 'Vlastník',
+        'manage': 'Správa',
+        'write': 'Zápis',
+        'read': 'Jen čtení'
+    };
+    
     container.innerHTML = `
-        <h2 class="text-2xl font-black text-slate-800">Statistiky eFil</h2>
-        <p class="text-slate-600">Zde budou statistiky pro admin_efil (počet uživatelů, evidencí, atd.).</p>
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-2xl font-black text-slate-800 mb-4">Přepnout evidenci</h2>
+            <div class="space-y-3">
+                ${inventories.length === 0 ? '<p class="text-slate-400 text-center py-4">Načítání...</p>' : inventories.map(inv => `
+                    <button 
+                        onclick="handleSwitchInventory(${inv.id})" 
+                        class="w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${inv.is_current ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-300'}"
+                        ${inv.is_current ? 'disabled' : ''}>
+                        <div class="text-left">
+                            <div class="font-bold text-slate-900 flex items-center gap-2">
+                                ${inv.name || `Evidence #${inv.id}`}
+                                ${inv.is_current ? '<span class="text-xs bg-indigo-600 text-white px-2 py-0.5 rounded font-bold">AKTIVNÍ</span>' : ''}
+                                ${inv.is_demo ? '<span class="text-xs bg-amber-100 text-amber-600 px-2 py-0.5 rounded font-bold">DEMO</span>' : ''}
+                            </div>
+                            <div class="text-xs text-slate-500 mt-1">
+                                ${inv.is_owner ? '<span class="bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded font-bold">VLASTNÍK</span>' : `<span>${roleNames[inv.role] || inv.role}</span>`}
+                            </div>
+                        </div>
+                        ${!inv.is_current ? `
+                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="text-slate-400">
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                            </svg>
+                        ` : ''}
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+
         <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
     `;
+    
     v.appendChild(container);
 }
 
-function renderInventorySwitch(v) {
-    const container = document.createElement('div');
-    container.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 space-y-4";
-    container.innerHTML = `
-        <h2 class="text-2xl font-black text-slate-800">Přepnout evidenci</h2>
-        <p class="text-slate-600">Zde bude přepínač mezi evidencemi.</p>
-        <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
-    `;
-    v.appendChild(container);
-}
+// Handle inventory switch
+window.handleSwitchInventory = async (inventoryId) => {
+    try {
+        const res = await fetch(`${API_BASE}/inventory/switch.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inventory_id: inventoryId })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            showToast('Evidence přepnuta');
+            // Reload data and reset to main view
+            await loadData();
+            router.push('/wizard/mat');
+        } else {
+            showToast(data.error || 'Chyba při přepínání evidence');
+        }
+    } catch (err) {
+        showToast('Chyba sítě');
+    }
+};
+
+// Consumption edit/delete handlers
+window.editConsumption = async (consumptionId) => {
+    try {
+        const res = await fetch(`${API_BASE}/consumption/get.php?id=${consumptionId}`);
+        if (!res.ok) {
+            const err = await res.json();
+            showToast(err.error || 'Chyba načítání záznamu');
+            return;
+        }
+        const consumption = await res.json();
+        
+        // Show edit form in a modal-like overlay
+        const overlay = document.createElement('div');
+        overlay.id = 'edit-consumption-modal';
+        overlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+        overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+        
+        overlay.innerHTML = `
+            <div class="bg-white p-6 rounded-3xl shadow-xl max-w-md w-full" onclick="event.stopPropagation()">
+                <h2 class="text-xl font-black text-slate-800 mb-4">Upravit čerpání</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Filament</label>
+                        <div class="text-sm font-bold text-slate-600">${consumption.manufacturer} ${consumption.material} ${consumption.color}</div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Spotřebováno (g)</label>
+                        <input id="edit-consumed-weight" type="number" value="${consumption.consumed_weight}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Datum</label>
+                        <input id="edit-consumption-date" type="date" value="${consumption.consumption_date}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Poznámka</label>
+                        <input id="edit-consumption-note" type="text" value="${consumption.note || ''}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold">
+                    </div>
+                </div>
+                <div class="flex gap-3 mt-6">
+                    <button onclick="document.getElementById('edit-consumption-modal').remove()" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">Zrušit</button>
+                    <button onclick="deleteConsumption(${consumptionId})" class="px-4 py-3 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600">Smazat</button>
+                    <button onclick="saveConsumptionEdit(${consumptionId})" class="flex-[2] py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">Uložit</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+    } catch (err) {
+        showToast('Chyba sítě');
+    }
+};
+
+window.saveConsumptionEdit = async (consumptionId) => {
+    const consumedWeight = parseInt(document.getElementById('edit-consumed-weight').value);
+    const consumptionDate = document.getElementById('edit-consumption-date').value;
+    const note = document.getElementById('edit-consumption-note').value;
+    
+    if (!consumedWeight || consumedWeight <= 0) {
+        showToast('Zadejte platnou hmotnost');
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API_BASE}/consumption/update.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: consumptionId,
+                consumed_weight: consumedWeight,
+                consumption_date: consumptionDate,
+                note: note
+            })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            showToast('Záznam aktualizován');
+            document.getElementById('edit-consumption-modal').remove();
+            await loadData();
+            render();
+        } else {
+            showToast(data.error || 'Chyba při ukládání');
+        }
+    } catch (err) {
+        showToast('Chyba sítě');
+    }
+};
+
+window.deleteConsumption = async (consumptionId) => {
+    if (!confirm('Opravdu chcete smazat tento záznam čerpání? Hmotnost bude vrácena zpět k filamentu.')) {
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API_BASE}/consumption/delete.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: consumptionId })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            showToast('Záznam smazán');
+            document.getElementById('edit-consumption-modal')?.remove();
+            await loadData();
+            render();
+        } else {
+            showToast(data.error || 'Chyba při mazání');
+        }
+    } catch (err) {
+        showToast('Chyba sítě');
+    }
+};
+
+// Spool management handlers
+window.handleSpoolSubmit = async (e) => {
+    e.preventDefault();
+    
+    const spoolId = document.getElementById('spool-id').value;
+    const color = document.getElementById('spool-color').value;
+    const material = document.getElementById('spool-material').value;
+    const diameter = parseInt(document.getElementById('spool-diameter').value) || null;
+    const width = parseInt(document.getElementById('spool-width').value) || null;
+    const weight = parseInt(document.getElementById('spool-weight').value) || null;
+    const description = document.getElementById('spool-description').value;
+    
+    // Get selected manufacturers
+    const manufSelect = document.getElementById('spool-manufacturers');
+    const selectedManuf = Array.from(manufSelect.selectedOptions).map(o => o.value);
+    
+    // Get manufacturer IDs from options.manufacturers
+    const manufIds = [];
+    if (options.manufacturers) {
+        for (const manufName of selectedManuf) {
+            // Manufacturers are loaded from DB, need to match by name
+            // Will need to extend API to accept names or load IDs
+            manufIds.push(manufName);
+        }
+    }
+    
+    const payload = {
+        color,
+        material,
+        outer_diameter_mm: diameter,
+        width_mm: width,
+        weight_grams: weight,
+        visual_description: description,
+        manufacturer_names: manufIds // Send names, API will resolve to IDs
+    };
+    
+    if (spoolId) {
+        payload.id = parseInt(spoolId);
+    }
+    
+    const endpoint = spoolId ? '/spools/update.php' : '/spools/create.php';
+    
+    try {
+        const res = await fetch(`${API_BASE}${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            showToast(spoolId ? 'Typ cívky aktualizován' : 'Typ cívky přidán');
+            await loadData();
+            render();
+        } else {
+            showToast(data.error || 'Chyba při ukládání');
+        }
+    } catch (err) {
+        showToast('Chyba sítě');
+    }
+};
+
+window.editSpool = async (spoolId) => {
+    try {
+        const res = await fetch(`${API_BASE}/spools/list.php`);
+        if (!res.ok) {
+            showToast('Chyba načítání typů cívek');
+            return;
+        }
+        const spools = await res.json();
+        const spool = spools.find(s => s.id === spoolId);
+        
+        if (!spool) {
+            showToast('Typ cívky nenalezen');
+            return;
+        }
+        
+        // Fill form
+        document.getElementById('spool-id').value = spool.id;
+        document.getElementById('spool-color').value = spool.color || '';
+        document.getElementById('spool-material').value = spool.material || '';
+        document.getElementById('spool-diameter').value = spool.outer_diameter_mm || '';
+        document.getElementById('spool-width').value = spool.width_mm || '';
+        document.getElementById('spool-weight').value = spool.weight_grams || '';
+        document.getElementById('spool-description').value = spool.visual_description || '';
+        
+        // Select manufacturers
+        const manufSelect = document.getElementById('spool-manufacturers');
+        const manufNames = spool.manufacturers.map(m => m.name);
+        Array.from(manufSelect.options).forEach(opt => {
+            opt.selected = manufNames.includes(opt.value);
+        });
+        
+        // Update form title and show cancel button
+        document.getElementById('spool-form-title').textContent = 'Upravit typ cívky';
+        document.getElementById('spool-cancel-btn').classList.remove('hidden');
+        
+        // Scroll to form
+        document.getElementById('spool-form').scrollIntoView({ behavior: 'smooth' });
+    } catch (err) {
+        showToast('Chyba sítě');
+    }
+};
+
+window.cancelSpoolEdit = () => {
+    document.getElementById('spool-form').reset();
+    document.getElementById('spool-id').value = '';
+    document.getElementById('spool-form-title').textContent = 'Přidat typ cívky';
+    document.getElementById('spool-cancel-btn').classList.add('hidden');
+};
+
+window.deleteSpool = async (spoolId) => {
+    if (!confirm('Opravdu chcete smazat tento typ cívky?')) {
+        return;
+    }
+    
+    try {
+        const res = await fetch(`${API_BASE}/spools/delete.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: spoolId })
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            showToast('Typ cívky smazán');
+            await loadData();
+            render();
+        } else {
+            showToast(data.error || 'Chyba při mazání');
+        }
+    } catch (err) {
+        showToast('Chyba sítě');
+    }
+};
 
 // Close menu when clicking outside or pressing ESC
 document.addEventListener('click', (e) => {

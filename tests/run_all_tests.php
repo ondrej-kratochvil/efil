@@ -195,7 +195,11 @@ $tests = [
     'options_optgroups_test.php' => 'Options Optgroups Tests',
     'spool_management_test.php' => 'Spool Management Tests',
     'form_persistence_test.php' => 'Form Persistence Tests',
-    'user_display_id_test.php' => 'User Display ID Tests'
+    'user_display_id_test.php' => 'User Display ID Tests',
+    'consumption_history_test.php' => 'Consumption History Tests',
+    'grouping_test.php' => 'Filament Grouping Tests',
+    'spool_manufacturer_test.php' => 'Spool-Manufacturer M:N Tests',
+    'multiuser_test.php' => 'Multiuser & Sharing Tests'
 ];
 
 $results = [];

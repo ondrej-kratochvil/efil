@@ -18,7 +18,8 @@ $input = json_decode(file_get_contents('php://input'), true);
 $userId = $_SESSION['user_id'];
 $filamentId = $input['filament_id'] ?? null;
 $amount = (int)($input['amount'] ?? 0); // Negative for consumption, positive for correction
-$description = $input['description'] ?? 'Manual Log';
+$description = $input['description'] ?? '';
+$consumptionDate = $input['consumption_date'] ?? date('Y-m-d');
 
 if (!$filamentId || $amount == 0) {
     http_response_code(400);
@@ -64,8 +65,16 @@ try {
         exit;
     }
 
-    $stmt = $pdo->prepare("INSERT INTO consumption_log (filament_id, amount_grams, description) VALUES (?, ?, ?)");
-    $stmt->execute([$filamentId, $amount, $description]);
+    // Update filament weight
+    $stmt = $pdo->prepare("UPDATE filaments SET current_weight = current_weight + ? WHERE id = ?");
+    $stmt->execute([$amount, $filamentId]);
+
+    // Log consumption (negative amount means consumption)
+    if ($amount < 0) {
+        $consumedWeight = abs($amount);
+        $stmt = $pdo->prepare("INSERT INTO consumption_log (filament_id, consumed_weight, note, consumption_date, created_by) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$filamentId, $consumedWeight, $description, $consumptionDate, $userId]);
+    }
 
     echo json_encode(['message' => 'Logged successfully']);
 
