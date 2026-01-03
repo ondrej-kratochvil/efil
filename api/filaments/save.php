@@ -28,11 +28,11 @@ $userId = $_SESSION['user_id'];
 
 // Get user's inventory (owned or shared with write/manage permission)
 $sql = "
-    SELECT i.id, 'owner' as role
+    SELECT i.id, i.is_demo, 'owner' as role
     FROM inventories i
     WHERE i.owner_id = ?
     UNION
-    SELECT i.id, im.role
+    SELECT i.id, i.is_demo, im.role
     FROM inventories i
     JOIN inventory_members im ON i.id = im.inventory_id
     WHERE im.user_id = ? AND im.role IN ('write', 'manage')
@@ -47,6 +47,17 @@ if (!$inv) {
 }
 
 $inventoryId = $inv['id'];
+
+// Check if user is admin_efil
+$stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+$stmt->execute([$userId]);
+$user = $stmt->fetch();
+$isAdmin = ($user && $user['role'] === 'admin_efil');
+
+// Check if demo mode (and user is not admin)
+if ($inv['is_demo'] && !$isAdmin) {
+    jsonResponse(['error' => 'V demo režimu nelze upravovat data. Vytvořte si vlastní účet pro plný přístup.'], 403);
+}
 
 // Determine if Update or Create
 $id = $input['id'] ?? null;

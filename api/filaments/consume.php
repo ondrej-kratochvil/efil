@@ -18,7 +18,8 @@ $input = json_decode(file_get_contents('php://input'), true);
 $userId = $_SESSION['user_id'];
 $filamentId = $input['filament_id'] ?? null;
 $amount = (int)($input['amount'] ?? 0); // Negative for consumption, positive for correction
-$description = $input['description'] ?? 'Manual Log';
+$description = $input['description'] ?? '';
+$consumptionDate = $input['consumption_date'] ?? date('Y-m-d');
 
 if (!$filamentId || $amount == 0) {
     http_response_code(400);
@@ -27,9 +28,9 @@ if (!$filamentId || $amount == 0) {
 }
 
 try {
-    // Verify access via inventory (owner or member with write/manage permission)
+    // Verify access via inventory (owner or member with write/manage permission) and check if demo
     $stmt = $pdo->prepare("
-        SELECT f.id
+        SELECT f.id, i.is_demo
         FROM filaments f
         JOIN inventories i ON f.inventory_id = i.id
         WHERE f.id = ? AND (
@@ -43,15 +44,37 @@ try {
         )
     ");
     $stmt->execute([$filamentId, $userId, $userId]);
+    $filamentData = $stmt->fetch();
 
-    if (!$stmt->fetch()) {
+    if (!$filamentData) {
         http_response_code(403);
         echo json_encode(['error' => 'Access denied']);
         exit;
     }
 
-    $stmt = $pdo->prepare("INSERT INTO consumption_log (filament_id, amount_grams, description) VALUES (?, ?, ?)");
-    $stmt->execute([$filamentId, $amount, $description]);
+    // Check if user is admin_efil
+    $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+    $stmt->execute([$userId]);
+    $user = $stmt->fetch();
+    $isAdmin = ($user && $user['role'] === 'admin_efil');
+
+    // Check if demo mode (and user is not admin)
+    if ($filamentData['is_demo'] && !$isAdmin) {
+        http_response_code(403);
+        echo json_encode(['error' => 'V demo režimu nelze upravovat data. Vytvořte si vlastní účet pro plný přístup.']);
+        exit;
+    }
+
+    // Update filament weight
+    $stmt = $pdo->prepare("UPDATE filaments SET current_weight = current_weight + ? WHERE id = ?");
+    $stmt->execute([$amount, $filamentId]);
+
+    // Log consumption (negative amount means consumption)
+    if ($amount < 0) {
+        $consumedWeight = abs($amount);
+        $stmt = $pdo->prepare("INSERT INTO consumption_log (filament_id, consumed_weight, note, consumption_date, created_by) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$filamentId, $consumedWeight, $description, $consumptionDate, $userId]);
+    }
 
     echo json_encode(['message' => 'Logged successfully']);
 
