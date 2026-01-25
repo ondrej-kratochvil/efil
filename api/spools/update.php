@@ -50,21 +50,41 @@ try {
         exit;
     }
 
-    // Update spool
-    $stmt = $pdo->prepare("
-        UPDATE spool_library
-        SET weight_grams = ?, color = ?, material = ?, outer_diameter_mm = ?, width_mm = ?, visual_description = ?
-        WHERE id = ?
-    ");
-    $stmt->execute([
-        $data['weight_grams'] ?? null,
-        $data['color'] ?? null,
-        $data['material'] ?? null,
-        $data['outer_diameter_mm'] ?? null,
-        $data['width_mm'] ?? null,
-        $data['visual_description'] ?? null,
-        $spoolId
-    ]);
+    // Update spool – only fields explicitly provided (partial updates supported)
+    $updates = [];
+    $params = [];
+
+    if (array_key_exists('weight_grams', $data)) {
+        $updates[] = "weight_grams = ?";
+        $params[] = $data['weight_grams'] !== null && $data['weight_grams'] !== '' ? (int) $data['weight_grams'] : null;
+    }
+    if (array_key_exists('color', $data)) {
+        $updates[] = "color = ?";
+        $params[] = $data['color'] === '' ? null : ($data['color'] ?? null);
+    }
+    if (array_key_exists('material', $data)) {
+        $updates[] = "material = ?";
+        $params[] = $data['material'] === '' ? null : ($data['material'] ?? null);
+    }
+    if (array_key_exists('outer_diameter_mm', $data)) {
+        $updates[] = "outer_diameter_mm = ?";
+        $params[] = $data['outer_diameter_mm'] !== null && $data['outer_diameter_mm'] !== '' ? (int) $data['outer_diameter_mm'] : null;
+    }
+    if (array_key_exists('width_mm', $data)) {
+        $updates[] = "width_mm = ?";
+        $params[] = $data['width_mm'] !== null && $data['width_mm'] !== '' ? (int) $data['width_mm'] : null;
+    }
+    if (array_key_exists('visual_description', $data)) {
+        $updates[] = "visual_description = ?";
+        $params[] = $data['visual_description'] === '' ? null : ($data['visual_description'] ?? null);
+    }
+
+    if (count($updates) > 0) {
+        $params[] = $spoolId;
+        $sql = "UPDATE spool_library SET " . implode(", ", $updates) . " WHERE id = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+    }
 
     // Update manufacturer associations
     $manufData = $data['manufacturer_ids'] ?? $data['manufacturer_names'] ?? null;

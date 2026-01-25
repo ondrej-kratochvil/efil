@@ -21,8 +21,10 @@ try {
     $inventoryId = $_SESSION['inventory_id'];
 
     // Get consumption record
+    // Return original amount_grams (can be negative for consumption or positive for correction)
+    // Frontend should handle display of absolute value and sign
     $stmt = $pdo->prepare("
-        SELECT cl.id, ABS(cl.amount_grams) as consumed_weight, cl.consumption_date, cl.description as note,
+        SELECT cl.id, cl.amount_grams, ABS(cl.amount_grams) as consumed_weight, cl.consumption_date, cl.description as note,
                f.id as filament_id, f.manufacturer, f.material, f.color
         FROM consumption_log cl
         INNER JOIN filaments f ON cl.filament_id = f.id

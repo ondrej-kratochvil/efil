@@ -63,7 +63,15 @@ try {
     $stmt = $pdo->prepare("SELECT owner_id, name FROM inventories WHERE id = ?");
     $stmt->execute([$inventoryId]);
     $inventory = $stmt->fetch();
-    $isOwner = ($inventory && $inventory['owner_id'] == $userId);
+    
+    // Verify inventory exists
+    if (!$inventory) {
+        http_response_code(404);
+        echo json_encode(['error' => 'Evidence nenalezena']);
+        exit;
+    }
+    
+    $isOwner = ($inventory['owner_id'] == $userId);
     
     // Check if user is admin_efil
     $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");

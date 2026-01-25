@@ -73,8 +73,27 @@ try {
 
     if (isset($data['consumed_weight'])) {
         $newWeight = intval($data['consumed_weight']);
+        
+        // Check if we're updating a correction (positive) or consumption (negative)
+        // If amount_grams is provided with sign, use it directly; otherwise use consumed_weight
+        if (isset($data['amount_grams'])) {
+            // Frontend sent the full amount_grams value (can be positive or negative)
+            $amountGrams = intval($data['amount_grams']);
+        } else {
+            // Legacy: if only consumed_weight is provided, check original value to preserve sign
+            // If original was positive (correction), keep it positive; if negative (consumption), keep negative
+            $originalAmount = $consumption['old_weight'] ?? 0;
+            if ($originalAmount > 0) {
+                // Original was a correction, so new value should also be positive
+                $amountGrams = $newWeight;
+            } else {
+                // Original was consumption, so new value should be negative
+                $amountGrams = -$newWeight;
+            }
+        }
+        
         $updates[] = "amount_grams = ?";
-        $params[] = -$newWeight;
+        $params[] = $amountGrams;
         // Weight is computed dynamically: initial_weight_grams + SUM(consumption_log.amount_grams).
         // Updating amount_grams here is enough; no filaments UPDATE.
     }

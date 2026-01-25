@@ -61,17 +61,9 @@ function sendEmailViaPHPMailer($to, $subject, $htmlBody, $config) {
         $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS; // Use STARTTLS
         $mail->Port = $config['port'] ?? 587;
         $mail->CharSet = 'UTF-8';
-        
-        // Allow self-signed certificates (for development)
-        // In production, remove these lines for better security
-        $mail->SMTPOptions = array(
-            'ssl' => array(
-                'verify_peer' => false,
-                'verify_peer_name' => false,
-                'allow_self_signed' => true
-            )
-        );
-        
+        // SSL certificate verification is enabled by default (verify_peer, verify_peer_name).
+        // Do not disable it — it protects SMTP credentials and email content from MITM attacks.
+
         // Recipients
         $mail->setFrom($config['from_email'], $config['from_name']);
         $mail->addAddress($to);

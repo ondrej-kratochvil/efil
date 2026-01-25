@@ -2737,6 +2737,10 @@ window.editConsumption = async (consumptionId) => {
         overlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
         overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
+        // Store original amount_grams to preserve sign (positive = correction, negative = consumption)
+        const originalAmountGrams = consumption.amount_grams !== undefined ? consumption.amount_grams : -consumption.consumed_weight;
+        const isCorrection = originalAmountGrams > 0;
+        
         overlay.innerHTML = `
             <div class="bg-white p-6 rounded-3xl shadow-xl max-w-md w-full" onclick="event.stopPropagation()">
                 <h2 class="text-xl font-black text-slate-800 mb-4">Upravit čerpání</h2>
@@ -2746,8 +2750,9 @@ window.editConsumption = async (consumptionId) => {
                         <div class="text-sm font-bold text-slate-600">${consumption.manufacturer} ${consumption.material} ${consumption.color}</div>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Spotřebováno (g)</label>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">${isCorrection ? 'Korekce (g)' : 'Spotřebováno (g)'}</label>
                         <input id="edit-consumed-weight" type="number" value="${consumption.consumed_weight}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold">
+                        <input type="hidden" id="edit-original-amount-grams" value="${originalAmountGrams}">
                     </div>
                     <div>
                         <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Datum</label>
@@ -2776,11 +2781,15 @@ window.saveConsumptionEdit = async (consumptionId) => {
     const consumedWeight = parseInt(document.getElementById('edit-consumed-weight').value);
     const consumptionDate = document.getElementById('edit-consumption-date').value;
     const note = document.getElementById('edit-consumption-note').value;
+    const originalAmountGrams = parseInt(document.getElementById('edit-original-amount-grams')?.value || '0');
 
     if (!consumedWeight || consumedWeight <= 0) {
         showToast('Zadejte platnou hmotnost');
         return;
     }
+
+    // Preserve sign: if original was positive (correction), keep positive; if negative (consumption), keep negative
+    const amountGrams = originalAmountGrams > 0 ? consumedWeight : -consumedWeight;
 
     try {
         const res = await fetch(`${API_BASE}/consumption/update.php`, {
@@ -2789,6 +2798,7 @@ window.saveConsumptionEdit = async (consumptionId) => {
             body: JSON.stringify({
                 id: consumptionId,
                 consumed_weight: consumedWeight,
+                amount_grams: amountGrams,
                 consumption_date: consumptionDate,
                 note: note
             })

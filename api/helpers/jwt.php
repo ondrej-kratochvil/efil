@@ -48,7 +48,8 @@ function verifyJWT($token, $secret) {
     $signature = hash_hmac('sha256', $base64UrlHeader . "." . $base64UrlPayload, $secret, true);
     $base64UrlSignatureCheck = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
     
-    if ($base64UrlSignature !== $base64UrlSignatureCheck) {
+    // Use hash_equals() for constant-time comparison to prevent timing attacks
+    if (!hash_equals($base64UrlSignature, $base64UrlSignatureCheck)) {
         return null;
     }
     
