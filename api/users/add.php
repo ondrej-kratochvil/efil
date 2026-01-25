@@ -92,13 +92,20 @@ try {
     $targetUser = $stmt->fetch();
     
     if ($targetUser) {
-        // User exists - check if already in inventory
+        // User exists - check if already in inventory (as member)
         $stmt = $pdo->prepare("SELECT id FROM inventory_members WHERE inventory_id = ? AND user_id = ?");
         $stmt->execute([$inventoryId, $targetUser['id']]);
         
         if ($stmt->fetch()) {
             http_response_code(400);
             echo json_encode(['error' => 'Uživatel je již v evidenci']);
+            exit;
+        }
+        
+        // Check if user is the owner of this inventory
+        if ($inventory['owner_id'] == $targetUser['id']) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Vlastník inventáře nemůže být přidán jako člen']);
             exit;
         }
         

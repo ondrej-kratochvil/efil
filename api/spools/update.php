@@ -88,51 +88,80 @@ try {
 
     // Update manufacturer associations
     $manufData = $data['manufacturer_ids'] ?? $data['manufacturer_names'] ?? null;
-    $notFoundNames = [];
-    $createdAssociations = 0;
     
     if ($manufData !== null) {
-        // Delete existing associations
-        $stmt = $pdo->prepare("DELETE FROM spool_manufacturer WHERE spool_id = ?");
-        $stmt->execute([$spoolId]);
+        // Start transaction to ensure atomicity
+        $pdo->beginTransaction();
+        
+        try {
+            // First, validate all manufacturer names (if using names) BEFORE deleting anything
+            $notFoundNames = [];
+            $manufacturerIds = [];
+            
+            if (is_array($manufData) && count($manufData) > 0) {
+                $isNames = !is_numeric($manufData[0]);
 
-        // Add new associations
-        if (is_array($manufData) && count($manufData) > 0) {
-            $isNames = !is_numeric($manufData[0]);
-
-            if ($isNames) {
-                // Resolve names to IDs
-                $stmtGetId = $pdo->prepare("SELECT id FROM manufacturers WHERE name = ?");
-                $stmtManuf = $pdo->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
-
-                foreach ($manufData as $manufName) {
-                    $stmtGetId->execute([$manufName]);
-                    $manufId = $stmtGetId->fetchColumn();
-                    if ($manufId) {
-                        $stmtManuf->execute([$spoolId, $manufId]);
-                        $createdAssociations++;
-                    } else {
-                        $notFoundNames[] = $manufName;
+                if ($isNames) {
+                    // Validate all names first - resolve to IDs before any deletion
+                    $stmtGetId = $pdo->prepare("SELECT id FROM manufacturers WHERE name = ?");
+                    
+                    foreach ($manufData as $manufName) {
+                        $stmtGetId->execute([$manufName]);
+                        $manufId = $stmtGetId->fetchColumn();
+                        if ($manufId) {
+                            $manufacturerIds[] = $manufId;
+                        } else {
+                            $notFoundNames[] = $manufName;
+                        }
                     }
+                    
+                    // If any names were not found, rollback and return error
+                    if (count($notFoundNames) > 0) {
+                        $pdo->rollBack();
+                        http_response_code(400);
+                        echo json_encode([
+                            'error' => 'Některé výrobce nebyly nalezeny',
+                            'not_found' => $notFoundNames
+                        ]);
+                        exit;
+                    }
+                } else {
+                    // Use IDs directly - validate they exist
+                    $placeholders = implode(',', array_fill(0, count($manufData), '?'));
+                    $stmtValidate = $pdo->prepare("SELECT id FROM manufacturers WHERE id IN ($placeholders)");
+                    $stmtValidate->execute($manufData);
+                    $validIds = $stmtValidate->fetchAll(PDO::FETCH_COLUMN);
+                    
+                    if (count($validIds) !== count($manufData)) {
+                        $pdo->rollBack();
+                        http_response_code(400);
+                        echo json_encode(['error' => 'Některé ID výrobců nejsou platné']);
+                        exit;
+                    }
+                    
+                    $manufacturerIds = $manufData;
                 }
-                
-                // If any names were not found, return error
-                if (count($notFoundNames) > 0) {
-                    http_response_code(400);
-                    echo json_encode([
-                        'error' => 'Některé výrobce nebyly nalezeny',
-                        'not_found' => $notFoundNames,
-                        'created_associations' => $createdAssociations
-                    ]);
-                    exit;
-                }
-            } else {
-                // Use IDs directly
+            }
+            
+            // Now that validation passed, delete existing associations
+            $stmt = $pdo->prepare("DELETE FROM spool_manufacturer WHERE spool_id = ?");
+            $stmt->execute([$spoolId]);
+
+            // Add new associations
+            if (count($manufacturerIds) > 0) {
                 $stmtManuf = $pdo->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
-                foreach ($manufData as $manufId) {
+                foreach ($manufacturerIds as $manufId) {
                     $stmtManuf->execute([$spoolId, $manufId]);
                 }
             }
+            
+            // Commit transaction
+            $pdo->commit();
+            
+        } catch (Exception $e) {
+            // Rollback on any error
+            $pdo->rollBack();
+            throw $e;
         }
     }
 
