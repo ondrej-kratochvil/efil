@@ -38,7 +38,13 @@ try {
         exit;
     }
 
-    if ($spool['created_by'] !== null && $spool['created_by'] != $userId) {
+    if ($spool['created_by'] === null) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Nelze upravit standardní typ cívky']);
+        exit;
+    }
+
+    if ($spool['created_by'] != $userId) {
         http_response_code(403);
         echo json_encode(['error' => 'Nemáte oprávnění upravovat tento typ cívky']);
         exit;

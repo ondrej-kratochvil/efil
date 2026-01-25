@@ -65,12 +65,10 @@ try {
         exit;
     }
 
-    // Log consumption (negative amount means consumption; amount_grams stored negative)
-    // Note: current_weight is calculated dynamically as initial_weight_grams + SUM(consumption_log.amount_grams)
-    if ($amount < 0) {
-        $stmt = $pdo->prepare("INSERT INTO consumption_log (filament_id, amount_grams, description, consumption_date, created_by) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute([$filamentId, $amount, $description, $consumptionDate, $userId]);
-    }
+    // Log all weight changes: negative = consumption, positive = correction/addition.
+    // current_weight = initial_weight_grams + SUM(consumption_log.amount_grams). Audit trail requires every change.
+    $stmt = $pdo->prepare("INSERT INTO consumption_log (filament_id, amount_grams, description, consumption_date, created_by) VALUES (?, ?, ?, ?, ?)");
+    $stmt->execute([$filamentId, $amount, $description, $consumptionDate, $userId]);
 
     echo json_encode(['message' => 'Logged successfully']);
 

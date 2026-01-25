@@ -41,16 +41,15 @@ try {
 
     // Total weight in kg (calculated dynamically)
     $stmt = $pdo->query("
-        SELECT COALESCE(SUM(f.initial_weight_grams + COALESCE(SUM(cl.amount_grams), 0)), 0) as total
+        SELECT COALESCE(SUM(f.initial_weight_grams + COALESCE(consumption_sum.total_consumed, 0)), 0) as total
         FROM filaments f
-        LEFT JOIN consumption_log cl ON f.id = cl.filament_id
-        GROUP BY f.id
+        LEFT JOIN (
+            SELECT filament_id, SUM(amount_grams) as total_consumed
+            FROM consumption_log
+            GROUP BY filament_id
+        ) consumption_sum ON f.id = consumption_sum.filament_id
     ");
-    $totalWeight = 0;
-    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $totalWeight += $row['total'];
-    }
-    $stats['total_weight_kg'] = round($totalWeight / 1000, 2);
+    $stats['total_weight_kg'] = round($stmt->fetch(PDO::FETCH_ASSOC)['total'] / 1000, 2);
 
     // Total consumption records
     $stmt = $pdo->query("SELECT COUNT(*) as count FROM consumption_log");

@@ -40,9 +40,10 @@ try {
             'purpose' => 'password_reset'
         ], $jwtSecret, 3600);
         
-        // Build reset URL
+        // Build reset URL - get root of application (not /api)
+        $scriptPath = dirname(dirname(dirname($_SERVER['SCRIPT_NAME'])));
         $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . 
-                   "://" . $_SERVER['HTTP_HOST'] . dirname(dirname($_SERVER['REQUEST_URI']));
+                   "://" . $_SERVER['HTTP_HOST'] . $scriptPath;
         $resetUrl = $baseUrl . '/reset-password?token=' . $token;
         
         // Send email

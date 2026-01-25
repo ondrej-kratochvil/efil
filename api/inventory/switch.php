@@ -23,20 +23,26 @@ try {
     $userId = $_SESSION['user_id'];
 
     // Check if user has access to this inventory (owner or member)
-    // Use UNION to check both owned and member inventories
+    // First check if user is owner (owners may not be in inventory_members)
     $stmt = $pdo->prepare("
         SELECT 'owner' as role, i.name, i.is_demo
         FROM inventories i
         WHERE i.owner_id = ? AND i.id = ?
-        UNION
-        SELECT im.role, i.name, i.is_demo
-        FROM inventory_members im
-        INNER JOIN inventories i ON im.inventory_id = i.id
-        WHERE im.user_id = ? AND im.inventory_id = ?
-        LIMIT 1
     ");
-    $stmt->execute([$userId, $inventoryId, $userId, $inventoryId]);
+    $stmt->execute([$userId, $inventoryId]);
     $access = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // If not owner, check if user is a member
+    if (!$access) {
+        $stmt = $pdo->prepare("
+            SELECT im.role, i.name, i.is_demo
+            FROM inventory_members im
+            INNER JOIN inventories i ON im.inventory_id = i.id
+            WHERE im.user_id = ? AND im.inventory_id = ?
+        ");
+        $stmt->execute([$userId, $inventoryId]);
+        $access = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
 
     // If not owner or member, check if user is admin_efil
     if (!$access) {

@@ -98,9 +98,10 @@ try {
         $stmt = $pdo->prepare("INSERT INTO inventory_members (inventory_id, user_id, role) VALUES (?, ?, ?)");
         $stmt->execute([$inventoryId, $targetUser['id'], $role]);
         
-        // Send notification email
+        // Send notification email - get root of application (not /api)
+        $scriptPath = dirname(dirname(dirname($_SERVER['SCRIPT_NAME'])));
         $loginUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . 
-                    "://" . $_SERVER['HTTP_HOST'] . dirname(dirname($_SERVER['REQUEST_URI']));
+                    "://" . $_SERVER['HTTP_HOST'] . $scriptPath;
         sendInventoryInvitationEmail($email, $inventory['name'], $loginUrl, $smtpConfig);
         
         echo json_encode([
@@ -121,8 +122,10 @@ try {
         
         // Generate password setup token (24 hours)
         $token = generateJWT(['email' => $email, 'purpose' => 'setup_password'], $jwtSecret, 86400);
+        // Get root of application (not /api)
+        $scriptPath = dirname(dirname(dirname($_SERVER['SCRIPT_NAME'])));
         $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . 
-                   "://" . $_SERVER['HTTP_HOST'] . dirname(dirname($_SERVER['REQUEST_URI']));
+                   "://" . $_SERVER['HTTP_HOST'] . $scriptPath;
         $setupUrl = $baseUrl . '/reset-password?token=' . $token;
         
         // Send new account email
