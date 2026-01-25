@@ -25,15 +25,15 @@ try {
     // 3. Test přidání user2 do evidence
     echo "\n3. Test přidání uživatele do evidence...\n";
     $stmt = $db->prepare("
-        INSERT INTO inventory_members (inventory_id, user_id, role, is_owner)
-        VALUES (?, ?, 'write', FALSE)
+        INSERT INTO inventory_members (inventory_id, user_id, role)
+        VALUES (?, ?, 'write')
     ");
     $stmt->execute([$inventory['id'], $user2['id']]);
     echo "   User2 přidán s rolí 'write'\n";
     
     // Verify
     $stmt = $db->prepare("
-        SELECT role, is_owner 
+        SELECT role 
         FROM inventory_members 
         WHERE inventory_id = ? AND user_id = ?
     ");
@@ -41,7 +41,6 @@ try {
     $member = $stmt->fetch(PDO::FETCH_ASSOC);
     
     assert($member['role'] == 'write', "Role user2 nesouhlasí");
-    assert($member['is_owner'] == 0, "User2 by neměl být owner");
     echo "   ✓ User2 má správnou roli\n";
     
     // 4. Test změny role
@@ -54,7 +53,6 @@ try {
     $stmt->execute([$inventory['id'], $user2['id']]);
     
     // Verify
-    $stmt->execute([$inventory['id'], $user2['id']]);
     $stmt = $db->prepare("
         SELECT role 
         FROM inventory_members 
@@ -69,7 +67,7 @@ try {
     // 5. Test načtení evidencí pro uživatele
     echo "\n5. Test načtení evidencí pro uživatele...\n";
     $stmt = $db->prepare("
-        SELECT i.id, i.name, im.role, im.is_owner
+        SELECT i.id, i.name, im.role
         FROM inventories i
         INNER JOIN inventory_members im ON i.id = im.inventory_id
         WHERE im.user_id = ?

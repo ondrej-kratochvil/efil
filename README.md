@@ -62,9 +62,19 @@ DB_HOST=localhost
 DB_NAME=efil_db
 DB_USER=root
 DB_PASS=
+
+# SMTP Configuration (volitelné - pro odesílání e-mailů)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=vas-email@gmail.com
+SMTP_PASSWORD=vase-heslo-nebo-app-password
+SMTP_FROM_EMAIL=noreply@efil.cz
+SMTP_FROM_NAME=eFil - Evidence Filamentů
 ```
 
 **Poznámka:** Soubor `.env` je v `.gitignore`, takže nebude commitován do repozitáře.
+
+**Poznámka k e-mailům:** Pro odesílání e-mailů (reset hesla, pozvánky, notifikace) je potřeba nastavit SMTP údaje. Podrobné instrukce naleznete v souboru `EMAIL_SETUP.md`.
 
 ### 3. Inicializace databáze
 
@@ -107,7 +117,7 @@ php update_spool_schema.php
 3. **Přihlaste se pomocí demo účtu:**
    - **Email:** `demo@efil.cz`
    - **Heslo:** `demo1234`
-   
+
    Nebo vytvořte vlastní účet pomocí registrace.
 
 **Poznámka:** Demo účet je read-only. Pro plný přístup si vytvořte vlastní účet.

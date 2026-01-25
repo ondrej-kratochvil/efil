@@ -18,11 +18,10 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $data = json_decode(file_get_contents('php://input'), true);
 
 try {
-    $db = getDBConnection();
     $userId = $_SESSION['user_id'];
     
     // Insert spool
-    $stmt = $db->prepare("
+    $stmt = $pdo->prepare("
         INSERT INTO spool_library (weight_grams, color, material, outer_diameter_mm, width_mm, visual_description, created_by)
         VALUES (?, ?, ?, ?, ?, ?, ?)
     ");
@@ -36,7 +35,7 @@ try {
         $userId
     ]);
     
-    $spoolId = $db->lastInsertId();
+    $spoolId = $pdo->lastInsertId();
     
     // Add manufacturer associations
     $manufData = $data['manufacturer_ids'] ?? $data['manufacturer_names'] ?? [];
@@ -46,8 +45,8 @@ try {
         
         if ($isNames) {
             // Resolve names to IDs
-            $stmtGetId = $db->prepare("SELECT id FROM manufacturers WHERE name = ?");
-            $stmtManuf = $db->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
+            $stmtGetId = $pdo->prepare("SELECT id FROM manufacturers WHERE name = ?");
+            $stmtManuf = $pdo->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
             
             foreach ($manufData as $manufName) {
                 $stmtGetId->execute([$manufName]);
@@ -58,7 +57,7 @@ try {
             }
         } else {
             // Use IDs directly
-            $stmtManuf = $db->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
+            $stmtManuf = $pdo->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
             foreach ($manufData as $manufId) {
                 $stmtManuf->execute([$spoolId, $manufId]);
             }

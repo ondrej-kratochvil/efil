@@ -30,8 +30,8 @@ try {
     echo "\n3. Test přidání čerpání s datem...\n";
     $consumptionDate = '2024-01-15';
     $stmt = $db->prepare("
-        INSERT INTO consumption_log (filament_id, consumed_weight, note, consumption_date, created_by)
-        VALUES (?, 250, 'Testovací tisk', ?, ?)
+        INSERT INTO consumption_log (filament_id, amount_grams, description, consumption_date, created_by)
+        VALUES (?, -250, 'Testovací tisk', ?, ?)
     ");
     $stmt->execute([$filamentId, $consumptionDate, $testUser['id']]);
     $consumptionId = $db->lastInsertId();
@@ -47,7 +47,7 @@ try {
     $stmt->execute([$consumptionId]);
     $consumption = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    assert($consumption['consumed_weight'] == 250, "Hmotnost čerpání nesouhlasí");
+    assert(abs((int)$consumption['amount_grams']) == 250, "Hmotnost čerpání nesouhlasí");
     assert($consumption['consumption_date'] == $consumptionDate, "Datum čerpání nesouhlasí");
     assert($consumption['created_by'] == $testUser['id'], "Autor čerpání nesouhlasí");
     echo "   ✓ Čerpání má správné datum a autora\n";
@@ -63,13 +63,13 @@ try {
     $stmt = $db->prepare("UPDATE filaments SET current_weight = current_weight + ? WHERE id = ?");
     $stmt->execute([$weightDiff, $filamentId]);
     
-    // Update consumption
+    // Update consumption (amount_grams stored negative)
     $stmt = $db->prepare("
         UPDATE consumption_log 
-        SET consumed_weight = ?, consumption_date = ?, note = ?
+        SET amount_grams = ?, consumption_date = ?, description = ?
         WHERE id = ?
     ");
-    $stmt->execute([$newWeight, $newDate, 'Upravený tisk', $consumptionId]);
+    $stmt->execute([-$newWeight, $newDate, 'Upravený tisk', $consumptionId]);
     
     // Verify
     $stmt = $db->prepare("SELECT * FROM consumption_log WHERE id = ?");
@@ -80,7 +80,7 @@ try {
     $stmt->execute([$filamentId]);
     $filament = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    assert($consumption['consumed_weight'] == $newWeight, "Nová hmotnost čerpání nesouhlasí");
+    assert(abs((int)$consumption['amount_grams']) == $newWeight, "Nová hmotnost čerpání nesouhlasí");
     assert($consumption['consumption_date'] == $newDate, "Nové datum čerpání nesouhlasí");
     assert($filament['current_weight'] == (1000 - $newWeight), "Hmotnost filamentu po editaci nesouhlasí");
     echo "   ✓ Čerpání upraveno a hmotnost filamentu přepočítána\n";
@@ -111,10 +111,10 @@ try {
     
     foreach ($dates as $idx => $date) {
         $stmt = $db->prepare("
-            INSERT INTO consumption_log (filament_id, consumed_weight, consumption_date, created_by)
+            INSERT INTO consumption_log (filament_id, amount_grams, consumption_date, created_by)
             VALUES (?, ?, ?, ?)
         ");
-        $stmt->execute([$filamentId, $weights[$idx], $date, $testUser['id']]);
+        $stmt->execute([$filamentId, -$weights[$idx], $date, $testUser['id']]);
     }
     
     // Fetch history

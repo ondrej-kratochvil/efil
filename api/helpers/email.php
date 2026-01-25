@@ -1,11 +1,27 @@
 <?php
 /**
  * Email Helper Functions
- * Handles sending emails via SMTP
+ * Handles sending emails via SMTP using PHPMailer
+ * 
+ * IMPORTANT: Download PHPMailer before using SMTP functionality:
+ * 1. Download PHPMailer from https://github.com/PHPMailer/PHPMailer
+ * 2. Extract and copy the src/ folder to api/vendor/PHPMailer/
+ * 3. Or use Composer: composer require phpmailer/phpmailer
  */
 
+// Load PHPMailer if available
+$phpmailerPath = __DIR__ . '/../vendor/PHPMailer/src';
+if (file_exists($phpmailerPath . '/PHPMailer.php')) {
+    require_once $phpmailerPath . '/PHPMailer.php';
+    require_once $phpmailerPath . '/SMTP.php';
+    require_once $phpmailerPath . '/Exception.php';
+    define('PHPMailer_AVAILABLE', true);
+} else {
+    define('PHPMailer_AVAILABLE', false);
+}
+
 /**
- * Send email via SMTP
+ * Send email via SMTP (if PHPMailer available) or PHP mail() fallback
  * 
  * @param string $to Recipient email address
  * @param string $subject Email subject
@@ -14,9 +30,81 @@
  * @return bool Success status
  */
 function sendEmail($to, $subject, $htmlBody, $config) {
-    // For now, use PHP mail() function as fallback
-    // In production, use PHPMailer or similar library for proper SMTP
+    // Use PHPMailer if available and SMTP credentials are configured
+    if (PHPMailer_AVAILABLE && !empty($config['username']) && !empty($config['password'])) {
+        return sendEmailViaPHPMailer($to, $subject, $htmlBody, $config);
+    }
     
+    // Fallback to PHP mail() function
+    return sendEmailViaMail($to, $subject, $htmlBody, $config);
+}
+
+/**
+ * Send email using PHPMailer with SMTP
+ * 
+ * @param string $to Recipient email address
+ * @param string $subject Email subject
+ * @param string $htmlBody HTML body of email
+ * @param array $config SMTP configuration
+ * @return bool Success status
+ */
+function sendEmailViaPHPMailer($to, $subject, $htmlBody, $config) {
+    try {
+        $mail = new \PHPMailer\PHPMailer\PHPMailer(true);
+        
+        // Server settings
+        $mail->isSMTP();
+        $mail->Host = $config['host'];
+        $mail->SMTPAuth = true;
+        $mail->Username = $config['username'];
+        $mail->Password = $config['password'];
+        $mail->SMTPSecure = \PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_STARTTLS; // Use STARTTLS
+        $mail->Port = $config['port'] ?? 587;
+        $mail->CharSet = 'UTF-8';
+        
+        // Allow self-signed certificates (for development)
+        // In production, remove these lines for better security
+        $mail->SMTPOptions = array(
+            'ssl' => array(
+                'verify_peer' => false,
+                'verify_peer_name' => false,
+                'allow_self_signed' => true
+            )
+        );
+        
+        // Recipients
+        $mail->setFrom($config['from_email'], $config['from_name']);
+        $mail->addAddress($to);
+        $mail->addReplyTo($config['from_email'], $config['from_name']);
+        
+        // Content
+        $mail->isHTML(true);
+        $mail->Subject = $subject;
+        $mail->Body = $htmlBody;
+        $mail->AltBody = strip_tags($htmlBody); // Plain text version
+        
+        $mail->send();
+        return true;
+        
+    } catch (\PHPMailer\PHPMailer\Exception $e) {
+        error_log("PHPMailer Error: {$mail->ErrorInfo}");
+        return false;
+    } catch (Exception $e) {
+        error_log("Email Error: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Send email using PHP mail() function (fallback)
+ * 
+ * @param string $to Recipient email address
+ * @param string $subject Email subject
+ * @param string $htmlBody HTML body of email
+ * @param array $config SMTP configuration (not used in this function)
+ * @return bool Success status
+ */
+function sendEmailViaMail($to, $subject, $htmlBody, $config) {
     $headers = [
         'MIME-Version: 1.0',
         'Content-type: text/html; charset=UTF-8',
@@ -92,7 +180,7 @@ function sendPasswordResetEmail($to, $resetUrl, $config) {
         <p>Obdrželi jsme požadavek na obnovení hesla k vašemu účtu v aplikaci eFil.</p>
         <p>Pro nastavení nového hesla klikněte na tlačítko níže:</p>
         <p style="text-align: center;">
-            <a href="' . htmlspecialchars($resetUrl) . '" class="button">Obnovit heslo</a>
+            <a href="' . htmlspecialchars($resetUrl) . '" class="button" style="color: #ffffff !important; text-decoration: none;">Obnovit heslo</a>
         </p>
         <p style="color: #64748b; font-size: 14px;">Odkaz je platný po dobu 1 hodiny.</p>
         <p style="color: #64748b; font-size: 14px;">Pokud jste o obnovu hesla nežádali, tento email ignorujte.</p>
@@ -116,7 +204,7 @@ function sendInventoryInvitationEmail($to, $inventoryName, $loginUrl, $config) {
         <p>Dobrá zpráva! Byli jste přidáni do evidence <strong>' . htmlspecialchars($inventoryName) . '</strong>.</p>
         <p>Evidence je nyní dostupná ve vašem účtu eFil.</p>
         <p style="text-align: center;">
-            <a href="' . htmlspecialchars($loginUrl) . '" class="button">Přihlásit se do eFil</a>
+            <a href="' . htmlspecialchars($loginUrl) . '" class="button" style="color: #ffffff !important; text-decoration: none;">Přihlásit se do eFil</a>
         </p>
         <p style="color: #64748b; font-size: 14px;">Po přihlášení můžete přepínat mezi vašimi evidencemi v menu aplikace.</p>
     ';
@@ -140,7 +228,7 @@ function sendNewAccountEmail($to, $inventoryName, $setPasswordUrl, $config) {
         <p>Byli jste přidáni do evidence: <strong>' . htmlspecialchars($inventoryName) . '</strong></p>
         <p>Pro dokončení registrace klikněte na tlačítko níže a nastavte si heslo:</p>
         <p style="text-align: center;">
-            <a href="' . htmlspecialchars($setPasswordUrl) . '" class="button">Nastavit heslo</a>
+            <a href="' . htmlspecialchars($setPasswordUrl) . '" class="button" style="color: #ffffff !important; text-decoration: none;">Nastavit heslo</a>
         </p>
         <p style="color: #64748b; font-size: 14px;">Odkaz je platný po dobu 24 hodin.</p>
         <p style="color: #64748b; font-size: 14px;">Po nastavení hesla se můžete přihlásit s emailem: <strong>' . htmlspecialchars($to) . '</strong></p>

@@ -65,15 +65,11 @@ try {
         exit;
     }
 
-    // Update filament weight
-    $stmt = $pdo->prepare("UPDATE filaments SET current_weight = current_weight + ? WHERE id = ?");
-    $stmt->execute([$amount, $filamentId]);
-
-    // Log consumption (negative amount means consumption)
+    // Log consumption (negative amount means consumption; amount_grams stored negative)
+    // Note: current_weight is calculated dynamically as initial_weight_grams + SUM(consumption_log.amount_grams)
     if ($amount < 0) {
-        $consumedWeight = abs($amount);
-        $stmt = $pdo->prepare("INSERT INTO consumption_log (filament_id, consumed_weight, note, consumption_date, created_by) VALUES (?, ?, ?, ?, ?)");
-        $stmt->execute([$filamentId, $consumedWeight, $description, $consumptionDate, $userId]);
+        $stmt = $pdo->prepare("INSERT INTO consumption_log (filament_id, amount_grams, description, consumption_date, created_by) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([$filamentId, $amount, $description, $consumptionDate, $userId]);
     }
 
     echo json_encode(['message' => 'Logged successfully']);

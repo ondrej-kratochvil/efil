@@ -11,17 +11,16 @@ if (!isset($_SESSION['user_id']) || !isset($_SESSION['inventory_id'])) {
 }
 
 try {
-    $db = getDBConnection();
     $inventoryId = $_SESSION['inventory_id'];
-    
+
     // Check if filtering by specific filament
     $filamentId = isset($_GET['filament_id']) ? intval($_GET['filament_id']) : null;
-    
+
     // Build query
     if ($filamentId) {
         // Get consumption for specific filament
-        $stmt = $db->prepare("
-            SELECT cl.id, cl.consumed_weight, cl.consumption_date, cl.note, cl.created_at,
+        $stmt = $pdo->prepare("
+            SELECT cl.id, ABS(cl.amount_grams) as consumed_weight, cl.consumption_date, cl.description as note, cl.created_at,
                    f.manufacturer, f.material, f.color, f.user_display_id, f.location,
                    u.email as created_by_email
             FROM consumption_log cl
@@ -33,8 +32,8 @@ try {
         $stmt->execute([$filamentId, $inventoryId]);
     } else {
         // Get consumption for entire inventory
-        $stmt = $db->prepare("
-            SELECT cl.id, cl.consumed_weight, cl.consumption_date, cl.note, cl.created_at,
+        $stmt = $pdo->prepare("
+            SELECT cl.id, ABS(cl.amount_grams) as consumed_weight, cl.consumption_date, cl.description as note, cl.created_at,
                    f.manufacturer, f.material, f.color, f.user_display_id, f.location,
                    u.email as created_by_email
             FROM consumption_log cl
@@ -46,11 +45,11 @@ try {
         ");
         $stmt->execute([$inventoryId]);
     }
-    
+
     $consumptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     echo json_encode($consumptions);
-    
+
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);

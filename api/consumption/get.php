@@ -17,13 +17,12 @@ if (!isset($_GET['id'])) {
 }
 
 try {
-    $db = getDBConnection();
     $consumptionId = $_GET['id'];
     $inventoryId = $_SESSION['inventory_id'];
-    
+
     // Get consumption record
-    $stmt = $db->prepare("
-        SELECT cl.id, cl.consumed_weight, cl.consumption_date, cl.note,
+    $stmt = $pdo->prepare("
+        SELECT cl.id, ABS(cl.amount_grams) as consumed_weight, cl.consumption_date, cl.description as note,
                f.id as filament_id, f.manufacturer, f.material, f.color
         FROM consumption_log cl
         INNER JOIN filaments f ON cl.filament_id = f.id
@@ -31,15 +30,15 @@ try {
     ");
     $stmt->execute([$consumptionId, $inventoryId]);
     $consumption = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if (!$consumption) {
         http_response_code(404);
         echo json_encode(['error' => 'Záznam nenalezen']);
         exit;
     }
-    
+
     echo json_encode($consumption);
-    
+
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);

@@ -1,5 +1,53 @@
-// Configuration
-const API_BASE = 'api';
+// Get base path (e.g., '/a/efil-github' or '')
+// This detects the base path by looking at the current pathname
+// Should match the logic in index.html
+function getBasePath() {
+    // First, try to use BASE_PATH from index.html if available
+    if (window.__BASE_PATH__ !== undefined) {
+        return window.__BASE_PATH__;
+    }
+
+    const path = window.location.pathname;
+    // Remove trailing slash
+    let cleanPath = path.replace(/\/$/, '');
+    // Remove index.html if present
+    if (cleanPath.endsWith('index.html')) {
+        cleanPath = cleanPath.replace(/\/index\.html$/, '');
+    }
+    // If path contains known app routes, extract base path
+    // For paths like /a/efil-github/, we want /a/efil-github
+    // For paths like /a/efil-github/wizard/mat, we want /a/efil-github
+    // For paths like /wizard/mat (root install), we want ''
+    const segments = cleanPath.split('/').filter(s => s);
+    const appRoutes = ['wizard', 'form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'admin-stats', 'inventory-switch', 'forgot-password', 'reset-password'];
+
+    // Find first app route index
+    let routeIndex = segments.length;
+    for (let i = 0; i < segments.length; i++) {
+        if (appRoutes.includes(segments[i])) {
+            routeIndex = i;
+            break;
+        }
+    }
+
+    let basePath = '';
+    if (routeIndex > 0) {
+        // App route is at position > 0, so there's a base path before it
+        basePath = '/' + segments.slice(0, routeIndex).join('/');
+    } else if (routeIndex === 0) {
+        // App route is at position 0, app runs in root
+        basePath = '';
+    } else if (segments.length > 0) {
+        // No app route found, but we have segments - use all as base path
+        basePath = '/' + segments.join('/');
+    }
+
+    return basePath;
+}
+const BASE_PATH = getBasePath();
+
+// Configuration - API_BASE must be absolute path using BASE_PATH
+const API_BASE = BASE_PATH ? BASE_PATH + '/api' : '/api';
 
 // State
 let filaments = [];
@@ -26,19 +74,31 @@ const router = {
         window.history.pushState({ ...stateData, path }, '', path);
         this.handleRoute(path, stateData);
     },
-    
+
     // Replace current route
     replace(path, stateData = {}) {
         window.history.replaceState({ ...stateData, path }, '', path);
         this.handleRoute(path, stateData);
     },
-    
+
     // Handle route changes
     handleRoute(path, stateData = {}) {
-        // Parse path
+        // Parse path and filter out empty segments
         const segments = path.split('/').filter(s => s);
-        
-        if (!segments.length || segments[0] === '') {
+
+        // Remove base path if present (e.g., 'a', 'efil-github')
+        // We only care about routes that start with our app routes
+        const appRoutes = ['wizard', 'form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'admin-stats', 'inventory-switch', 'forgot-password', 'reset-password'];
+        let routeStartIndex = 0;
+        for (let i = 0; i < segments.length; i++) {
+            if (appRoutes.includes(segments[i])) {
+                routeStartIndex = i;
+                break;
+            }
+        }
+        const appSegments = segments.slice(routeStartIndex);
+
+        if (!appSegments.length) {
             // Root - show auth or wizard based on login state
             if (user) {
                 state.view = 'wizard';
@@ -48,74 +108,88 @@ const router = {
                 state.view = 'auth';
                 state.authView = 'login';
             }
-        } else if (segments[0] === 'wizard') {
+        } else if (appSegments[0] === 'wizard') {
             state.view = 'wizard';
-            if (segments[1] === 'mat') state.currentStep = 1;
-            else if (segments[1] === 'bar') state.currentStep = 2;
-            else if (segments[1] === 'vyr') state.currentStep = 3;
+            if (appSegments[1] === 'mat') state.currentStep = 1;
+            else if (appSegments[1] === 'bar') state.currentStep = 2;
+            else if (appSegments[1] === 'vyr') state.currentStep = 3;
             else state.currentStep = 1;
-        } else if (segments[0] === 'form') {
+        } else if (appSegments[0] === 'form') {
             state.view = 'form';
-            state.editingId = segments[1] ? parseInt(segments[1]) : null;
-        } else if (segments[0] === 'consume') {
+            state.editingId = appSegments[1] ? parseInt(appSegments[1]) : null;
+        } else if (appSegments[0] === 'consume') {
             state.view = 'consume';
-            state.consumeId = segments[1] ? parseInt(segments[1]) : null;
-        } else if (segments[0] === 'stats') {
+            state.consumeId = appSegments[1] ? parseInt(appSegments[1]) : null;
+        } else if (appSegments[0] === 'stats') {
             state.view = 'stats';
-        } else if (segments[0] === 'help') {
+        } else if (appSegments[0] === 'help') {
             state.view = 'help';
-        } else if (segments[0] === 'account') {
+        } else if (appSegments[0] === 'account') {
             state.view = 'account';
-        } else if (segments[0] === 'users') {
+        } else if (appSegments[0] === 'users') {
             state.view = 'users';
-        } else if (segments[0] === 'spools') {
+        } else if (appSegments[0] === 'spools') {
             state.view = 'spools';
-        } else if (segments[0] === 'admin-stats') {
+        } else if (appSegments[0] === 'admin-stats') {
             state.view = 'adminStats';
-        } else if (segments[0] === 'inventory-switch') {
+        } else if (appSegments[0] === 'inventory-switch') {
             state.view = 'inventorySwitch';
-        } else if (segments[0] === 'forgot-password') {
+        } else if (appSegments[0] === 'forgot-password') {
             state.view = 'auth';
             state.authView = 'forgotPassword';
-        } else if (segments[0] === 'reset-password') {
+        } else if (appSegments[0] === 'reset-password') {
             state.view = 'auth';
             state.authView = 'resetPassword';
             state.resetToken = new URLSearchParams(window.location.search).get('token');
+        } else {
+            // Unknown route - default to root
+            if (user) {
+                state.view = 'wizard';
+                state.currentStep = 1;
+                state.filters = { mat: null, color: null };
+            } else {
+                state.view = 'auth';
+                state.authView = 'login';
+            }
         }
-        
+
         render();
     },
-    
+
     // Get current route path based on state
     getPath() {
+        let path = '';
         if (state.view === 'auth') {
-            if (state.authView === 'forgotPassword') return '/forgot-password';
-            if (state.authView === 'resetPassword') return '/reset-password';
-            return '/';
+            if (state.authView === 'forgotPassword') path = '/forgot-password';
+            else if (state.authView === 'resetPassword') path = '/reset-password';
+            else path = '/';
         } else if (state.view === 'wizard') {
-            if (state.currentStep === 1) return '/wizard/mat';
-            if (state.currentStep === 2) return '/wizard/bar';
-            if (state.currentStep === 3) return '/wizard/vyr';
+            if (state.currentStep === 1) path = '/wizard/mat';
+            else if (state.currentStep === 2) path = '/wizard/bar';
+            else if (state.currentStep === 3) path = '/wizard/vyr';
+            else path = '/wizard/mat';
         } else if (state.view === 'form') {
-            return state.editingId ? `/form/${state.editingId}` : '/form';
+            path = state.editingId ? `/form/${state.editingId}` : '/form';
         } else if (state.view === 'consume') {
-            return `/consume/${state.consumeId}`;
+            path = `/consume/${state.consumeId}`;
         } else if (state.view === 'stats') {
-            return '/stats';
+            path = '/stats';
         } else if (state.view === 'help') {
-            return '/help';
+            path = '/help';
         } else if (state.view === 'account') {
-            return '/account';
+            path = '/account';
         } else if (state.view === 'users') {
-            return '/users';
+            path = '/users';
         } else if (state.view === 'spools') {
-            return '/spools';
+            path = '/spools';
         } else if (state.view === 'adminStats') {
-            return '/admin-stats';
+            path = '/admin-stats';
         } else if (state.view === 'inventorySwitch') {
-            return '/inventory-switch';
+            path = '/inventory-switch';
+        } else {
+            path = '/';
         }
-        return '/';
+        return BASE_PATH + path;
     }
 };
 
@@ -183,19 +257,24 @@ async function checkAuth() {
         const data = await res.json();
         if (data.authenticated) {
             user = data.user;
-            loadData();
+            await loadData();
             // Navigate to current URL or default to wizard
             const path = window.location.pathname;
-            if (path === '/' || path === '') {
-                router.replace('/wizard/mat');
+            // Check if path is root (empty, /, or ends with / and has no known routes)
+            const segments = path.split('/').filter(s => s);
+            const appRoutes = ['wizard', 'form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'admin-stats', 'inventory-switch', 'forgot-password', 'reset-password'];
+            const hasAppRoute = segments.some(seg => appRoutes.includes(seg));
+
+            if (!hasAppRoute) {
+                // No app route in path, treat as root
+                router.replace(BASE_PATH + '/wizard/mat');
             } else {
                 router.handleRoute(path);
             }
         } else {
-            router.replace('/');
+            router.replace(BASE_PATH + '/');
         }
     } catch (err) {
-        console.error('Auth check failed', err);
         router.replace('/');
     }
 }
@@ -211,7 +290,7 @@ async function login(email, password) {
         if (res.ok) {
             user = data.user;
             loadData();
-            router.push('/wizard/mat');
+            router.push(BASE_PATH + '/wizard/mat');
         } else {
             showToast(data.error || 'Chyba přihlášení');
         }
@@ -241,10 +320,26 @@ async function register(email, password) {
 async function logout() {
     // Close menu before logout
     document.getElementById('action-menu').classList.add('hidden');
-    await fetch(`${API_BASE}/auth/logout.php`);
-    user = null;
-    state.authView = 'login';
-    router.push('/');
+    try {
+        const res = await fetch(`${API_BASE}/auth/logout.php`);
+        const data = await res.json();
+
+        // Delete session cookie on client side as backup (in case server-side deletion fails)
+        // Use path="/" which is the default PHP session cookie path
+        document.cookie = 'PHPSESSID=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+        user = null;
+        state.authView = 'login';
+        state.view = 'auth';
+        // Force reload to clear any cached state
+        window.location.href = BASE_PATH + '/';
+    } catch (err) {
+        // Even if logout fails, clear local state and redirect
+        user = null;
+        state.authView = 'login';
+        state.view = 'auth';
+        window.location.href = BASE_PATH + '/';
+    }
 }
 
 // --- DATA ---
@@ -257,24 +352,35 @@ async function loadData() {
             fetch(`${API_BASE}/dashboard/stats.php`)
         ]);
 
-        if (resFilaments.ok) filaments = await resFilaments.json();
-        if (resOptions.ok) {
-            const optionsData = await resOptions.json();
-            options = optionsData;
-            console.log('Options loaded:', options); // Debug
-        } else {
-            console.error('Options request failed:', resOptions.status);
-        }
-        if (resSpools.ok) spoolTemplates = await resSpools.json();
-        if (resStats.ok) stats = await resStats.json();
+        if (!resFilaments.ok) throw new Error('Failed to load filaments');
+        if (!resOptions.ok) throw new Error('Failed to load options');
+        if (!resSpools.ok) throw new Error('Failed to load spools');
+        if (!resStats.ok) throw new Error('Failed to load stats');
+
+        const [filamentsData, optionsData, spoolsData, statsData] = await Promise.all([
+            resFilaments.json(),
+            resOptions.json(),
+            resSpools.json(),
+            resStats.json()
+        ]);
+
+        filaments = Array.isArray(filamentsData) ? filamentsData : [];
+        options = optionsData || { materials: [], manufacturers: [], locations: [], sellers: [] };
+        spoolTemplates = Array.isArray(spoolsData) ? spoolsData : [];
+        stats = statsData || null;
 
         // Add admin menu item if user is admin_efil
         updateAdminMenu();
-        
+
         render();
     } catch (err) {
         console.error('Data load error', err);
         showToast('Chyba načítání dat');
+        if (state.view === 'loading') {
+            state.view = 'auth';
+            state.authView = 'login';
+            render();
+        }
     }
 }
 
@@ -282,27 +388,27 @@ async function updateAdminMenu() {
     const menu = document.getElementById('action-menu');
     const existingAdminBtn = menu.querySelector('[data-admin-stats]');
     const existingInvSwitchBtn = menu.querySelector('[data-inventory-switch]');
-    
+
     // Remove existing dynamic buttons if present
     if (existingAdminBtn) existingAdminBtn.remove();
     if (existingInvSwitchBtn) existingInvSwitchBtn.remove();
-    
+
     const logoutBtn = menu.querySelector('button[onclick="logout()"]');
     if (!logoutBtn) return;
-    
+
     // Check if user has access to multiple inventories
     try {
         const res = await fetch(`${API_BASE}/inventory/list.php`);
         if (res.ok) {
             const inventories = await res.json();
-            
+
             // Add inventory switch button if user has access to multiple inventories
             if (inventories.length > 1) {
                 const invSwitchBtn = document.createElement('button');
                 invSwitchBtn.setAttribute('data-inventory-switch', 'true');
                 invSwitchBtn.onclick = () => {
                     document.getElementById('action-menu').classList.add('hidden');
-                    router.push('/inventory/switch');
+                    router.push(BASE_PATH + '/inventory/switch');
                 };
                 invSwitchBtn.className = 'w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left';
                 invSwitchBtn.innerHTML = `
@@ -315,14 +421,14 @@ async function updateAdminMenu() {
     } catch (err) {
         console.error('Failed to check inventories:', err);
     }
-    
+
     // Add admin button if user is admin_efil
     if (user && user.role === 'admin_efil') {
         const adminBtn = document.createElement('button');
         adminBtn.setAttribute('data-admin-stats', 'true');
         adminBtn.onclick = () => {
             document.getElementById('action-menu').classList.add('hidden');
-            router.push('/admin/stats');
+            router.push(BASE_PATH + '/admin/stats');
         };
         adminBtn.className = 'w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left';
         adminBtn.innerHTML = `
@@ -345,7 +451,7 @@ async function saveFilament(data) {
             showToast('Uloženo');
             await loadData();
             state.filters = { mat: null, color: null };
-            router.push('/wizard/mat');
+            router.push(BASE_PATH + '/wizard/mat');
         } else {
             const err = await res.json();
             showToast(err.error || 'Chyba ukládání');
@@ -366,7 +472,7 @@ async function consumeFilament(filamentId, amount, description, date) {
         if (res.ok) {
             showToast('Zapsáno');
             await loadData();
-            router.push('/wizard/mat');
+            router.push(BASE_PATH + '/wizard/mat');
         } else {
             const err = await res.json();
             showToast(err.error || 'Chyba zápisu');
@@ -409,6 +515,10 @@ function render() {
     const appView = document.getElementById('app-view');
     const loadingScreen = document.getElementById('loading-screen');
 
+    if (!appView || !loadingScreen) {
+        return;
+    }
+
     if (state.view === 'loading') {
         loadingScreen.classList.remove('hidden');
         appView.classList.add('hidden');
@@ -421,20 +531,34 @@ function render() {
     updateHeader();
     appView.innerHTML = '';
 
-    if (state.view === 'auth') renderAuth(appView);
-    else if (state.view === 'form') renderForm(appView);
-    else if (state.view === 'consume') renderConsume(appView);
-    else if (state.view === 'stats') renderStats(appView);
-    else if (state.view === 'help') renderHelp(appView);
-    else if (state.view === 'account') renderAccount(appView);
-    else if (state.view === 'users') renderUsers(appView);
-    else if (state.view === 'spools') renderSpools(appView);
-    else if (state.view === 'adminStats') renderAdminStats(appView);
-    else if (state.view === 'inventorySwitch') renderInventorySwitch(appView);
-    else {
-        if (state.currentStep === 1) renderMaterials(appView);
-        else if (state.currentStep === 2) renderColors(appView);
-        else if (state.currentStep === 3) renderDetails(appView);
+    if (state.view === 'auth') {
+        renderAuth(appView);
+    } else if (state.view === 'form') {
+        renderForm(appView);
+    } else if (state.view === 'consume') {
+        renderConsume(appView);
+    } else if (state.view === 'stats') {
+        renderStats(appView);
+    } else if (state.view === 'help') {
+        renderHelp(appView);
+    } else if (state.view === 'account') {
+        renderAccount(appView);
+    } else if (state.view === 'users') {
+        renderUsers(appView);
+    } else if (state.view === 'spools') {
+        renderSpools(appView);
+    } else if (state.view === 'adminStats') {
+        renderAdminStats(appView);
+    } else if (state.view === 'inventorySwitch') {
+        renderInventorySwitch(appView);
+    } else {
+        if (state.currentStep === 1) {
+            renderMaterials(appView);
+        } else if (state.currentStep === 2) {
+            renderColors(appView);
+        } else if (state.currentStep === 3) {
+            renderDetails(appView);
+        }
     }
 }
 
@@ -495,7 +619,7 @@ function renderAuth(v) {
         </div>
         <h2 class="text-xl font-bold text-slate-800 mb-3">Evidence Filamentů pro 3D tisk</h2>
         <p class="text-slate-600 mb-4">Profesionální správa 3D tiskových materiálů s přesným sledováním spotřeby na základě reálného čerpání, nikoliv jen odhadů.</p>
-        
+
         <div class="space-y-3 mb-6">
             <div class="flex items-start gap-3">
                 <svg class="w-5 h-5 text-indigo-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
@@ -529,15 +653,15 @@ function renderAuth(v) {
 
         <div class="bg-white p-4 rounded-xl border border-slate-200">
             <p class="text-sm text-slate-600 mb-2">
-                <span class="font-bold text-indigo-600">Vyvinuto společností</span> 
+                <span class="font-bold text-indigo-600">Vyvinuto společností</span>
                 <a href="https://sensio.cz" target="_blank" class="font-bold text-slate-800 hover:text-indigo-600 transition-colors">Sensio.cz s.r.o.</a>
             </p>
             <p class="text-xs text-slate-500">
-                Vaše zpětná vazba nám pomůže aplikaci dále vylepšovat. 
+                Vaše zpětná vazba nám pomůže aplikaci dále vylepšovat.
                 <a href="mailto:podpora@sensio.cz" class="text-indigo-600 hover:underline">Napište nám</a>
             </p>
         </div>
-        
+
         ${state.authView === 'login' ? `
         <div class="mt-6 text-center lg:hidden">
             <button onclick="document.getElementById('login-form-section').scrollIntoView({behavior:'smooth'})" class="text-indigo-600 font-bold hover:underline flex items-center justify-center gap-2 mx-auto">
@@ -547,13 +671,13 @@ function renderAuth(v) {
         </div>
         ` : ''}
     `;
-    
+
     v.appendChild(introSection);
-    
+
     const container = document.createElement('div');
     container.id = 'login-form-section';
     container.className = 'auth-container bg-white rounded-3xl shadow-sm border border-slate-200';
-    
+
     if (state.authView === 'forgotPassword') {
         container.innerHTML = `
             <h2 class="text-2xl font-black text-center mb-6 text-slate-800">Zapomenuté heslo</h2>
@@ -639,7 +763,7 @@ window.handleForgotPassword = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
     const email = fd.get('email');
-    
+
     try {
         const res = await fetch(`${API_BASE}/auth/forgot-password.php`, {
             method: 'POST',
@@ -647,9 +771,9 @@ window.handleForgotPassword = async (e) => {
             body: JSON.stringify({ email })
         });
         const data = await res.json();
-        
+
         if (res.ok) {
-            showToast('Email s instrukcemi byl odeslán');
+            showToast(data.message || 'Pokud účet existuje, byl odeslán email s instrukcemi');
             state.authView = 'login';
             render();
         } else {
@@ -666,18 +790,18 @@ window.handleResetPassword = async (e) => {
     const fd = new FormData(e.target);
     const password = fd.get('password');
     const passwordConfirm = fd.get('password_confirm');
-    
+
     if (password !== passwordConfirm) {
         showToast('Hesla se neshodují');
         return;
     }
-    
+
     const token = state.resetToken;
     if (!token) {
         showToast('Chybí token');
         return;
     }
-    
+
     try {
         const res = await fetch(`${API_BASE}/auth/reset-password.php`, {
             method: 'POST',
@@ -685,11 +809,11 @@ window.handleResetPassword = async (e) => {
             body: JSON.stringify({ token, password })
         });
         const data = await res.json();
-        
+
         if (res.ok) {
             showToast('Heslo bylo změněno');
             state.authView = 'login';
-            router.push('/');
+            router.push(BASE_PATH + '/');
         } else {
             showToast(data.error || 'Chyba při změně hesla');
         }
@@ -777,7 +901,9 @@ async function renderStats(v) {
         const res = await fetch(`${API_BASE}/consumption/list.php`);
         if (res.ok) {
             const history = await res.json();
-            
+            // Ensure history is an array
+            if (!Array.isArray(history)) return;
+
             if (history.length > 0) {
                 const historyContainer = document.createElement('div');
                 historyContainer.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200";
@@ -825,27 +951,27 @@ async function renderStats(v) {
 
 window.openStats = () => {
     document.getElementById('action-menu').classList.add('hidden');
-    router.push('/stats');
+    router.push(BASE_PATH + '/stats');
 };
 
 window.openAccount = () => {
     document.getElementById('action-menu').classList.add('hidden');
-    router.push('/account');
+    router.push(BASE_PATH + '/account');
 };
 
 window.openUsers = () => {
     document.getElementById('action-menu').classList.add('hidden');
-    router.push('/users');
+    router.push(BASE_PATH + '/users');
 };
 
 window.openSpools = () => {
     document.getElementById('action-menu').classList.add('hidden');
-    router.push('/spools');
+    router.push(BASE_PATH + '/spools');
 };
 
 window.openHelp = () => {
     document.getElementById('action-menu').classList.add('hidden');
-    router.push('/help');
+    router.push(BASE_PATH + '/help');
 };
 
 // --- CONSUME LOGIC ---
@@ -882,7 +1008,7 @@ window.handleConsumeSubmit = (e) => {
 
 async function renderConsume(v) {
     const item = filaments.find(i => i.id === state.consumeId);
-    if (!item) { router.push('/wizard/mat'); return; }
+    if (!item) { router.push(BASE_PATH + '/wizard/mat'); return; }
 
     const isUsed = state.consumeMode === 'used';
     const hasSpool = !!item.spool_id;
@@ -939,7 +1065,7 @@ async function renderConsume(v) {
         const res = await fetch(`${API_BASE}/consumption/list.php?filament_id=${item.id}`);
         if (res.ok) {
             const history = await res.json();
-            
+
             if (history.length > 0) {
                 const historyContainer = document.createElement('div');
                 historyContainer.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 max-w-lg mx-auto mt-6";
@@ -1024,11 +1150,11 @@ window.renderSpoolInput = (selectedId) => {
 
         // Get currently selected manufacturer from the form
         const currentManufacturer = document.getElementById('f-man')?.value || null;
-        
+
         // Split spools into two groups: matching manufacturer and others
         const matchingSpools = [];
         const otherSpools = [];
-        
+
         spoolTemplates.forEach(s => {
             // Check if this spool is associated with the current manufacturer
             const hasMatch = s.manufacturers && s.manufacturers.some(m => m.name === currentManufacturer);
@@ -1043,14 +1169,14 @@ window.renderSpoolInput = (selectedId) => {
             <option value="" disabled ${!selectedId ? 'selected' : ''}>Vybrat...</option>
             <option value="" ${selectedId === null || selectedId === '' ? 'selected' : ''}>Žádná / Neznámá</option>
         `;
-        
+
         // Add matching spools first in optgroup
         if (matchingSpools.length > 0 && currentManufacturer) {
             optionsHtml += `<optgroup label="Pro výrobce ${currentManufacturer}">`;
             optionsHtml += matchingSpools.map(s => `<option value="${s.id}" ${s.id == selectedId ? 'selected' : ''}>${formatSpoolLabel(s)}</option>`).join('');
             optionsHtml += `</optgroup>`;
         }
-        
+
         // Add other spools
         if (otherSpools.length > 0) {
             if (matchingSpools.length > 0 && currentManufacturer) {
@@ -1497,7 +1623,7 @@ window.deleteFilament = async (id) => {
     if (!confirm('Opravdu chcete smazat tento filament? Tato akce je nevratná.')) {
         return;
     }
-    
+
     try {
         const res = await fetch(`${API_BASE}/filaments/delete.php`, {
             method: 'POST',
@@ -1505,12 +1631,12 @@ window.deleteFilament = async (id) => {
             body: JSON.stringify({ id })
         });
         const data = await res.json();
-        
+
         if (res.ok) {
             showToast('Filament smazán');
             await loadData();
             state.filters = { mat: null, color: null };
-            router.push('/wizard/mat');
+            router.push(BASE_PATH + '/wizard/mat');
         } else {
             showToast(data.error || 'Chyba při mazání');
         }
@@ -1537,7 +1663,7 @@ window.toggleAuthView = () => {
 window.resetApp = () => {
     state.filters = { mat: null, color: null };
     state.currentStep = 1;
-    router.push('/wizard/mat');
+    router.push(BASE_PATH + '/wizard/mat');
 };
 
 const formatKg = (g) => (g / 1000).toFixed(1).replace('.', ',') + ' kg';
@@ -1569,11 +1695,11 @@ function renderMaterials(v) {
     Object.keys(stats).sort((a,b)=>stats[b]-stats[a]).forEach(m => {
         const card = document.createElement('div');
         card.className = "aspect-square bg-white border border-slate-200 rounded-2xl p-3 flex items-center justify-center text-center relative shadow-sm cursor-pointer hover:border-indigo-300 transition-colors";
-        card.onclick = () => { 
-            state.filters.mat = m; 
+        card.onclick = () => {
+            state.filters.mat = m;
             const nextStep = state.filters.color ? 3 : 2;
             state.currentStep = nextStep;
-            router.push(nextStep === 2 ? '/wizard/bar' : '/wizard/vyr');
+            router.push(BASE_PATH + (nextStep === 2 ? '/wizard/bar' : '/wizard/vyr'));
         };
         card.innerHTML = `<div class="text-[10px] font-bold text-slate-400 absolute top-2 right-2">${formatKg(stats[m])}</div><div class="text-base font-black uppercase tracking-tight">${m}</div>`;
         grid.appendChild(card);
@@ -1593,11 +1719,11 @@ function renderColors(v) {
         card.className = "aspect-square rounded-2xl p-3 flex items-center justify-center text-center shadow-sm relative cursor-pointer";
         card.style.backgroundColor = info.hex; card.style.color = contrast;
         if(info.hex.toLowerCase()==='#ffffff') card.classList.add('border','border-slate-200');
-        card.onclick = () => { 
-            state.filters.color = c; 
+        card.onclick = () => {
+            state.filters.color = c;
             const nextStep = state.filters.mat ? 3 : 1;
             state.currentStep = nextStep;
-            router.push(nextStep === 1 ? '/wizard/mat' : '/wizard/vyr');
+            router.push(BASE_PATH + (nextStep === 1 ? '/wizard/mat' : '/wizard/vyr'));
         };
         card.innerHTML = `<div class="text-[10px] font-bold absolute top-2 right-2 opacity-70">${formatKg(info.g)}</div><div class="text-[13px] font-black uppercase px-1">${c}</div>`;
         grid.appendChild(card);
@@ -1606,13 +1732,13 @@ function renderColors(v) {
 }
 
 function renderDetails(v) {
-    const container = document.createElement('div'); 
+    const container = document.createElement('div');
     container.className = "flex flex-col gap-3 w-full";
-    
+
     // Filter out filaments with zero or negative weight
     const activeFilaments = filaments.filter(i => parseInt(i.g) > 0);
     const filtered = activeFilaments.filter(i => (!state.filters.mat || i.mat===state.filters.mat) && (!state.filters.color || i.color===state.filters.color));
-    
+
     if(filtered.length === 0) {
         container.innerHTML = `<div class="text-center py-20 text-slate-400 bg-white rounded-3xl border-2 border-dashed">Žádné položky</div>`;
     } else {
@@ -1625,23 +1751,23 @@ function renderDetails(v) {
             }
             groups.get(key).push(item);
         });
-        
+
         // Sort groups by total weight (descending)
         const sortedGroups = Array.from(groups.entries()).sort((a, b) => {
             const totalA = a[1].reduce((sum, i) => sum + parseInt(i.g), 0);
             const totalB = b[1].reduce((sum, i) => sum + parseInt(i.g), 0);
             return totalB - totalA;
         });
-        
+
         sortedGroups.forEach(([key, items]) => {
             const isMultiple = items.length > 1;
             const isExpanded = state.expandedGroups.has(key);
-            
+
             if (isMultiple && !isExpanded) {
                 // Show grouped item
                 const totalWeight = items.reduce((sum, i) => sum + parseInt(i.g), 0);
                 const firstItem = items[0];
-                
+
                 const groupCard = document.createElement('div');
                 groupCard.className = "bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-2xl border-2 border-indigo-200 flex items-center justify-between shadow-sm cursor-pointer hover:shadow-md transition-shadow";
                 groupCard.onclick = () => {
@@ -1683,7 +1809,7 @@ function renderDetails(v) {
                     `;
                     container.appendChild(card);
                 });
-                
+
                 // Add collapse button for expanded groups
                 if (isMultiple && isExpanded) {
                     const collapseBtn = document.createElement('button');
@@ -1698,19 +1824,19 @@ function renderDetails(v) {
             }
         });
     }
-    
+
     v.appendChild(container);
-    const btn = document.createElement('button'); 
+    const btn = document.createElement('button');
     btn.className = "mt-6 w-full py-4 text-indigo-600 font-bold text-sm bg-indigo-50 rounded-2xl";
-    btn.innerText = "Vymazat filtry"; 
-    btn.onclick = window.resetApp; 
+    btn.innerText = "Vymazat filtry";
+    btn.onclick = window.resetApp;
     v.appendChild(btn);
 }
 
-window.setStep = (s) => { 
-    state.currentStep = s; 
+window.setStep = (s) => {
+    state.currentStep = s;
     const path = s === 1 ? '/wizard/mat' : (s === 2 ? '/wizard/bar' : '/wizard/vyr');
-    router.push(path);
+    router.push(BASE_PATH + path);
 };
 window.toggleActionMenu = () => {
     const menu = document.getElementById('action-menu');
@@ -1747,9 +1873,9 @@ window.openForm = () => {
     // We update this via onclick in renderDetails so editingId is set before this call if editing
 
     document.getElementById('action-menu').classList.add('hidden');
-    
+
     const path = state.editingId ? `/form/${state.editingId}` : '/form';
-    router.push(path);
+    router.push(BASE_PATH + path);
 
     // Update weight info after render
     setTimeout(() => {
@@ -1768,7 +1894,7 @@ window.openForm = () => {
 window.openConsume = (id) => {
     state.consumeId = id;
     state.consumeMode = 'used';
-    router.push(`/consume/${id}`);
+    router.push(BASE_PATH + `/consume/${id}`);
 }
 
 // Placeholder render functions for new views (will be implemented in next tasks)
@@ -2006,7 +2132,7 @@ function renderAccount(v) {
 window.handleChangePassword = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    
+
     try {
         const res = await fetch(`${API_BASE}/account/change-password.php`, {
             method: 'POST',
@@ -2017,7 +2143,7 @@ window.handleChangePassword = async (e) => {
             })
         });
         const data = await res.json();
-        
+
         if (res.ok) {
             showToast('Heslo bylo změněno');
             e.target.reset();
@@ -2032,7 +2158,7 @@ window.handleChangePassword = async (e) => {
 window.handleChangeEmail = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    
+
     try {
         const res = await fetch(`${API_BASE}/account/change-email.php`, {
             method: 'POST',
@@ -2043,7 +2169,7 @@ window.handleChangeEmail = async (e) => {
             })
         });
         const data = await res.json();
-        
+
         if (res.ok) {
             showToast('Email byl změněn');
             // Update user object
@@ -2069,11 +2195,11 @@ window.hideDeleteAccountForm = () => {
 window.handleDeleteAccount = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    
+
     if (!confirm('Jste si opravdu jisti? Tato akce je nevratná!')) {
         return;
     }
-    
+
     try {
         const res = await fetch(`${API_BASE}/account/delete.php`, {
             method: 'POST',
@@ -2084,12 +2210,12 @@ window.handleDeleteAccount = async (e) => {
             })
         });
         const data = await res.json();
-        
+
         if (res.ok) {
             showToast('Účet byl smazán');
             // Redirect to login
             user = null;
-            router.push('/');
+            router.push(BASE_PATH + '/');
         } else {
             showToast(data.error || 'Chyba při mazání účtu');
         }
@@ -2101,7 +2227,7 @@ window.handleDeleteAccount = async (e) => {
 async function renderUsers(v) {
     const container = document.createElement('div');
     container.className = "max-w-3xl mx-auto space-y-4";
-    
+
     // Load users
     let users = [];
     try {
@@ -2112,14 +2238,14 @@ async function renderUsers(v) {
     } catch (err) {
         console.error('Failed to load users:', err);
     }
-    
+
     const roleNames = {
         'owner': 'Vlastník',
         'manage': 'Správa',
         'write': 'Zápis',
         'read': 'Jen čtení'
     };
-    
+
     container.innerHTML = `
         <!-- Add User Form -->
         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
@@ -2173,7 +2299,7 @@ async function renderUsers(v) {
 
         <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
     `;
-    
+
     v.appendChild(container);
 }
 
@@ -2181,7 +2307,7 @@ async function renderUsers(v) {
 window.handleAddUser = async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
-    
+
     try {
         const res = await fetch(`${API_BASE}/users/add.php`, {
             method: 'POST',
@@ -2192,7 +2318,7 @@ window.handleAddUser = async (e) => {
             })
         });
         const data = await res.json();
-        
+
         if (res.ok) {
             showToast(data.message || 'Uživatel přidán');
             e.target.reset();
@@ -2218,7 +2344,7 @@ window.handleChangeRole = async (userId, newRole) => {
             })
         });
         const data = await res.json();
-        
+
         if (res.ok) {
             showToast('Oprávnění změněna');
         } else {
@@ -2236,7 +2362,7 @@ window.handleRemoveUser = async (userId, email) => {
     if (!confirm(`Opravdu chcete odebrat uživatele ${email}?`)) {
         return;
     }
-    
+
     try {
         const res = await fetch(`${API_BASE}/users/remove.php`, {
             method: 'POST',
@@ -2244,7 +2370,7 @@ window.handleRemoveUser = async (userId, email) => {
             body: JSON.stringify({ user_id: userId })
         });
         const data = await res.json();
-        
+
         if (res.ok) {
             showToast('Uživatel odebrán');
             // Refresh users list
@@ -2260,7 +2386,7 @@ window.handleRemoveUser = async (userId, email) => {
 async function renderSpools(v) {
     const container = document.createElement('div');
     container.className = "max-w-4xl mx-auto space-y-6";
-    
+
     // Load spools and manufacturers
     let spools = [];
     let manufacturers = [];
@@ -2272,12 +2398,24 @@ async function renderSpools(v) {
         if (resSpools.ok) spools = await resSpools.json();
         if (resManuf.ok) {
             const data = await resManuf.json();
-            manufacturers = data.manufacturers || [];
+            if (data && typeof data === 'object' && !Array.isArray(data)) {
+                const manufData = data.manufacturers;
+                // Handle both formats: object with top/others or plain array
+                if (manufData && typeof manufData === 'object' && !Array.isArray(manufData)) {
+                    manufacturers = [...(manufData.top || []), ...(manufData.others || [])];
+                } else {
+                    manufacturers = Array.isArray(manufData) ? manufData : [];
+                }
+            }
+        }
+        // Ensure manufacturers is always an array
+        if (!Array.isArray(manufacturers)) {
+            manufacturers = [];
         }
     } catch (err) {
         console.error('Failed to load spools:', err);
     }
-    
+
     container.innerHTML = `
         <!-- Add/Edit Form -->
         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
@@ -2353,9 +2491,9 @@ async function renderSpools(v) {
 
         <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
     `;
-    
+
     v.appendChild(container);
-    
+
     // Attach form handler
     document.getElementById('spool-form').onsubmit = handleSpoolSubmit;
 }
@@ -2363,7 +2501,7 @@ async function renderSpools(v) {
 async function renderAdminStats(v) {
     const container = document.createElement('div');
     container.className = "max-w-6xl mx-auto space-y-6";
-    
+
     // Load stats
     let stats = null;
     try {
@@ -2384,13 +2522,13 @@ async function renderAdminStats(v) {
     } catch (err) {
         console.error('Failed to load stats:', err);
     }
-    
+
     if (!stats) {
         container.innerHTML = '<p class="text-slate-400 text-center py-8">Načítání statistik...</p>';
         v.appendChild(container);
         return;
     }
-    
+
     container.innerHTML = `
         <!-- Header -->
         <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-6 rounded-3xl shadow-lg text-white">
@@ -2498,14 +2636,14 @@ async function renderAdminStats(v) {
 
         <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
     `;
-    
+
     v.appendChild(container);
 }
 
 async function renderInventorySwitch(v) {
     const container = document.createElement('div');
     container.className = "max-w-2xl mx-auto space-y-4";
-    
+
     // Load inventories
     let inventories = [];
     try {
@@ -2516,21 +2654,21 @@ async function renderInventorySwitch(v) {
     } catch (err) {
         console.error('Failed to load inventories:', err);
     }
-    
+
     const roleNames = {
         'owner': 'Vlastník',
         'manage': 'Správa',
         'write': 'Zápis',
         'read': 'Jen čtení'
     };
-    
+
     container.innerHTML = `
         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
             <h2 class="text-2xl font-black text-slate-800 mb-4">Přepnout evidenci</h2>
             <div class="space-y-3">
                 ${inventories.length === 0 ? '<p class="text-slate-400 text-center py-4">Načítání...</p>' : inventories.map(inv => `
-                    <button 
-                        onclick="handleSwitchInventory(${inv.id})" 
+                    <button
+                        onclick="handleSwitchInventory(${inv.id})"
                         class="w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all ${inv.is_current ? 'border-indigo-600 bg-indigo-50' : 'border-slate-200 bg-white hover:border-indigo-300'}"
                         ${inv.is_current ? 'disabled' : ''}>
                         <div class="text-left">
@@ -2555,7 +2693,7 @@ async function renderInventorySwitch(v) {
 
         <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
     `;
-    
+
     v.appendChild(container);
 }
 
@@ -2568,12 +2706,12 @@ window.handleSwitchInventory = async (inventoryId) => {
             body: JSON.stringify({ inventory_id: inventoryId })
         });
         const data = await res.json();
-        
+
         if (res.ok) {
             showToast('Evidence přepnuta');
             // Reload data and reset to main view
             await loadData();
-            router.push('/wizard/mat');
+            router.push(BASE_PATH + '/wizard/mat');
         } else {
             showToast(data.error || 'Chyba při přepínání evidence');
         }
@@ -2592,13 +2730,13 @@ window.editConsumption = async (consumptionId) => {
             return;
         }
         const consumption = await res.json();
-        
+
         // Show edit form in a modal-like overlay
         const overlay = document.createElement('div');
         overlay.id = 'edit-consumption-modal';
         overlay.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
         overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
-        
+
         overlay.innerHTML = `
             <div class="bg-white p-6 rounded-3xl shadow-xl max-w-md w-full" onclick="event.stopPropagation()">
                 <h2 class="text-xl font-black text-slate-800 mb-4">Upravit čerpání</h2>
@@ -2627,7 +2765,7 @@ window.editConsumption = async (consumptionId) => {
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(overlay);
     } catch (err) {
         showToast('Chyba sítě');
@@ -2638,12 +2776,12 @@ window.saveConsumptionEdit = async (consumptionId) => {
     const consumedWeight = parseInt(document.getElementById('edit-consumed-weight').value);
     const consumptionDate = document.getElementById('edit-consumption-date').value;
     const note = document.getElementById('edit-consumption-note').value;
-    
+
     if (!consumedWeight || consumedWeight <= 0) {
         showToast('Zadejte platnou hmotnost');
         return;
     }
-    
+
     try {
         const res = await fetch(`${API_BASE}/consumption/update.php`, {
             method: 'POST',
@@ -2656,7 +2794,7 @@ window.saveConsumptionEdit = async (consumptionId) => {
             })
         });
         const data = await res.json();
-        
+
         if (res.ok) {
             showToast('Záznam aktualizován');
             document.getElementById('edit-consumption-modal').remove();
@@ -2674,7 +2812,7 @@ window.deleteConsumption = async (consumptionId) => {
     if (!confirm('Opravdu chcete smazat tento záznam čerpání? Hmotnost bude vrácena zpět k filamentu.')) {
         return;
     }
-    
+
     try {
         const res = await fetch(`${API_BASE}/consumption/delete.php`, {
             method: 'POST',
@@ -2682,7 +2820,7 @@ window.deleteConsumption = async (consumptionId) => {
             body: JSON.stringify({ id: consumptionId })
         });
         const data = await res.json();
-        
+
         if (res.ok) {
             showToast('Záznam smazán');
             document.getElementById('edit-consumption-modal')?.remove();
@@ -2699,7 +2837,7 @@ window.deleteConsumption = async (consumptionId) => {
 // Spool management handlers
 window.handleSpoolSubmit = async (e) => {
     e.preventDefault();
-    
+
     const spoolId = document.getElementById('spool-id').value;
     const color = document.getElementById('spool-color').value;
     const material = document.getElementById('spool-material').value;
@@ -2707,11 +2845,11 @@ window.handleSpoolSubmit = async (e) => {
     const width = parseInt(document.getElementById('spool-width').value) || null;
     const weight = parseInt(document.getElementById('spool-weight').value) || null;
     const description = document.getElementById('spool-description').value;
-    
+
     // Get selected manufacturers
     const manufSelect = document.getElementById('spool-manufacturers');
     const selectedManuf = Array.from(manufSelect.selectedOptions).map(o => o.value);
-    
+
     // Get manufacturer IDs from options.manufacturers
     const manufIds = [];
     if (options.manufacturers) {
@@ -2721,7 +2859,7 @@ window.handleSpoolSubmit = async (e) => {
             manufIds.push(manufName);
         }
     }
-    
+
     const payload = {
         color,
         material,
@@ -2731,13 +2869,13 @@ window.handleSpoolSubmit = async (e) => {
         visual_description: description,
         manufacturer_names: manufIds // Send names, API will resolve to IDs
     };
-    
+
     if (spoolId) {
         payload.id = parseInt(spoolId);
     }
-    
+
     const endpoint = spoolId ? '/spools/update.php' : '/spools/create.php';
-    
+
     try {
         const res = await fetch(`${API_BASE}${endpoint}`, {
             method: 'POST',
@@ -2745,7 +2883,7 @@ window.handleSpoolSubmit = async (e) => {
             body: JSON.stringify(payload)
         });
         const data = await res.json();
-        
+
         if (res.ok) {
             showToast(spoolId ? 'Typ cívky aktualizován' : 'Typ cívky přidán');
             await loadData();
@@ -2767,12 +2905,12 @@ window.editSpool = async (spoolId) => {
         }
         const spools = await res.json();
         const spool = spools.find(s => s.id === spoolId);
-        
+
         if (!spool) {
             showToast('Typ cívky nenalezen');
             return;
         }
-        
+
         // Fill form
         document.getElementById('spool-id').value = spool.id;
         document.getElementById('spool-color').value = spool.color || '';
@@ -2781,18 +2919,18 @@ window.editSpool = async (spoolId) => {
         document.getElementById('spool-width').value = spool.width_mm || '';
         document.getElementById('spool-weight').value = spool.weight_grams || '';
         document.getElementById('spool-description').value = spool.visual_description || '';
-        
+
         // Select manufacturers
         const manufSelect = document.getElementById('spool-manufacturers');
         const manufNames = spool.manufacturers.map(m => m.name);
         Array.from(manufSelect.options).forEach(opt => {
             opt.selected = manufNames.includes(opt.value);
         });
-        
+
         // Update form title and show cancel button
         document.getElementById('spool-form-title').textContent = 'Upravit typ cívky';
         document.getElementById('spool-cancel-btn').classList.remove('hidden');
-        
+
         // Scroll to form
         document.getElementById('spool-form').scrollIntoView({ behavior: 'smooth' });
     } catch (err) {
@@ -2811,7 +2949,7 @@ window.deleteSpool = async (spoolId) => {
     if (!confirm('Opravdu chcete smazat tento typ cívky?')) {
         return;
     }
-    
+
     try {
         const res = await fetch(`${API_BASE}/spools/delete.php`, {
             method: 'POST',
@@ -2819,7 +2957,7 @@ window.deleteSpool = async (spoolId) => {
             body: JSON.stringify({ id: spoolId })
         });
         const data = await res.json();
-        
+
         if (res.ok) {
             showToast('Typ cívky smazán');
             await loadData();

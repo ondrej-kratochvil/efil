@@ -24,12 +24,11 @@ if (!isset($data['id'])) {
 }
 
 try {
-    $db = getDBConnection();
     $userId = $_SESSION['user_id'];
     $spoolId = $data['id'];
     
     // Verify user can delete this spool (must be creator)
-    $stmt = $db->prepare("SELECT created_by FROM spool_library WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT created_by FROM spool_library WHERE id = ?");
     $stmt->execute([$spoolId]);
     $spool = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -52,7 +51,7 @@ try {
     }
     
     // Delete spool (cascade will handle spool_manufacturer)
-    $stmt = $db->prepare("DELETE FROM spool_library WHERE id = ?");
+    $stmt = $pdo->prepare("DELETE FROM spool_library WHERE id = ?");
     $stmt->execute([$spoolId]);
     
     echo json_encode(['success' => true]);

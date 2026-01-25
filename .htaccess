@@ -1,0 +1,63 @@
+# eFil - Apache Configuration
+# Minimalistická verze pro kompatibilitu s většinou hostingů
+
+# Zakázat přístup k .env souboru
+<Files ".env">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Zakázat přístup k testům na produkci, povolit na localhostu
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Povolit testy pouze na localhostu
+    # Pokud HTTP_HOST neobsahuje "localhost" ani "127.0.0.1", zakázat přístup
+    RewriteCond %{HTTP_HOST} !localhost [NC]
+    RewriteCond %{HTTP_HOST} !127\.0\.0\.1 [NC]
+    # Pokud není localhost, zakázat přístup k testům
+    RewriteRule ^tests/ - [F,L]
+</IfModule>
+
+# Zakázat přístup k diagnostickým a migračním skriptům na produkci, povolit na localhostu
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    # Povolit migrační skripty pouze na localhostu
+    RewriteCond %{HTTP_HOST} !localhost [NC]
+    RewriteCond %{HTTP_HOST} !127\.0\.0\.1 [NC]
+    # Pokud není localhost, zakázat přístup k migračním skriptům
+    RewriteRule ^(test_connection|init_db|update_schema|update_spool_schema|update_consumption_schema|update_current_weight|update_consumption_log_schema|fix_all_schema)\.php$ - [F,L]
+</IfModule>
+
+# Zakázat directory listing
+Options -Indexes
+
+# UTF-8 encoding
+AddDefaultCharset UTF-8
+
+# SPA Routing - přesměrovat všechny neexistující cesty na index.html
+# Toto umožní obnovení stránky na libovolné client-side route
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Pokud požadavek není na existující soubor nebo adresář
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    # A není to API endpoint
+    RewriteCond %{REQUEST_URI} !^/api/
+
+    # A není to fyzický soubor (CSS, JS, obrázky, atd.)
+    RewriteCond %{REQUEST_URI} !\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ [NC]
+
+    # A není to migrační skript nebo test
+    RewriteCond %{REQUEST_URI} !^/(test_connection|init_db|update_schema|update_spool_schema|update_consumption_schema|update_current_weight|update_consumption_log_schema|fix_all_schema|tests/) [NC]
+
+    # Přesměruj na index.html
+    RewriteRule ^(.*)$ index.html [L]
+</IfModule>
+
+# POZNÁMKA:
+# - php_value direktivy jsou často zakázané na shared hostingu
+# - Použijte nastavení PHP přímo v panelu hostingu místo těchto direktiv
+# - ServerSignature může být zakázán na některých hostinzích
+

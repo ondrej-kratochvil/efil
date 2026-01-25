@@ -4,8 +4,60 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Filament Management Cloud</title>
+    <!-- Dynamicky nastavit base path a cesty k assetům - MUSÍ být před načtením CSS a JS -->
+    <script>
+        // Detekce base path z aktuální URL - musí být synchronní před načtením CSS/JS
+        (function() {
+            const path = window.location.pathname;
+            let cleanPath = path.replace(/\/$/, '');
+            if (cleanPath.endsWith('index.html')) {
+                cleanPath = cleanPath.replace(/\/index\.html$/, '');
+            }
+            const segments = cleanPath.split('/').filter(s => s);
+            const appRoutes = ['wizard', 'form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'admin-stats', 'inventory-switch', 'forgot-password', 'reset-password'];
+            let routeIndex = segments.length;
+            for (let i = 0; i < segments.length; i++) {
+                if (appRoutes.includes(segments[i])) {
+                    routeIndex = i;
+                    break;
+                }
+            }
+            let basePath = '';
+            if (routeIndex > 0) {
+                // App route je na pozici > 0, takže před ním je base path
+                basePath = '/' + segments.slice(0, routeIndex).join('/');
+            } else if (routeIndex === 0) {
+                // App route je na pozici 0, aplikace běží v rootu
+                basePath = '';
+            } else if (segments.length > 0) {
+                // Žádná app route nebyla nalezena, ale jsou segmenty - použij všechny jako base path
+                // (např. pro /a/efil-github/ bez app route)
+                basePath = '/' + segments.join('/');
+            }
+
+            // Vždy nastavit base tag, i když je basePath prázdný (pro root instalaci)
+            const base = document.createElement('base');
+            base.href = basePath ? basePath + '/' : '/';
+            document.head.insertBefore(base, document.head.firstChild);
+
+            // Uložit basePath do window pro pozdější použití
+            window.__BASE_PATH__ = basePath || '';
+        })();
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="assets/css/main.css">
+    <link rel="stylesheet" href="" id="main-css">
+    <script>
+        // Nastavit absolutní cestu k CSS pomocí BASE_PATH
+        (function() {
+            const cssLink = document.getElementById('main-css');
+            if (cssLink) {
+                const basePath = window.__BASE_PATH__ || '';
+                // Vždy použít absolutní cestu začínající /
+                const correctPath = basePath ? basePath + '/assets/css/main.css' : '/assets/css/main.css';
+                cssLink.href = correctPath;
+            }
+        })();
+    </script>
 </head>
 <body class="text-slate-900">
 
@@ -27,7 +79,7 @@
                     <span class="text-[13px]">VÝR</span>
                 </button>
             </nav>
-            
+
             <div id="form-title" class="hidden font-bold text-slate-500 uppercase tracking-widest text-sm">Editor</div>
 
             <button onclick="toggleActionMenu()" id="menu-trigger" class="touch-target w-10 h-10 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded-full transition-colors hidden">
@@ -79,6 +131,17 @@
 
     <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full text-sm font-bold shadow-2xl opacity-0 transition-opacity pointer-events-none z-[60]">Uloženo</div>
 
-    <script src="assets/js/app.js"></script>
+    <script>
+        // Nastavit absolutní cestu k JS pomocí BASE_PATH
+        (function() {
+            const jsScript = document.createElement('script');
+            jsScript.id = 'app-js';
+            const basePath = window.__BASE_PATH__ || '';
+            // Vždy použít absolutní cestu začínající /
+            const correctPath = basePath ? basePath + '/assets/js/app.js' : '/assets/js/app.js';
+            jsScript.src = correctPath;
+            document.body.appendChild(jsScript);
+        })();
+    </script>
 </body>
 </html>
