@@ -75,12 +75,8 @@ try {
         $newWeight = intval($data['consumed_weight']);
         $updates[] = "amount_grams = ?";
         $params[] = -$newWeight;
-
-        // Adjust filament weight: add back old consumption, subtract new
-        $oldWeight = abs((int)$consumption['old_weight']);
-        $weightDiff = $oldWeight - $newWeight;
-        $stmt = $pdo->prepare("UPDATE filaments SET current_weight = current_weight + ? WHERE id = ?");
-        $stmt->execute([$weightDiff, $consumption['filament_id']]);
+        // Weight is computed dynamically: initial_weight_grams + SUM(consumption_log.amount_grams).
+        // Updating amount_grams here is enough; no filaments UPDATE.
     }
 
     if (isset($data['consumption_date'])) {

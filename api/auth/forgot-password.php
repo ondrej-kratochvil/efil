@@ -41,9 +41,7 @@ try {
         ], $jwtSecret, 3600);
         
         // Build reset URL - get root of application (not /api)
-        $scriptPath = dirname(dirname(dirname($_SERVER['SCRIPT_NAME'])));
-        $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . 
-                   "://" . $_SERVER['HTTP_HOST'] . $scriptPath;
+        $baseUrl = getFullBaseUrl();
         $resetUrl = $baseUrl . '/reset-password?token=' . $token;
         
         // Send email

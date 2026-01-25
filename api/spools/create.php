@@ -39,6 +39,9 @@ try {
     
     // Add manufacturer associations
     $manufData = $data['manufacturer_ids'] ?? $data['manufacturer_names'] ?? [];
+    $notFoundNames = [];
+    $createdAssociations = 0;
+    
     if (is_array($manufData) && count($manufData) > 0) {
         // Check if we have names or IDs
         $isNames = !is_numeric($manufData[0]);
@@ -53,7 +56,21 @@ try {
                 $manufId = $stmtGetId->fetchColumn();
                 if ($manufId) {
                     $stmtManuf->execute([$spoolId, $manufId]);
+                    $createdAssociations++;
+                } else {
+                    $notFoundNames[] = $manufName;
                 }
+            }
+            
+            // If any names were not found, return error
+            if (count($notFoundNames) > 0) {
+                http_response_code(400);
+                echo json_encode([
+                    'error' => 'Některé výrobce nebyly nalezeny',
+                    'not_found' => $notFoundNames,
+                    'created_associations' => $createdAssociations
+                ]);
+                exit;
             }
         } else {
             // Use IDs directly

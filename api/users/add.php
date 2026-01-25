@@ -99,9 +99,7 @@ try {
         $stmt->execute([$inventoryId, $targetUser['id'], $role]);
         
         // Send notification email - get root of application (not /api)
-        $scriptPath = dirname(dirname(dirname($_SERVER['SCRIPT_NAME'])));
-        $loginUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . 
-                    "://" . $_SERVER['HTTP_HOST'] . $scriptPath;
+        $loginUrl = getFullBaseUrl();
         sendInventoryInvitationEmail($email, $inventory['name'], $loginUrl, $smtpConfig);
         
         echo json_encode([
@@ -111,31 +109,40 @@ try {
         ]);
         
     } else {
-        // User doesn't exist - create account without password
-        $stmt = $pdo->prepare("INSERT INTO users (email, password_hash, role) VALUES (?, '', 'user')");
-        $stmt->execute([$email]);
-        $newUserId = $pdo->lastInsertId();
-        
-        // Add to inventory
-        $stmt = $pdo->prepare("INSERT INTO inventory_members (inventory_id, user_id, role) VALUES (?, ?, ?)");
-        $stmt->execute([$inventoryId, $newUserId, $role]);
-        
-        // Generate password setup token (24 hours)
-        $token = generateJWT(['email' => $email, 'purpose' => 'setup_password'], $jwtSecret, 86400);
-        // Get root of application (not /api)
-        $scriptPath = dirname(dirname(dirname($_SERVER['SCRIPT_NAME'])));
-        $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . 
-                   "://" . $_SERVER['HTTP_HOST'] . $scriptPath;
-        $setupUrl = $baseUrl . '/reset-password?token=' . $token;
-        
-        // Send new account email
-        sendNewAccountEmail($email, $inventory['name'], $setupUrl, $smtpConfig);
-        
-        echo json_encode([
-            'success' => true,
-            'message' => 'Účet vytvořen a uživatel přidán',
-            'user_existed' => false
-        ]);
+        // User doesn't exist - create account without password (transaction: rollback if email fails)
+        $pdo->beginTransaction();
+        try {
+            $stmt = $pdo->prepare("INSERT INTO users (email, password_hash, role) VALUES (?, '', 'user')");
+            $stmt->execute([$email]);
+            $newUserId = $pdo->lastInsertId();
+
+            $stmt = $pdo->prepare("INSERT INTO inventory_members (inventory_id, user_id, role) VALUES (?, ?, ?)");
+            $stmt->execute([$inventoryId, $newUserId, $role]);
+
+            $token = generateJWT(['email' => $email, 'purpose' => 'setup_password'], $jwtSecret, 86400);
+            $baseUrl = getFullBaseUrl();
+            $setupUrl = $baseUrl . '/reset-password?token=' . $token;
+
+            $emailSent = sendNewAccountEmail($email, $inventory['name'], $setupUrl, $smtpConfig);
+            if (!$emailSent) {
+                $pdo->rollBack();
+                http_response_code(503);
+                echo json_encode([
+                    'error' => 'Nepodařilo se odeslat e-mail s odkazem pro nastavení hesla. Účet nebyl vytvořen. Zkontrolujte konfiguraci SMTP a zkuste to znovu.'
+                ]);
+                exit;
+            }
+
+            $pdo->commit();
+            echo json_encode([
+                'success' => true,
+                'message' => 'Účet vytvořen a uživatel přidán',
+                'user_existed' => false
+            ]);
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
     }
     
 } catch (PDOException $e) {

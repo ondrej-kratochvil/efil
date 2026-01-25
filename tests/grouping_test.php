@@ -23,29 +23,36 @@ try {
     
     foreach ($weights as $idx => $weight) {
         $stmt = $db->prepare("
-            INSERT INTO filaments (inventory_id, user_display_id, material, manufacturer, color_name, color_hex, initial_weight_grams, current_weight)
-            VALUES (?, ?, 'PLA (STANDARD)', 'Prusament', 'Černá', '#000000', ?, ?)
+            INSERT INTO filaments (inventory_id, user_display_id, material, manufacturer, color_name, color_hex, initial_weight_grams)
+            VALUES (?, ?, 'PLA (STANDARD)', 'Prusament', 'Černá', '#000000', ?)
         ");
-        $stmt->execute([$testInventory['id'], $idx + 1, $weight, $weight]);
+        $stmt->execute([$testInventory['id'], $idx + 1, $weight]);
         $filaments[] = [
             'id' => $db->lastInsertId(),
             'weight' => $weight
         ];
     }
     echo "   Vytvořeno " . count($filaments) . " filamentů\n";
+
+    $listFilamentsWithWeight = function ($invId) use ($db) {
+        $stmt = $db->prepare("
+            SELECT f.id, f.material, f.manufacturer, f.color_name, f.color_hex,
+                   (f.initial_weight_grams + COALESCE(SUM(cl.amount_grams), 0)) as g
+            FROM filaments f
+            LEFT JOIN consumption_log cl ON cl.filament_id = f.id
+            WHERE f.inventory_id = ?
+            GROUP BY f.id
+            HAVING g > 0
+            ORDER BY f.manufacturer, f.material, f.color_name
+        ");
+        $stmt->execute([$invId]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    };
     
     // 3. Test groupování logiky
     echo "\n3. Test groupování logiky...\n";
-    $stmt = $db->prepare("
-        SELECT id, material, manufacturer, color_name, color_hex, current_weight
-        FROM filaments
-        WHERE inventory_id = ? AND current_weight > 0
-        ORDER BY manufacturer, material, color_name
-    ");
-    $stmt->execute([$testInventory['id']]);
-    $allFilaments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $allFilaments = $listFilamentsWithWeight($testInventory['id']);
     
-    // Group by manufacturer + material + color_name
     $groups = [];
     foreach ($allFilaments as $f) {
         $key = $f['manufacturer'] . '|' . $f['material'] . '|' . $f['color_name'];
@@ -64,7 +71,7 @@ try {
     
     // 4. Test výpočtu celkové hmotnosti
     echo "\n4. Test výpočtu celkové hmotnosti skupiny...\n";
-    $totalWeight = array_sum(array_column($group, 'current_weight'));
+    $totalWeight = (int) array_sum(array_column($group, 'g'));
     $expectedWeight = array_sum($weights);
     
     assert($totalWeight == $expectedWeight, "Celková hmotnost skupiny nesouhlasí");
@@ -73,16 +80,19 @@ try {
     // 5. Test více skupin
     echo "\n5. Test více skupin (různé barvy)...\n";
     $stmt = $db->prepare("
-        INSERT INTO filaments (inventory_id, user_display_id, material, manufacturer, color_name, color_hex, initial_weight_grams, current_weight)
-        VALUES (?, 4, 'PLA (STANDARD)', 'Prusament', 'Červená', '#FF0000', 400, 400)
+        INSERT INTO filaments (inventory_id, user_display_id, material, manufacturer, color_name, color_hex, initial_weight_grams)
+        VALUES (?, 4, 'PLA (STANDARD)', 'Prusament', 'Červená', '#FF0000', 400)
     ");
     $stmt->execute([$testInventory['id']]);
     
-    // Re-fetch and re-group
     $stmt = $db->prepare("
-        SELECT id, material, manufacturer, color_name, current_weight
-        FROM filaments
-        WHERE inventory_id = ? AND current_weight > 0
+        SELECT f.id, f.material, f.manufacturer, f.color_name,
+               (f.initial_weight_grams + COALESCE(SUM(cl.amount_grams), 0)) as g
+        FROM filaments f
+        LEFT JOIN consumption_log cl ON cl.filament_id = f.id
+        WHERE f.inventory_id = ?
+        GROUP BY f.id
+        HAVING g > 0
     ");
     $stmt->execute([$testInventory['id']]);
     $allFilaments = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -102,14 +112,12 @@ try {
     // 6. Test jednoho filamentu (negroupovaný)
     echo "\n6. Test jednotlivého filamentu (není ve skupině)...\n";
     $stmt = $db->prepare("
-        INSERT INTO filaments (inventory_id, user_display_id, material, manufacturer, color_name, color_hex, initial_weight_grams, current_weight)
-        VALUES (?, 5, 'PETG', 'Prusament', 'Modrá', '#0000FF', 1000, 1000)
+        INSERT INTO filaments (inventory_id, user_display_id, material, manufacturer, color_name, color_hex, initial_weight_grams)
+        VALUES (?, 5, 'PETG', 'Prusament', 'Modrá', '#0000FF', 1000)
     ");
     $stmt->execute([$testInventory['id']]);
     
-    // Re-fetch and re-group
-    $stmt->execute([$testInventory['id']]);
-    $allFilaments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $allFilaments = $listFilamentsWithWeight($testInventory['id']);
     
     $groups = [];
     foreach ($allFilaments as $f) {

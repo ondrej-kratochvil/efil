@@ -67,10 +67,8 @@ try {
         exit;
     }
 
-    // Return consumed weight back to filament (amount_grams is negative)
-    $toRestore = abs((int)$consumption['amount_grams']);
-    $stmt = $pdo->prepare("UPDATE filaments SET current_weight = current_weight + ? WHERE id = ?");
-    $stmt->execute([$toRestore, $consumption['filament_id']]);
+    // Weight is computed dynamically: initial_weight_grams + SUM(consumption_log.amount_grams).
+    // Deleting the record automatically updates the derived weight; no filaments UPDATE.
 
     // Delete consumption record
     $stmt = $pdo->prepare("DELETE FROM consumption_log WHERE id = ?");
