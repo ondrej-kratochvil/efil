@@ -12,79 +12,97 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 try {
-    $db = getDBConnection();
-    
+
     // Check if user has admin_efil role
-    $stmt = $db->prepare("SELECT system_role FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
     $stmt->execute([$_SESSION['user_id']]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$user || $user['system_role'] !== 'admin_efil') {
+
+    if (!$user || $user['role'] !== 'admin_efil') {
         http_response_code(403);
         echo json_encode(['error' => 'Nedostatečná oprávnění']);
         exit;
     }
-    
+
     // Get overall statistics
     $stats = [];
-    
+
     // Total users
-    $stmt = $db->query("SELECT COUNT(*) as count FROM users");
+    $stmt = $pdo->query("SELECT COUNT(*) as count FROM users");
     $stats['total_users'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
-    
+
     // Total inventories
-    $stmt = $db->query("SELECT COUNT(*) as count FROM inventories");
+    $stmt = $pdo->query("SELECT COUNT(*) as count FROM inventories");
     $stats['total_inventories'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
-    
+
     // Total filaments
-    $stmt = $db->query("SELECT COUNT(*) as count FROM filaments");
+    $stmt = $pdo->query("SELECT COUNT(*) as count FROM filaments");
     $stats['total_filaments'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
-    
-    // Total weight in kg
-    $stmt = $db->query("SELECT COALESCE(SUM(current_weight), 0) as total FROM filaments");
-    $stats['total_weight_kg'] = round($stmt->fetch(PDO::FETCH_ASSOC)['total'] / 1000, 2);
-    
+
+    // Total weight in kg (calculated dynamically)
+    $stmt = $pdo->query("
+        SELECT COALESCE(SUM(f.initial_weight_grams + COALESCE(SUM(cl.amount_grams), 0)), 0) as total
+        FROM filaments f
+        LEFT JOIN consumption_log cl ON f.id = cl.filament_id
+        GROUP BY f.id
+    ");
+    $totalWeight = 0;
+    while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+        $totalWeight += $row['total'];
+    }
+    $stats['total_weight_kg'] = round($totalWeight / 1000, 2);
+
     // Total consumption records
-    $stmt = $db->query("SELECT COUNT(*) as count FROM consumption_log");
+    $stmt = $pdo->query("SELECT COUNT(*) as count FROM consumption_log");
     $stats['total_consumptions'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
-    
+
     // Total consumed weight in kg
-    $stmt = $db->query("SELECT COALESCE(SUM(consumed_weight), 0) as total FROM consumption_log");
+    $stmt = $pdo->query("SELECT COALESCE(SUM(ABS(amount_grams)), 0) as total FROM consumption_log");
     $stats['total_consumed_kg'] = round($stmt->fetch(PDO::FETCH_ASSOC)['total'] / 1000, 2);
-    
+
     // Recent registrations (last 30 days)
-    $stmt = $db->query("SELECT COUNT(*) as count FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
+    $stmt = $pdo->query("SELECT COUNT(*) as count FROM users WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
     $stats['recent_users'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
-    
-    // Active users (logged in last 30 days)
-    $stmt = $db->query("SELECT COUNT(DISTINCT user_id) as count FROM consumption_log WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
+
+    // Active users (consumption in last 30 days)
+    $stmt = $pdo->query("SELECT COUNT(DISTINCT created_by) as count FROM consumption_log WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)");
     $stats['active_users'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
-    
+
     // Top inventories by filament count
-    $stmt = $db->query("
-        SELECT i.name, COUNT(f.id) as filament_count, 
-               COALESCE(SUM(f.current_weight), 0) as total_weight
+    $stmt = $pdo->query("
+        SELECT i.name, COUNT(f.id) as filament_count,
+               COALESCE(SUM(f.initial_weight_grams + COALESCE(consumption_sum.total_consumed, 0)), 0) as total_weight
         FROM inventories i
         LEFT JOIN filaments f ON i.id = f.inventory_id
+        LEFT JOIN (
+            SELECT filament_id, SUM(amount_grams) as total_consumed
+            FROM consumption_log
+            GROUP BY filament_id
+        ) consumption_sum ON f.id = consumption_sum.filament_id
         GROUP BY i.id
         ORDER BY filament_count DESC
         LIMIT 10
     ");
     $stats['top_inventories'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     // Material distribution
-    $stmt = $db->query("
-        SELECT material, COUNT(*) as count, 
-               COALESCE(SUM(current_weight), 0) as total_weight
-        FROM filaments
-        GROUP BY material
+    $stmt = $pdo->query("
+        SELECT f.material, COUNT(*) as count,
+               COALESCE(SUM(f.initial_weight_grams + COALESCE(consumption_sum.total_consumed, 0)), 0) as total_weight
+        FROM filaments f
+        LEFT JOIN (
+            SELECT filament_id, SUM(amount_grams) as total_consumed
+            FROM consumption_log
+            GROUP BY filament_id
+        ) consumption_sum ON f.id = consumption_sum.filament_id
+        GROUP BY f.material
         ORDER BY count DESC
     ");
     $stats['material_distribution'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     // Recent activity (last 20 consumption records)
-    $stmt = $db->query("
-        SELECT cl.id, cl.consumed_weight, cl.consumption_date, cl.note,
+    $stmt = $pdo->query("
+        SELECT cl.id, ABS(cl.amount_grams) as consumed_weight, cl.consumption_date, cl.description as note,
                f.manufacturer, f.material, f.color,
                u.email as user_email,
                i.name as inventory_name
@@ -96,9 +114,9 @@ try {
         LIMIT 20
     ");
     $stats['recent_activity'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     echo json_encode($stats);
-    
+
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
