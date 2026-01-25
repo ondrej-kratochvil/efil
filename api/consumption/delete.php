@@ -24,51 +24,60 @@ if (!isset($data['id'])) {
 }
 
 try {
-    $db = getDBConnection();
     $consumptionId = $data['id'];
     $userId = $_SESSION['user_id'];
     $inventoryId = $_SESSION['inventory_id'];
-    
+
     // Verify access - user must have write/manage permission to the inventory
-    $stmt = $db->prepare("
-        SELECT cl.id, cl.consumed_weight, cl.filament_id, i.is_demo
+    // Check if user is owner OR has write/manage role in inventory_members
+    $stmt = $pdo->prepare("
+        SELECT cl.id, cl.amount_grams, cl.filament_id, i.is_demo
         FROM consumption_log cl
         INNER JOIN filaments f ON cl.filament_id = f.id
         INNER JOIN inventories i ON f.inventory_id = i.id
-        WHERE cl.id = ? AND i.id = ?
+        WHERE cl.id = ? AND i.id = ? AND (
+            i.owner_id = ?
+            OR EXISTS (
+                SELECT 1 FROM inventory_members im
+                WHERE im.inventory_id = i.id
+                AND im.user_id = ?
+                AND im.role IN ('write', 'manage')
+            )
+        )
     ");
-    $stmt->execute([$consumptionId, $inventoryId]);
+    $stmt->execute([$consumptionId, $inventoryId, $userId, $userId]);
     $consumption = $stmt->fetch(PDO::FETCH_ASSOC);
-    
+
     if (!$consumption) {
-        http_response_code(404);
-        echo json_encode(['error' => 'Záznam čerpání nenalezen']);
+        http_response_code(403);
+        echo json_encode(['error' => 'Nemáte oprávnění k tomuto záznamu']);
         exit;
     }
-    
+
     // Check if user is admin_efil
-    $stmt = $db->prepare("SELECT system_role FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
     $stmt->execute([$userId]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    $isAdmin = ($user && $user['system_role'] === 'admin_efil');
-    
+    $isAdmin = ($user && $user['role'] === 'admin_efil');
+
     // Check if demo mode (and user is not admin)
     if ($consumption['is_demo'] && !$isAdmin) {
         http_response_code(403);
         echo json_encode(['error' => 'V demo režimu nelze upravovat data']);
         exit;
     }
-    
-    // Return consumed weight back to filament
-    $stmt = $db->prepare("UPDATE filaments SET current_weight = current_weight + ? WHERE id = ?");
-    $stmt->execute([$consumption['consumed_weight'], $consumption['filament_id']]);
-    
+
+    // Return consumed weight back to filament (amount_grams is negative)
+    $toRestore = abs((int)$consumption['amount_grams']);
+    $stmt = $pdo->prepare("UPDATE filaments SET current_weight = current_weight + ? WHERE id = ?");
+    $stmt->execute([$toRestore, $consumption['filament_id']]);
+
     // Delete consumption record
-    $stmt = $db->prepare("DELETE FROM consumption_log WHERE id = ?");
+    $stmt = $pdo->prepare("DELETE FROM consumption_log WHERE id = ?");
     $stmt->execute([$consumptionId]);
-    
+
     echo json_encode(['success' => true, 'message' => 'Záznam smazán']);
-    
+
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
