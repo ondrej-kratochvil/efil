@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 /**
  * Delete user account
  * POST /api/account/delete.php

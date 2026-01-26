@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 // init_db.php - Sets up the database and seeds it with demo data
 
 // Load environment variables if .env exists
@@ -27,7 +29,8 @@ try {
     ]);
     
     // Check if database exists and create it if not
-    $stmt = $pdoTemp->query("SHOW DATABASES LIKE '$db'");
+    $stmt = $pdoTemp->prepare("SHOW DATABASES LIKE ?");
+    $stmt->execute([$db]);
     if ($stmt->rowCount() == 0) {
         echo "Creating database '$db'...\n";
         $pdoTemp->exec("CREATE DATABASE `$db` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
@@ -82,8 +85,8 @@ try {
     $stmt->execute([$email, $pass]);
     $userId = $pdo->lastInsertId();
 
-    // 7. Seed data - Create Inventory
-    $stmt = $pdo->prepare("INSERT INTO inventories (owner_id, name) VALUES (?, 'Demo Dílna')");
+    // 7. Seed data - Create Inventory (mark as demo)
+    $stmt = $pdo->prepare("INSERT INTO inventories (owner_id, name, is_demo) VALUES (?, 'Demo Dílna', 1)");
     $stmt->execute([$userId]);
     $invId = $pdo->lastInsertId();
 

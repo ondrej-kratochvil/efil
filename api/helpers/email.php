@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Email Helper Functions
  * Handles sending emails via SMTP using PHPMailer

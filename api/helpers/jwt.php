@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 /**
  * JWT Helper Functions
  * Simple JWT implementation for password reset tokens

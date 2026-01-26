@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 // Load environment variables if .env exists
 if (file_exists(__DIR__ . '/.env')) {

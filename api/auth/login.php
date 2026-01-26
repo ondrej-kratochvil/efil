@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 require_once __DIR__ . '/../../config.php';
 
 session_start();
@@ -33,6 +35,27 @@ try {
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['role'] = $user['role'];
         $_SESSION['email'] = $user['email'];
+
+        // Set default inventory_id if user has any inventory
+        $stmtInv = $pdo->prepare("
+            SELECT i.id, i.is_demo, 'owner' as role
+            FROM inventories i
+            WHERE i.owner_id = ?
+            UNION
+            SELECT i.id, i.is_demo, COALESCE(im.role, 'read') as role
+            FROM inventories i
+            JOIN inventory_members im ON i.id = im.inventory_id
+            WHERE im.user_id = ?
+            LIMIT 1
+        ");
+        $stmtInv->execute([$user['id'], $user['id']]);
+        $inv = $stmtInv->fetch();
+        
+        if ($inv) {
+            $_SESSION['inventory_id'] = $inv['id'];
+            $_SESSION['inventory_role'] = $inv['role'];
+            $_SESSION['is_demo'] = $inv['is_demo'];
+        }
 
         jsonResponse([
             'message' => 'Login successful',

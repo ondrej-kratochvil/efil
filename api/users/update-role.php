@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 /**
  * Update user role in inventory
  * POST /api/users/update-role.php

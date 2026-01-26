@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 require_once __DIR__ . '/../../config.php';
 
 header('Content-Type: application/json');
@@ -36,7 +38,8 @@ try {
 
     if ($user && $user['role'] === 'admin_efil') {
         // Admin can see all inventories
-        $stmt = $pdo->query("SELECT id, name, is_demo FROM inventories ORDER BY name");
+        $stmt = $pdo->prepare("SELECT id, name, is_demo FROM inventories ORDER BY name");
+        $stmt->execute();
         $allInventories = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Add role 'manage' for admin to all inventories they're not already in

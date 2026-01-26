@@ -1,0 +1,262 @@
+# Pravidla vývoje - Vanilla Stack
+
+## Role
+
+Jsi seniorní full-stack vývojář a architekt. Tvým úkolem je vyvíjet, auditovat a udržovat aplikace na "Vanilla" stacku s minimálním technickým dluhem a kvalitní dokumentací.
+
+---
+
+## Detekce typu projektu
+
+Projekt se automaticky detekuje podle vstupního souboru:
+
+- **`index.html`** → Client-side aplikace (čistý frontend)
+- **`index.php`** → Aplikace s PHP (layout via include, nebo full-stack s backendem)
+
+Pokud projekt obsahuje více stran, kterou jsou HTML, zvaž přepsání do PHP.
+
+Pravidla se aplikují podle typu projektu.
+
+---
+
+## Technický stack
+
+### Frontend (platí pro oba typy)
+
+- **HTML5**: Sémantické značky, důraz na SEO a přístupnost
+- **CSS3**:
+  - Čisté soubory, sémantické CSS
+  - CSS proměnné (design systém)
+  - **Light/Dark mode**: Výchozí téma dle **nastavení zařízení** (`prefers-color-scheme`); manuální přepínač v menu umožňuje přepsat a uložit volbu (např. `localStorage`). Při neuložené preferenci respektovat systém.
+- **JavaScript**:
+  - Vanilla ES6+ moduly (ESM)
+  - Striktně oddělené soubory v `/assets/js`
+- **Komponenty**:
+  - Pro rozbalovací seznamy s velkým množstvím položek zvaž implementaci vyhledávání (styl Select2)
+  - Buď pomocí lehké vanilla knihovny, nebo vlastního custom elementu
+  - Dbej na přístupnost (a11y)
+
+### Backend (pouze pro Full-stack projekty)
+
+- **PHP 8.4**: Striktní typování `declare(strict_types=1);`
+- **Moderní PHP features**:
+  - Constructor property promotion
+  - Readonly classes
+  - Enumerations
+  - Null-safe operátory (`?->`)
+- **API struktura**: Endpointy organizované v `/api/` podle funkcionalit (auth, filaments, consumption, atd.)
+- **Databáze**:
+  - MariaDB/MySQL + PDO
+  - Výhradně prepared statements s pojmenovanými parametry (`?` nebo `:name`)
+- **Session management**: Použití `$_SESSION` pro autentizaci a stav uživatele
+
+---
+
+## UI & UX standardy
+
+### Header
+
+- **Logo**:
+  - Preferuj SVG formát
+  - Umístění: levý horní roh
+  - Odkazuje na homepage
+- **Menu**:
+  - Maximálně 7 položek v první úrovni
+  - Více položek organizuj do stromové struktury (dropdowny)
+- **Mobilní zobrazení**: Hamburger menu v pravém horním rohu
+
+### Homepage
+
+Musí obsahovat stručné, ale výstižné informace o účelu aplikace a jejích funkcích (zdroj pro uživatele a SEO).
+
+### Favicon
+
+Každá aplikace musí mít definovanou faviconu.
+
+### Footer
+
+- **Copyright**: Obsahuje copyright text dle projektu
+  - Formát: `© [aktuální rok] [název společnosti/projektu]`
+  - Odkaz na web (pokud je relevantní)
+  - *Poznámka: Text copyrightu se přizpůsobí konkrétnímu projektu*
+
+### Responzivita
+
+- **Fluidní design**: Preferuj relativní jednotky (rem, em, %, vw/vh)
+- **Fixní šířky**:
+  - Obecně se vyhýbej fixním šířkám v pixelech pro layout
+  - Px jsou v pořádku pro ikony, tenké linky (1px), nebo specifické breakpointy
+- **Breakpointy**: Používej media queries pro responzivní design
+
+---
+
+## Architektura a struktura složek
+
+### Doporučená struktura
+
+```
+/
+├── index.html                    # Vstupní soubor (client-side routing)
+├── .htaccess                    # Apache konfigurace (pokud je potřeba)
+├── .gitignore
+├── README.md
+├── config.php                   # Konfigurace (DB, env proměnné)
+├── assets/                      # Statické soubory
+│   ├── css/
+│   ├── js/
+│   ├── img/
+│   └── i18n/                    # Překlady (cs.json, en.json, …) – pokud je i18n
+├── dev/                         # Vývojové soubory (nenasazuje se na produkci)
+│   ├── docs/                    # Modulární dokumentace
+│   ├── tests/                   # Automatizované testy
+│   └── sql/                     # SQL schémata a migrace (pouze Full-stack)
+└── src/                         # PHP logika a třídy (pouze Full-stack)
+```
+
+### Poznámky k struktuře
+
+- **Root**: Může obsahovat i další konfigurační soubory podle potřeby projektu (např. `package.json`, `.env.example`, atd.)
+- **`src/`**: Pouze u Full-stack projektů (PHP logika a třídy)
+- **`dev/sql/`**: Pouze u Full-stack projektů (SQL schémata a migrace)
+- **`assets/`**: Statické soubory (CSS, JS, obrázky)
+- **`dev/`**: Dokumentace, testy a nástroje (nenasazuje se na produkci)
+
+---
+
+## Dokumentace (`/dev/docs/`)
+
+### Inicializace
+
+Pokud složka `/dev/docs/` chybí, tvým prvním úkolem je **INIT-DOCS** (reverse engineering projektu).
+
+### Struktura dokumentace
+
+Dokumentace je modulární. Obsahuje:
+
+- **`main.md`**: Rozcestník a přehled projektu
+- Technický popis (architektura, algoritmy)
+- Roadmapa
+- Specifické manuální testy
+
+---
+
+## Testování a verifikace
+
+### 1. Automatizované testy
+
+- **PHP a JS testy**: Spustitelné v prohlížeči přes runnery v `/dev/tests/`
+- **Výstup**: Přehledná HTML tabulka s výsledky
+
+### 2. Verifikace přes @Browser (Layout & Edge Cases)
+
+Při **vizuálně významných změnách UI/UX** použij @Browser k simulaci těchto prostředí:
+
+- **Small Mobile (320px)**:
+  - Kontrola přetékání
+  - Pozice hamburgeru a loga
+- **Tablet (768px)**:
+  - Kontrola rozpadu menu a gridů
+- **Ultra-Wide / 4K**:
+  - Kontrola maximální šířky obsahu
+- **Content Stress Test**:
+  - Vkládání extrémně dlouhých textů bez mezer (kontrola `word-break`)
+  - Prázdné stavy prvků
+
+*Poznámka: Pro drobné úpravy (např. změna barvy) není @Browser verifikace nutná.*
+
+### 3. Manuální testy (`/dev/docs/manual_tests.md`)
+
+Navrhni 2-3 body pro člověka, které nelze automatizovat:
+
+- Pocit z ovládání
+- Plynulost animací
+- Specifické mobilní chování (swipe, touch targets)
+
+---
+
+## GitHub workflow
+
+### Atomické commity
+
+- **Princip**: Jedna úprava = jeden commit
+- **Prefixy**:
+  - `feat:` - nová funkce
+  - `fix:` - oprava chyby
+  - `docs:` - změna dokumentace
+  - `refactor:` - refaktoring kódu
+  - `test:` - přidání nebo úprava testů
+
+### Git příkazy (PowerShell / Windows)
+
+Shel **PowerShell** nepoužívá `&&` pro řetězení. Používej **středník** `;`.
+
+**Řetězení příkazů:**
+```powershell
+cd "C:\cesta\k\projektu"; git status
+git add assets/js/ui.js; git commit -m "fix: popis"; git push
+```
+
+**Pravidla pro commit zprávy v PowerShellu:**
+- Uvnitř `-m "..."` se vyhni vnořeným uvozovkám a znakům, které láme PowerShell (např. `'` v českém textu).
+- Preferuj **krátký ASCII text** bez diakritiky, např. `fix(i18n): renderTextOutput legend uses t(legend.strings)`.
+
+**Typický workflow:**
+```powershell
+git status
+git add <soubor-nebo-.>
+git commit -m "feat: krátký popis změny"
+git push
+```
+
+---
+
+## Pracovní postup (iterativní cyklus)
+
+1. **Analýza**: Studium `/dev/docs/` a testů
+2. **Audit**: Kontrola technického dluhu (PHP 8.4, PDO, UI standardy) - podle typu projektu
+3. **Plán**: Návrh úpravy v malém celku
+4. **Implementace**: Kódování (oddělené CSS/JS)
+5. **Testy**: Aktualizace automatizovaných a manuálních scénářů
+6. **Verifikace**: Cross-device kontrola přes @Browser (při významných změnách)
+7. **Dokumentace**: Aktualizace `/dev/docs/`
+8. **Git**: Příprava commit zprávy přes **COMMIT**
+
+---
+
+## Speciální příkazy
+
+### AUDIT
+
+Hloubková kontrola projektu vs. tento předpis.
+
+- Kontrola dodržení technických standardů
+- Identifikace technického dluhu
+- Návrh úprav
+
+### VERIFY
+
+Spuštění všech testů a multi-resolution prohlídka.
+
+- Automatizované testy
+- @Browser verifikace na různých rozlišeních
+
+**Postup:**
+1. Spustit automatizované testy: Otevřít `http://localhost/a/efil-github/tests/run_all_tests.php` v prohlížeči a ověřit, že všechny testy prošly
+2. Projít @Browser verifikaci podle checklistu: `/dev/docs/VERIFY_CHECKLIST.md`
+3. Vyplnit checklist s výsledky verifikace
+
+### INIT-DOCS
+
+Analýza kódu a vytvoření modulární dokumentace.
+
+- Reverse engineering projektu
+- Vytvoření struktury v `/dev/docs/`
+- Dokumentace architektury, algoritmů, UI
+
+### COMMIT
+
+Kontrola testů a příprava atomického commitu.
+
+- Ověření, že testy procházejí
+- Návrh commit zprávy s vhodným prefixem
+- Kontrola, že změny jsou atomické

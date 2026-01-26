@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 /**
  * Change user email
  * POST /api/account/change-email.php

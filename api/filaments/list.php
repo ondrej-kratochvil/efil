@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 require_once __DIR__ . '/../../config.php';
 
 session_start();
@@ -117,7 +119,7 @@ try {
 
     $stmt = $pdo->prepare($sqlFil);
     $stmt->execute([$invId]);
-    echo json_encode($stmt->fetchAll());
+    echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
 
 } catch (Exception $e) {
     http_response_code(500);

@@ -1,10 +1,12 @@
 <?php
+declare(strict_types=1);
+
 require_once __DIR__ . '/../../config.php';
 
 header('Content-Type: application/json');
 session_start();
 
-if (!isset($_SESSION['user_id']) || !isset($_SESSION['inventory_id'])) {
+if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
     echo json_encode(['error' => 'Unauthorized']);
     exit;
@@ -26,7 +28,34 @@ if (!isset($data['id'])) {
 try {
     $consumptionId = $data['id'];
     $userId = $_SESSION['user_id'];
-    $inventoryId = $_SESSION['inventory_id'];
+    
+    // Get inventory_id from session, or get first available inventory
+    $inventoryId = $_SESSION['inventory_id'] ?? null;
+    
+    if (!$inventoryId) {
+        // Get first available inventory for user
+        $stmtInv = $pdo->prepare("
+            SELECT i.id
+            FROM inventories i
+            WHERE i.owner_id = ?
+            UNION
+            SELECT i.id
+            FROM inventories i
+            JOIN inventory_members im ON i.id = im.inventory_id
+            WHERE im.user_id = ?
+            LIMIT 1
+        ");
+        $stmtInv->execute([$userId, $userId]);
+        $inv = $stmtInv->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$inv) {
+            http_response_code(404);
+            echo json_encode(['error' => 'No inventory found']);
+            exit;
+        }
+        
+        $inventoryId = $inv['id'];
+    }
 
     // Verify access - user must have write/manage permission to the inventory
     // Check if user is owner OR has write/manage role in inventory_members
@@ -61,7 +90,9 @@ try {
     $isAdmin = ($user && $user['role'] === 'admin_efil');
 
     // Check if demo mode (and user is not admin)
-    if ($consumption['is_demo'] && !$isAdmin) {
+    // MySQL BOOLEAN is TINYINT(1), so we need to check for 1 or '1'
+    $isDemo = ($consumption['is_demo'] === 1 || $consumption['is_demo'] === '1' || (bool)$consumption['is_demo']);
+    if ($isDemo && !$isAdmin) {
         http_response_code(403);
         echo json_encode(['error' => 'V demo režimu nelze upravovat data']);
         exit;

@@ -195,6 +195,7 @@ $tests = [
     'options_optgroups_test.php' => 'Options Optgroups Tests',
     'spool_management_test.php' => 'Spool Management Tests',
     'form_persistence_test.php' => 'Form Persistence Tests',
+    'form_edit_data_load_test.php' => 'Form Edit Data Load Tests',
     'user_display_id_test.php' => 'User Display ID Tests',
     'consumption_history_test.php' => 'Consumption History Tests',
     'grouping_test.php' => 'Filament Grouping Tests',

@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 /**
  * Delete filament
  * POST /api/filaments/delete.php
@@ -63,7 +65,9 @@ try {
     $isAdmin = ($user && $user['role'] === 'admin_efil');
     
     // Check if demo mode (and user is not admin)
-    if ($inventory['is_demo'] && !$isAdmin) {
+    // MySQL BOOLEAN is TINYINT(1), so we need to check for 1 or '1'
+    $isDemo = ($inventory['is_demo'] === 1 || $inventory['is_demo'] === '1' || (bool)$inventory['is_demo']);
+    if ($isDemo && !$isAdmin) {
         http_response_code(403);
         echo json_encode(['error' => 'V demo režimu nelze mazat']);
         exit;

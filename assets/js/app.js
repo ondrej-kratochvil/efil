@@ -1,206 +1,33 @@
-// Get base path (e.g., '/a/efil-github' or '')
-// This detects the base path by looking at the current pathname
-// Should match the logic in index.html
-function getBasePath() {
-    // First, try to use BASE_PATH from index.html if available
-    if (window.__BASE_PATH__ !== undefined) {
-        return window.__BASE_PATH__;
-    }
+// Import modules
+import { BASE_PATH, API_BASE } from './config.js';
+import { state, filaments, options, spoolTemplates, stats, user, setFilaments, setOptions, setSpoolTemplates, setStats, setUser } from './state.js';
+import { router } from './router.js';
+import { checkAuth, login, register, logout, loadData, saveFilament, consumeFilament, updateAdminMenu } from './api.js';
+import { showToast, formatKg, getContrast, getClosestColorName } from './utils.js';
 
-    const path = window.location.pathname;
-    // Remove trailing slash
-    let cleanPath = path.replace(/\/$/, '');
-    // Remove index.html if present
-    if (cleanPath.endsWith('index.html')) {
-        cleanPath = cleanPath.replace(/\/index\.html$/, '');
-    }
-    // If path contains known app routes, extract base path
-    // For paths like /a/efil-github/, we want /a/efil-github
-    // For paths like /a/efil-github/wizard/mat, we want /a/efil-github
-    // For paths like /wizard/mat (root install), we want ''
-    const segments = cleanPath.split('/').filter(s => s);
-    const appRoutes = ['wizard', 'form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'admin-stats', 'inventory-switch', 'forgot-password', 'reset-password'];
-
-    // Find first app route index
-    let routeIndex = segments.length;
-    for (let i = 0; i < segments.length; i++) {
-        if (appRoutes.includes(segments[i])) {
-            routeIndex = i;
-            break;
-        }
-    }
-
-    let basePath = '';
-    if (routeIndex > 0) {
-        // App route is at position > 0, so there's a base path before it
-        basePath = '/' + segments.slice(0, routeIndex).join('/');
-    } else if (routeIndex === 0) {
-        // App route is at position 0, app runs in root
-        basePath = '';
-    } else if (segments.length > 0) {
-        // No app route found, but we have segments - use all as base path
-        basePath = '/' + segments.join('/');
-    }
-
-    return basePath;
-}
-const BASE_PATH = getBasePath();
-
-// Configuration - API_BASE must be absolute path using BASE_PATH
-const API_BASE = BASE_PATH ? BASE_PATH + '/api' : '/api';
-
-// State
-let filaments = [];
-let options = { materials: [], manufacturers: [], locations: [], sellers: [] };
-let spoolTemplates = [];
-let stats = null;
-let user = null;
-let state = {
-    view: 'loading', // loading, auth, wizard, form, consume, stats, help, account, users, spools, adminStats, inventorySwitch
-    authView: 'login', // login, register, forgotPassword, resetPassword
-    currentStep: 1,
-    filters: { mat: null, color: null },
-    editingId: null,
-    consumeId: null,
-    consumeMode: 'used', // used (subtract), weight (calculate from gross)
-    formFieldsStatus: { mat: 'select', man: 'select', loc: 'select', seller: 'select', spool: 'select' },
-    expandedGroups: new Set() // Track which filament groups are expanded
-};
-
-// Router - History API support
-const router = {
-    // Navigate to a new route
-    push(path, stateData = {}) {
-        window.history.pushState({ ...stateData, path }, '', path);
-        this.handleRoute(path, stateData);
-    },
-
-    // Replace current route
-    replace(path, stateData = {}) {
-        window.history.replaceState({ ...stateData, path }, '', path);
-        this.handleRoute(path, stateData);
-    },
-
-    // Handle route changes
-    handleRoute(path, stateData = {}) {
-        // Parse path and filter out empty segments
-        const segments = path.split('/').filter(s => s);
-
-        // Remove base path if present (e.g., 'a', 'efil-github')
-        // We only care about routes that start with our app routes
-        const appRoutes = ['wizard', 'form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'admin-stats', 'inventory-switch', 'forgot-password', 'reset-password'];
-        let routeStartIndex = 0;
-        for (let i = 0; i < segments.length; i++) {
-            if (appRoutes.includes(segments[i])) {
-                routeStartIndex = i;
-                break;
-            }
-        }
-        const appSegments = segments.slice(routeStartIndex);
-
-        if (!appSegments.length) {
-            // Root - show auth or wizard based on login state
-            if (user) {
-                state.view = 'wizard';
-                state.currentStep = 1;
-                state.filters = { mat: null, color: null };
-            } else {
-                state.view = 'auth';
-                state.authView = 'login';
-            }
-        } else if (appSegments[0] === 'wizard') {
-            state.view = 'wizard';
-            if (appSegments[1] === 'mat') state.currentStep = 1;
-            else if (appSegments[1] === 'bar') state.currentStep = 2;
-            else if (appSegments[1] === 'vyr') state.currentStep = 3;
-            else state.currentStep = 1;
-        } else if (appSegments[0] === 'form') {
-            state.view = 'form';
-            state.editingId = appSegments[1] ? parseInt(appSegments[1]) : null;
-        } else if (appSegments[0] === 'consume') {
-            state.view = 'consume';
-            state.consumeId = appSegments[1] ? parseInt(appSegments[1]) : null;
-        } else if (appSegments[0] === 'stats') {
-            state.view = 'stats';
-        } else if (appSegments[0] === 'help') {
-            state.view = 'help';
-        } else if (appSegments[0] === 'account') {
-            state.view = 'account';
-        } else if (appSegments[0] === 'users') {
-            state.view = 'users';
-        } else if (appSegments[0] === 'spools') {
-            state.view = 'spools';
-        } else if (appSegments[0] === 'admin-stats') {
-            state.view = 'adminStats';
-        } else if (appSegments[0] === 'inventory-switch') {
-            state.view = 'inventorySwitch';
-        } else if (appSegments[0] === 'forgot-password') {
-            state.view = 'auth';
-            state.authView = 'forgotPassword';
-        } else if (appSegments[0] === 'reset-password') {
-            state.view = 'auth';
-            state.authView = 'resetPassword';
-            state.resetToken = new URLSearchParams(window.location.search).get('token');
-        } else {
-            // Unknown route - default to root
-            if (user) {
-                state.view = 'wizard';
-                state.currentStep = 1;
-                state.filters = { mat: null, color: null };
-            } else {
-                state.view = 'auth';
-                state.authView = 'login';
-            }
-        }
-
-        render();
-    },
-
-    // Get current route path based on state
-    getPath() {
-        let path = '';
-        if (state.view === 'auth') {
-            if (state.authView === 'forgotPassword') path = '/forgot-password';
-            else if (state.authView === 'resetPassword') path = '/reset-password';
-            else path = '/';
-        } else if (state.view === 'wizard') {
-            if (state.currentStep === 1) path = '/wizard/mat';
-            else if (state.currentStep === 2) path = '/wizard/bar';
-            else if (state.currentStep === 3) path = '/wizard/vyr';
-            else path = '/wizard/mat';
-        } else if (state.view === 'form') {
-            path = state.editingId ? `/form/${state.editingId}` : '/form';
-        } else if (state.view === 'consume') {
-            path = `/consume/${state.consumeId}`;
-        } else if (state.view === 'stats') {
-            path = '/stats';
-        } else if (state.view === 'help') {
-            path = '/help';
-        } else if (state.view === 'account') {
-            path = '/account';
-        } else if (state.view === 'users') {
-            path = '/users';
-        } else if (state.view === 'spools') {
-            path = '/spools';
-        } else if (state.view === 'adminStats') {
-            path = '/admin-stats';
-        } else if (state.view === 'inventorySwitch') {
-            path = '/inventory-switch';
-        } else {
-            path = '/';
-        }
-        return BASE_PATH + path;
-    }
-};
-
-// Listen to browser back/forward buttons
-window.addEventListener('popstate', (e) => {
-    if (e.state && e.state.path) {
-        router.handleRoute(e.state.path, e.state);
-    } else {
-        router.handleRoute(window.location.pathname);
-    }
-});
+// Export to window for global access (needed for inline handlers in HTML)
+window.BASE_PATH = BASE_PATH;
+window.API_BASE = API_BASE;
+window.state = state;
+window.filaments = filaments;
+window.options = options;
+window.spoolTemplates = spoolTemplates;
+window.stats = stats;
+window.user = user;
+window.router = router;
+window.showToast = showToast;
+window.formatKg = formatKg;
+window.getContrast = getContrast;
+window.getClosestColorName = getClosestColorName;
+window.checkAuth = checkAuth;
+window.login = login;
+window.register = register;
+window.logout = logout;
+window.loadData = loadData;
+window.saveFilament = saveFilament;
+window.consumeFilament = consumeFilament;
+window.updateAdminMenu = updateAdminMenu;
+window.render = render;
 
 const colorNames = [
     { name: 'Černá', hex: '#000000' }, { name: 'Bílá', hex: '#ffffff' }, { name: 'Červená', hex: '#ff0000' },
@@ -249,266 +76,11 @@ const colorPalette = [
     { name: 'Vícebarevná', hex: '#FF00FF' } // Rainbow - použijeme fialovou jako placeholder
 ];
 
-// --- AUTH ---
+// Note: Auth functions (checkAuth, login, register, logout) are imported from api.js
+// Note: Data functions (loadData, updateAdminMenu) are imported from api.js
+// Note: saveFilament and consumeFilament are imported from api.js
 
-async function checkAuth() {
-    try {
-        const res = await fetch(`${API_BASE}/auth/me.php`);
-        const data = await res.json();
-        if (data.authenticated) {
-            user = data.user;
-            await loadData();
-            // Navigate to current URL or default to wizard
-            const path = window.location.pathname;
-            // Check if path is root (empty, /, or ends with / and has no known routes)
-            const segments = path.split('/').filter(s => s);
-            const appRoutes = ['wizard', 'form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'admin-stats', 'inventory-switch', 'forgot-password', 'reset-password'];
-            const hasAppRoute = segments.some(seg => appRoutes.includes(seg));
-
-            if (!hasAppRoute) {
-                // No app route in path, treat as root
-                router.replace(BASE_PATH + '/wizard/mat');
-            } else {
-                router.handleRoute(path);
-            }
-        } else {
-            router.replace(BASE_PATH + '/');
-        }
-    } catch (err) {
-        router.replace('/');
-    }
-}
-
-async function login(email, password) {
-    try {
-        const res = await fetch(`${API_BASE}/auth/login.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-        });
-        const data = await res.json();
-        if (res.ok) {
-            user = data.user;
-            loadData();
-            router.push(BASE_PATH + '/wizard/mat');
-        } else {
-            showToast(data.error || 'Chyba přihlášení');
-        }
-    } catch (err) {
-        showToast('Chyba sítě');
-    }
-}
-
-async function register(email, password) {
-    try {
-        const res = await fetch(`${API_BASE}/auth/register.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-        });
-        const data = await res.json();
-        if (res.ok) {
-            login(email, password);
-        } else {
-            showToast(data.error || 'Chyba registrace');
-        }
-    } catch (err) {
-        showToast('Chyba sítě');
-    }
-}
-
-async function logout() {
-    // Close menu before logout
-    document.getElementById('action-menu').classList.add('hidden');
-    try {
-        const res = await fetch(`${API_BASE}/auth/logout.php`);
-        const data = await res.json();
-
-        // Delete session cookie on client side as backup (in case server-side deletion fails)
-        // Use path="/" which is the default PHP session cookie path
-        document.cookie = 'PHPSESSID=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-
-        user = null;
-        state.authView = 'login';
-        state.view = 'auth';
-        // Force reload to clear any cached state
-        window.location.href = BASE_PATH + '/';
-    } catch (err) {
-        // Even if logout fails, clear local state and redirect
-        user = null;
-        state.authView = 'login';
-        state.view = 'auth';
-        window.location.href = BASE_PATH + '/';
-    }
-}
-
-// --- DATA ---
-async function loadData() {
-    try {
-        const [resFilaments, resOptions, resSpools, resStats] = await Promise.all([
-            fetch(`${API_BASE}/filaments/list.php`),
-            fetch(`${API_BASE}/data/options.php`),
-            fetch(`${API_BASE}/spools/list.php`),
-            fetch(`${API_BASE}/dashboard/stats.php`)
-        ]);
-
-        if (!resFilaments.ok) throw new Error('Failed to load filaments');
-        if (!resOptions.ok) throw new Error('Failed to load options');
-        if (!resSpools.ok) throw new Error('Failed to load spools');
-        if (!resStats.ok) throw new Error('Failed to load stats');
-
-        const [filamentsData, optionsData, spoolsData, statsData] = await Promise.all([
-            resFilaments.json(),
-            resOptions.json(),
-            resSpools.json(),
-            resStats.json()
-        ]);
-
-        filaments = Array.isArray(filamentsData) ? filamentsData : [];
-        options = optionsData || { materials: [], manufacturers: [], locations: [], sellers: [] };
-        spoolTemplates = Array.isArray(spoolsData) ? spoolsData : [];
-        stats = statsData || null;
-
-        // Add admin menu item if user is admin_efil
-        updateAdminMenu();
-
-        render();
-    } catch (err) {
-        console.error('Data load error', err);
-        showToast('Chyba načítání dat');
-        if (state.view === 'loading') {
-            state.view = 'auth';
-            state.authView = 'login';
-            render();
-        }
-    }
-}
-
-async function updateAdminMenu() {
-    const menu = document.getElementById('action-menu');
-    const existingAdminBtn = menu.querySelector('[data-admin-stats]');
-    const existingInvSwitchBtn = menu.querySelector('[data-inventory-switch]');
-
-    // Remove existing dynamic buttons if present
-    if (existingAdminBtn) existingAdminBtn.remove();
-    if (existingInvSwitchBtn) existingInvSwitchBtn.remove();
-
-    const logoutBtn = menu.querySelector('button[onclick="logout()"]');
-    if (!logoutBtn) return;
-
-    // Check if user has access to multiple inventories
-    try {
-        const res = await fetch(`${API_BASE}/inventory/list.php`);
-        if (res.ok) {
-            const inventories = await res.json();
-
-            // Add inventory switch button if user has access to multiple inventories
-            if (inventories.length > 1) {
-                const invSwitchBtn = document.createElement('button');
-                invSwitchBtn.setAttribute('data-inventory-switch', 'true');
-                invSwitchBtn.onclick = () => {
-                    document.getElementById('action-menu').classList.add('hidden');
-                    router.push(BASE_PATH + '/inventory/switch');
-                };
-                invSwitchBtn.className = 'w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left';
-                invSwitchBtn.innerHTML = `
-                    <div class="bg-blue-100 text-blue-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></div>
-                    Přepnout evidenci
-                `;
-                logoutBtn.parentNode.insertBefore(invSwitchBtn, logoutBtn);
-            }
-        }
-    } catch (err) {
-        console.error('Failed to check inventories:', err);
-    }
-
-    // Add admin button if user is admin_efil
-    if (user && user.role === 'admin_efil') {
-        const adminBtn = document.createElement('button');
-        adminBtn.setAttribute('data-admin-stats', 'true');
-        adminBtn.onclick = () => {
-            document.getElementById('action-menu').classList.add('hidden');
-            router.push(BASE_PATH + '/admin/stats');
-        };
-        adminBtn.className = 'w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left';
-        adminBtn.innerHTML = `
-            <div class="bg-emerald-100 text-emerald-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg></div>
-            Statistiky eFil
-        `;
-        logoutBtn.parentNode.insertBefore(adminBtn, logoutBtn);
-    }
-}
-
-async function saveFilament(data) {
-    try {
-        const res = await fetch(`${API_BASE}/filaments/save.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-
-        if (res.ok) {
-            showToast('Uloženo');
-            await loadData();
-            state.filters = { mat: null, color: null };
-            router.push(BASE_PATH + '/wizard/mat');
-        } else {
-            const err = await res.json();
-            showToast(err.error || 'Chyba ukládání');
-        }
-    } catch (e) {
-        showToast('Chyba sítě');
-    }
-}
-
-async function consumeFilament(filamentId, amount, description, date) {
-    try {
-        const res = await fetch(`${API_BASE}/filaments/consume.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filament_id: filamentId, amount, description, consumption_date: date })
-        });
-
-        if (res.ok) {
-            showToast('Zapsáno');
-            await loadData();
-            router.push(BASE_PATH + '/wizard/mat');
-        } else {
-            const err = await res.json();
-            showToast(err.error || 'Chyba zápisu');
-        }
-    } catch (e) {
-        showToast('Chyba sítě');
-    }
-}
-
-// --- UI HELPER ---
-function showToast(msg) {
-    const el = document.getElementById('toast');
-    el.innerText = msg;
-    el.style.opacity = '1';
-    el.style.transform = 'translate(-50%, -20px)';
-    setTimeout(() => {
-        el.style.opacity = '0';
-        el.style.transform = 'translate(-50%, 0)';
-    }, 3000);
-}
-
-function getClosestColorName(hex) {
-    function hexToRgb(h) {
-        let r = parseInt(h.slice(1, 3), 16), g = parseInt(h.slice(3, 5), 16), b = parseInt(h.slice(5, 7), 16);
-        return [r, g, b];
-    }
-    const target = hexToRgb(hex);
-    let minDist = Infinity;
-    let closest = 'Vlastní barva';
-    colorNames.forEach(c => {
-        const curr = hexToRgb(c.hex);
-        const dist = Math.sqrt(Math.pow(target[0]-curr[0],2) + Math.pow(target[1]-curr[1],2) + Math.pow(target[2]-curr[2],2));
-        if (dist < minDist) { minDist = dist; closest = c.name; }
-    });
-    return minDist < 60 ? closest : 'Vlastní barva';
-}
+// Note: showToast and getClosestColorName are imported from utils.js
 
 // --- RENDER ---
 function render() {
@@ -534,7 +106,7 @@ function render() {
     if (state.view === 'auth') {
         renderAuth(appView);
     } else if (state.view === 'form') {
-        renderForm(appView);
+        renderFormAsync(appView);
     } else if (state.view === 'consume') {
         renderConsume(appView);
     } else if (state.view === 'stats') {
@@ -989,18 +561,38 @@ window.handleConsumeSubmit = (e) => {
     let grams = 0;
     const desc = document.getElementById('c-desc').value || '';
     const date = document.getElementById('c-date').value || new Date().toISOString().split('T')[0];
+    const inputVal = document.getElementById('c-val').value;
+
+    if (!inputVal || inputVal.trim() === '') {
+        showToast('Zadejte hodnotu');
+        return;
+    }
 
     if(state.consumeMode === 'used') {
-        grams = -1 * parseInt(document.getElementById('c-val').value);
+        const consumed = parseInt(inputVal);
+        if (isNaN(consumed) || consumed <= 0) {
+            showToast('Zadejte kladné číslo');
+            return;
+        }
+        grams = -consumed;
     } else {
         // Weight mode: NewNetto = MeasuredGross - SpoolWeight
         // Diff = NewNetto - OldNetto
-        const measuredGross = parseInt(document.getElementById('c-val').value);
+        const measuredGross = parseInt(inputVal);
+        if (isNaN(measuredGross) || measuredGross <= 0) {
+            showToast('Zadejte kladné číslo');
+            return;
+        }
         const spoolWeight = item.spool_weight || 0;
         const currentNetto = item.g;
 
         const newNetto = measuredGross - spoolWeight;
         grams = newNetto - currentNetto;
+    }
+
+    if (grams === 0) {
+        showToast('Rozdíl hmotnosti je nulový');
+        return;
     }
 
     consumeFilament(item.id, grams, desc, date);
@@ -1061,13 +653,22 @@ async function renderConsume(v) {
     v.appendChild(container);
 
     // Load and display consumption history
+    // Remove existing history container if present (to prevent duplicates)
+    const existingHistory = v.querySelectorAll('[data-consumption-history]');
+    existingHistory.forEach(el => el.remove());
+
     try {
         const res = await fetch(`${API_BASE}/consumption/list.php?filament_id=${item.id}`);
         if (res.ok) {
             const history = await res.json();
 
             if (history.length > 0) {
+                // Double-check: remove any remaining history containers
+                const remainingHistory = v.querySelectorAll('[data-consumption-history]');
+                remainingHistory.forEach(el => el.remove());
+                
                 const historyContainer = document.createElement('div');
+                historyContainer.setAttribute('data-consumption-history', 'true');
                 historyContainer.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 max-w-lg mx-auto mt-6";
                 historyContainer.innerHTML = `
                     <h3 class="text-lg font-black text-slate-800 mb-4">Historie čerpání</h3>
@@ -1487,9 +1088,36 @@ window.handleFormSubmit = async (e) => {
     saveFilament(item);
 };
 
+async function renderFormAsync(v) {
+    // Clear formValues when opening form (both for new and edit)
+    state.formValues = null;
+    
+    // If editing and item not found in filaments array, reload data first
+    if (state.editingId) {
+        const foundItem = filaments.find(i => i.id === state.editingId);
+        
+        if (!foundItem) {
+            try {
+                await loadData();
+                // After reload, check if item still exists (might have been deleted)
+                const stillExists = filaments.find(i => i.id === state.editingId);
+                if (!stillExists) {
+                    // Filament was deleted, clear editing state
+                    state.editingId = null;
+                }
+            } catch (err) {
+                console.error('Failed to load data for form:', err);
+                // On error, clear editing state to prevent issues
+                state.editingId = null;
+            }
+        }
+    }
+    renderForm(v);
+}
+
 function renderForm(v) {
     // Use saved values if available, otherwise use item values
-    const baseItem = state.editingId ? filaments.find(i => i.id === state.editingId) : { mat: '', color: '', hex: '#4f46e5', man: '', g: 1000, loc: '', price: '', date: '', seller: '' };
+    const baseItem = state.editingId ? (filaments.find(i => i.id === state.editingId) || { mat: '', color: '', hex: '#4f46e5', man: '', g: 1000, loc: '', price: '', date: '', seller: '' }) : { mat: '', color: '', hex: '#4f46e5', man: '', g: 1000, loc: '', price: '', date: '', seller: '' };
 
     // Calculate next available user_display_id for new filament
     let suggestedDisplayId = null;
@@ -1500,19 +1128,20 @@ function renderForm(v) {
         suggestedDisplayId = 1;
     }
 
+    // Only use formValues if they are not empty strings (to avoid overwriting baseItem with empty values)
     const item = state.formValues ? {
         ...baseItem,
-        user_display_id: state.formValues.user_display_id !== undefined ? state.formValues.user_display_id : (baseItem.user_display_id || suggestedDisplayId),
-        mat: state.formValues.mat !== undefined ? state.formValues.mat : baseItem.mat,
-        man: state.formValues.man !== undefined ? state.formValues.man : baseItem.man,
-        loc: state.formValues.loc !== undefined ? state.formValues.loc : baseItem.loc,
-        seller: state.formValues.seller !== undefined ? state.formValues.seller : baseItem.seller,
-        color: state.formValues.color !== undefined ? state.formValues.color : baseItem.color,
-        hex: state.formValues.hex !== undefined ? state.formValues.hex : baseItem.hex,
-        g: state.formValues.g !== undefined ? parseInt(state.formValues.g) : (baseItem.initial_weight_grams || baseItem.g),
-        price: state.formValues.price !== undefined ? state.formValues.price : baseItem.price,
-        date: state.formValues.date !== undefined ? state.formValues.date : baseItem.date,
-        spool_id: state.formValues.spool !== undefined ? state.formValues.spool : baseItem.spool_id
+        user_display_id: state.formValues.user_display_id !== undefined && state.formValues.user_display_id !== '' ? state.formValues.user_display_id : (baseItem.user_display_id || suggestedDisplayId),
+        mat: state.formValues.mat !== undefined && state.formValues.mat !== '' ? state.formValues.mat : baseItem.mat,
+        man: state.formValues.man !== undefined && state.formValues.man !== '' ? state.formValues.man : baseItem.man,
+        loc: state.formValues.loc !== undefined && state.formValues.loc !== '' ? state.formValues.loc : baseItem.loc,
+        seller: state.formValues.seller !== undefined && state.formValues.seller !== '' ? state.formValues.seller : baseItem.seller,
+        color: state.formValues.color !== undefined && state.formValues.color !== '' ? state.formValues.color : baseItem.color,
+        hex: state.formValues.hex !== undefined && state.formValues.hex !== '' ? state.formValues.hex : baseItem.hex,
+        g: state.formValues.g !== undefined && state.formValues.g !== '' ? parseInt(state.formValues.g) : (baseItem.initial_weight_grams || baseItem.g),
+        price: state.formValues.price !== undefined && state.formValues.price !== '' ? state.formValues.price : baseItem.price,
+        date: state.formValues.date !== undefined && state.formValues.date !== '' ? state.formValues.date : baseItem.date,
+        spool_id: state.formValues.spool !== undefined && state.formValues.spool !== '' ? state.formValues.spool : baseItem.spool_id
     } : { ...baseItem, user_display_id: baseItem.user_display_id || suggestedDisplayId };
 
     // Update weight mode from saved values
@@ -1537,6 +1166,10 @@ function renderForm(v) {
     form.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 max-w-lg mx-auto space-y-5";
     form.innerHTML = `
         <div class="field-container">
+            <label class="text-[10px] font-bold text-slate-400 uppercase">Materiál <span class="text-red-500">*</span></label>
+            <div class="input-group">${renderFieldInput('mat', mats, item.mat)}</div>
+        </div>
+        <div class="field-container">
             <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">Barva (Paleta a Název) <span class="text-red-500">*</span></label>
             <div class="grid grid-cols-8 gap-2 mb-2">
                 ${colorPalette.map(c => {
@@ -1560,9 +1193,9 @@ function renderForm(v) {
                 <input id="f-color" type="text" value="${item.color}" placeholder="Název barvy" class="flex-1 bg-slate-50 border-none rounded-xl p-3 font-bold">
             </div>
         </div>
-        <div class="grid grid-cols-2 gap-4">
-            <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Materiál <span class="text-red-500">*</span></label><div class="input-group">${renderFieldInput('mat', mats, item.mat)}</div></div>
-            <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Výrobce</label><div class="input-group">${renderFieldInput('man', mans, item.man)}</div></div>
+        <div class="field-container">
+            <label class="text-[10px] font-bold text-slate-400 uppercase">Výrobce</label>
+            <div class="input-group">${renderFieldInput('man', mans, item.man)}</div>
         </div>
         <div class="field-container">
             <label class="text-[10px] font-bold text-slate-400 uppercase">Počáteční hmotnost (g) <span class="text-red-500">*</span></label>
@@ -1633,6 +1266,11 @@ window.deleteFilament = async (id) => {
         const data = await res.json();
 
         if (res.ok) {
+            // Clear editing state if deleted filament was being edited
+            if (state.editingId === id) {
+                state.editingId = null;
+                state.formValues = null;
+            }
             showToast('Filament smazán');
             await loadData();
             state.filters = { mat: null, color: null };
@@ -1661,16 +1299,31 @@ window.toggleAuthView = () => {
 };
 
 window.resetApp = () => {
-    state.filters = { mat: null, color: null };
-    state.currentStep = 1;
-    router.push(BASE_PATH + '/wizard/mat');
+    // If we're in a form view, go back to previous page
+    // Otherwise reset to wizard/mat
+    if (state.view === 'form' || state.view === 'consume') {
+        // Clear form state before going back
+        state.editingId = null;
+        state.consumeId = null;
+        state.formValues = null;
+        
+        // Try to go back in history, fallback to wizard/mat if no history
+        if (window.history.length > 1) {
+            window.history.back();
+        } else {
+            state.filters = { mat: null, color: null };
+            state.currentStep = 1;
+            router.push(BASE_PATH + '/wizard/mat');
+        }
+    } else {
+        // For other views, reset to wizard/mat
+        state.filters = { mat: null, color: null };
+        state.currentStep = 1;
+        router.push(BASE_PATH + '/wizard/mat');
+    }
 };
 
-const formatKg = (g) => (g / 1000).toFixed(1).replace('.', ',') + ' kg';
-const getContrast = (hex) => {
-    const r = parseInt(hex.substring(1,3),16), g = parseInt(hex.substring(3,5),16), b = parseInt(hex.substring(5,7),16);
-    return (((r*299)+(g*587)+(b*114))/1000) >= 128 ? '#000000' : '#ffffff';
-};
+// Note: formatKg and getContrast are imported from utils.js
 
 function renderMaterials(v) {
     const grid = document.createElement('div'); grid.className = "card-grid";
@@ -1868,8 +1521,9 @@ window.openForm = () => {
         // Reset form fields to select mode
         state.formFieldsStatus = { mat: 'select', man: 'select', loc: 'select', seller: 'select', spool: 'select' };
         state.weightMode = 'netto';
-        state.formValues = null; // Clear saved values when opening new form
     }
+    // Always clear formValues when opening form (will be cleared again in renderFormAsync, but this ensures it's cleared early)
+    state.formValues = null;
     // We update this via onclick in renderDetails so editingId is set before this call if editing
 
     document.getElementById('action-menu').classList.add('hidden');
@@ -2808,8 +2462,8 @@ window.saveConsumptionEdit = async (consumptionId) => {
         if (res.ok) {
             showToast('Záznam aktualizován');
             document.getElementById('edit-consumption-modal').remove();
+            // loadData() already calls render(), so we don't need to call it again
             await loadData();
-            render();
         } else {
             showToast(data.error || 'Chyba při ukládání');
         }

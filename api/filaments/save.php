@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 require_once __DIR__ . '/../../config.php';
 
 session_start();
@@ -55,7 +57,9 @@ $user = $stmt->fetch();
 $isAdmin = ($user && $user['role'] === 'admin_efil');
 
 // Check if demo mode (and user is not admin)
-if ($inv['is_demo'] && !$isAdmin) {
+// MySQL BOOLEAN is TINYINT(1), so we need to check for 1 or '1'
+$isDemo = ($inv['is_demo'] === 1 || $inv['is_demo'] === '1' || (bool)$inv['is_demo']);
+if ($isDemo && !$isAdmin) {
     jsonResponse(['error' => 'V demo režimu nelze upravovat data. Vytvořte si vlastní účet pro plný přístup.'], 403);
 }
 

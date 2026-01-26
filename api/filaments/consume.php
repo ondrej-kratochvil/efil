@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 require_once __DIR__ . '/../../config.php';
 
 session_start();
@@ -17,13 +19,19 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $input = json_decode(file_get_contents('php://input'), true);
 $userId = $_SESSION['user_id'];
 $filamentId = $input['filament_id'] ?? null;
-$amount = (int)($input['amount'] ?? 0); // Negative for consumption, positive for correction
+$amount = isset($input['amount_grams']) ? (int)$input['amount_grams'] : ((int)($input['amount'] ?? 0)); // Negative for consumption, positive for correction
 $description = $input['description'] ?? '';
 $consumptionDate = $input['consumption_date'] ?? date('Y-m-d');
 
-if (!$filamentId || $amount == 0) {
+if (!$filamentId) {
     http_response_code(400);
-    echo json_encode(['error' => 'Invalid input']);
+    echo json_encode(['error' => 'Missing filament_id']);
+    exit;
+}
+
+if ($amount == 0) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Amount cannot be zero']);
     exit;
 }
 
@@ -59,7 +67,9 @@ try {
     $isAdmin = ($user && $user['role'] === 'admin_efil');
 
     // Check if demo mode (and user is not admin)
-    if ($filamentData['is_demo'] && !$isAdmin) {
+    // MySQL BOOLEAN is TINYINT(1), so we need to check for 1 or '1'
+    $isDemo = ($filamentData['is_demo'] === 1 || $filamentData['is_demo'] === '1' || (bool)$filamentData['is_demo']);
+    if ($isDemo && !$isAdmin) {
         http_response_code(403);
         echo json_encode(['error' => 'V demo režimu nelze upravovat data. Vytvořte si vlastní účet pro plný přístup.']);
         exit;

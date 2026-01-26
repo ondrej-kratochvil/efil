@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 /**
  * Change user password
  * POST /api/account/change-password.php

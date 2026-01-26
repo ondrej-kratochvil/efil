@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 require_once __DIR__ . '/../../config.php';
 
 header('Content-Type: application/json');
@@ -79,21 +81,30 @@ try {
         $params[] = $data['visual_description'] === '' ? null : ($data['visual_description'] ?? null);
     }
 
-    if (count($updates) > 0) {
-        $params[] = $spoolId;
-        $sql = "UPDATE spool_library SET " . implode(", ", $updates) . " WHERE id = ?";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
-    }
-
-    // Update manufacturer associations
+    // Check if manufacturer associations are being updated
     $manufData = $data['manufacturer_ids'] ?? $data['manufacturer_names'] ?? null;
+    $hasManufUpdate = $manufData !== null;
+    $hasSpoolUpdate = count($updates) > 0;
     
-    if ($manufData !== null) {
-        // Start transaction to ensure atomicity
+    // Use transaction if both spool data and manufacturer associations are being updated
+    // to ensure atomicity - if manufacturer validation fails, spool update should also rollback
+    $useTransaction = $hasSpoolUpdate && $hasManufUpdate;
+    
+    if ($useTransaction) {
         $pdo->beginTransaction();
+    }
+    
+    try {
+        // Update spool data (if any fields provided)
+        if ($hasSpoolUpdate) {
+            $params[] = $spoolId;
+            $sql = "UPDATE spool_library SET " . implode(", ", $updates) . " WHERE id = ?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute($params);
+        }
         
-        try {
+        // Update manufacturer associations (if provided)
+        if ($hasManufUpdate) {
             // First, validate all manufacturer names (if using names) BEFORE deleting anything
             $notFoundNames = [];
             $manufacturerIds = [];
@@ -117,7 +128,9 @@ try {
                     
                     // If any names were not found, rollback and return error
                     if (count($notFoundNames) > 0) {
-                        $pdo->rollBack();
+                        if ($useTransaction) {
+                            $pdo->rollBack();
+                        }
                         http_response_code(400);
                         echo json_encode([
                             'error' => 'Některé výrobce nebyly nalezeny',
@@ -133,7 +146,9 @@ try {
                     $validIds = $stmtValidate->fetchAll(PDO::FETCH_COLUMN);
                     
                     if (count($validIds) !== count($manufData)) {
-                        $pdo->rollBack();
+                        if ($useTransaction) {
+                            $pdo->rollBack();
+                        }
                         http_response_code(400);
                         echo json_encode(['error' => 'Některé ID výrobců nejsou platné']);
                         exit;
@@ -154,15 +169,19 @@ try {
                     $stmtManuf->execute([$spoolId, $manufId]);
                 }
             }
-            
-            // Commit transaction
-            $pdo->commit();
-            
-        } catch (Exception $e) {
-            // Rollback on any error
-            $pdo->rollBack();
-            throw $e;
         }
+        
+        // Commit transaction if one was started
+        if ($useTransaction) {
+            $pdo->commit();
+        }
+        
+    } catch (Exception $e) {
+        // Rollback on any error if transaction was started
+        if ($useTransaction) {
+            $pdo->rollBack();
+        }
+        throw $e;
     }
 
     echo json_encode(['success' => true]);
