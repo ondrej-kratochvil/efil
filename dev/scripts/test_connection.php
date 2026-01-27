@@ -35,7 +35,7 @@ echo "\n";
 
 // Test 3: .env soubor
 echo "=== Test 3: .env soubor ===\n";
-$envPath = __DIR__ . '/.env';
+$envPath = __DIR__ . '/../.env';
 if (file_exists($envPath)) {
     echo "✓ .env soubor existuje\n";
     echo "Cesta: $envPath\n";
@@ -127,9 +127,9 @@ echo "\n";
 
 // Test 6: Oprávnění souborů
 echo "=== Test 6: Oprávnění souborů ===\n";
-$files = ['.env', 'config.php', 'init_db.php'];
-foreach ($files as $file) {
-    $path = __DIR__ . '/' . $file;
+$files = ['.env' => '../.env', 'config.php' => '../../config.php', 'init_db.php' => '../sql/init_db.php'];
+foreach ($files as $file => $relPath) {
+    $path = __DIR__ . '/' . $relPath;
     if (file_exists($path)) {
         $perms = substr(sprintf('%o', fileperms($path)), -4);
         echo "$file: $perms ";

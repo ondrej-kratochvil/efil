@@ -7,15 +7,15 @@
     Deny from all
 </Files>
 
-# Zakázat přístup k testům na produkci, povolit na localhostu
+# Zakázat přístup k dev/ složce na produkci, povolit na localhostu
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    # Povolit testy pouze na localhostu
+    # Povolit dev/ pouze na localhostu
     # Pokud HTTP_HOST neobsahuje "localhost" ani "127.0.0.1", zakázat přístup
     RewriteCond %{HTTP_HOST} !localhost [NC]
     RewriteCond %{HTTP_HOST} !127\.0\.0\.1 [NC]
-    # Pokud není localhost, zakázat přístup k testům
-    RewriteRule ^tests/ - [F,L]
+    # Pokud není localhost, zakázat přístup k dev/
+    RewriteRule ^dev/ - [F,L]
 </IfModule>
 
 # Zakázat přístup k diagnostickým a migračním skriptům na produkci, povolit na localhostu
@@ -49,8 +49,8 @@ AddDefaultCharset UTF-8
     # A není to fyzický soubor (CSS, JS, obrázky, atd.)
     RewriteCond %{REQUEST_URI} !\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ [NC]
 
-    # A není to migrační skript nebo test
-    RewriteCond %{REQUEST_URI} !^/(test_connection|init_db|update_schema|update_spool_schema|update_consumption_schema|update_current_weight|update_consumption_log_schema|fix_all_schema|tests/) [NC]
+    # A není to dev/ složka
+    RewriteCond %{REQUEST_URI} !^/dev/ [NC]
 
     # Přesměruj na index.html
     RewriteRule ^(.*)$ index.html [L]

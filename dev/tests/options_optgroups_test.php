@@ -1,6 +1,6 @@
 <?php
 // tests/options_optgroups_test.php
-require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/helpers.php';
 
 echo "Running Options Optgroups Tests...\n";

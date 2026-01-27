@@ -92,6 +92,10 @@ Každá aplikace musí mít definovanou faviconu.
 
 ## Architektura a struktura složek
 
+### Čistý root - pouze produkční soubory
+
+**Root adresář musí obsahovat POUZE soubory, které se nasazují na produkci.** Všechny vývojové soubory, dokumentace, testy a jednorázové skripty patří do `dev/` a jeho podsložek.
+
 ### Doporučená struktura
 
 ```
@@ -99,27 +103,56 @@ Každá aplikace musí mít definovanou faviconu.
 ├── index.html                    # Vstupní soubor (client-side routing)
 ├── .htaccess                    # Apache konfigurace (pokud je potřeba)
 ├── .gitignore
-├── README.md
-├── config.php                   # Konfigurace (DB, env proměnné)
-├── assets/                      # Statické soubory
+├── README.md                     # Základní README (stručný popis, instalace)
+├── .env.example                  # Příklad konfigurace prostředí
+├── config.php                   # Konfigurace (DB, env proměnné) - pouze Full-stack
+├── api/                         # API endpointy - pouze Full-stack
+│   ├── auth/
+│   ├── filaments/
+│   └── ...
+├── assets/                      # Statické soubory (CSS, JS, obrázky)
 │   ├── css/
 │   ├── js/
 │   ├── img/
 │   └── i18n/                    # Překlady (cs.json, en.json, …) – pokud je i18n
-├── dev/                         # Vývojové soubory (nenasazuje se na produkci)
-│   ├── docs/                    # Modulární dokumentace
+├── dev/                         # VÝVOJOVÉ SOUBORY (nenasazuje se na produkci)
+│   ├── docs/                    # Modulární dokumentace (CHANGELOG, DEPLOYMENT, atd.)
 │   ├── tests/                   # Automatizované testy
+│   ├── scripts/                  # Testovací a diagnostické skripty
 │   └── sql/                     # SQL schémata a migrace (pouze Full-stack)
 └── src/                         # PHP logika a třídy (pouze Full-stack)
 ```
 
+### Pravidla pro root
+
+**V rootu NESMÍ být:**
+- ❌ Dokumentace (CHANGELOG.md, DEPLOYMENT.md, TROUBLESHOOTING.md, atd.) → `dev/docs/`
+- ❌ Testy (`*_test.php`, `run_all_tests.php`) → `dev/tests/`
+- ❌ Migrační skripty (`init_db.php`, `update_*.php`, `fix_*.php`) → `dev/sql/`
+- ❌ Diagnostické skripty (`test_connection.php`, `test_email.php`) → `dev/scripts/`
+- ❌ SQL schémata (`schema.sql`) → `dev/sql/`
+- ❌ Jednorázové utility skripty → `dev/scripts/`
+
+**V rootu SMÍ být pouze:**
+- ✅ `index.html` / `index.php` (vstupní soubor)
+- ✅ `.htaccess` (konfigurace serveru)
+- ✅ `.gitignore`
+- ✅ `README.md` (stručný, základní informace)
+- ✅ `.env.example` (příklad konfigurace)
+- ✅ `config.php` (konfigurace aplikace - pouze Full-stack)
+- ✅ `api/` (API endpointy - pouze Full-stack)
+- ✅ `assets/` (statické soubory)
+- ✅ `src/` (PHP třídy - pouze Full-stack)
+
 ### Poznámky k struktuře
 
-- **Root**: Může obsahovat i další konfigurační soubory podle potřeby projektu (např. `package.json`, `.env.example`, atd.)
+- **Root je čistý**: Obsahuje pouze produkční soubory potřebné pro běh aplikace
+- **Všechny vývojové soubory v `dev/`**: Dokumentace, testy, migrace, diagnostika
+- **`dev/` se nenasazuje na produkci**: Při deploymentu se ignoruje celá složka `dev/`
 - **`src/`**: Pouze u Full-stack projektů (PHP logika a třídy)
 - **`dev/sql/`**: Pouze u Full-stack projektů (SQL schémata a migrace)
-- **`assets/`**: Statické soubory (CSS, JS, obrázky)
-- **`dev/`**: Dokumentace, testy a nástroje (nenasazuje se na produkci)
+- **`dev/scripts/`**: Testovací a diagnostické skripty
+- **`dev/docs/`**: Veškerá dokumentace projektu
 
 ---
 
@@ -241,9 +274,11 @@ Spuštění všech testů a multi-resolution prohlídka.
 - @Browser verifikace na různých rozlišeních
 
 **Postup:**
-1. Spustit automatizované testy: Otevřít `http://localhost/a/efil-github/tests/run_all_tests.php` v prohlížeči a ověřit, že všechny testy prošly
+1. Spustit automatizované testy: Otevřít `http://localhost/a/efil-github/dev/tests/run_all_tests.php` v prohlížeči a ověřit, že všechny testy prošly
 2. Projít @Browser verifikaci podle checklistu: `/dev/docs/VERIFY_CHECKLIST.md`
 3. Vyplnit checklist s výsledky verifikace
+
+**Důležité:** Testy jsou v `dev/tests/`, ne v rootu!
 
 ### INIT-DOCS
 

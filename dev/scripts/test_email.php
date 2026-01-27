@@ -1,6 +1,6 @@
 <?php
-require_once 'config.php';
-require_once 'api/helpers/email.php';
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../../api/helpers/email.php';
 
 $testEmail = 'test@example.com'; // Změňte na vaši e-mailovou adresu
 

@@ -1,6 +1,6 @@
 <?php
 // tests/manufacturer_auto_create_test.php
-require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/helpers.php';
 
 echo "Running Manufacturer Auto-Create Tests...\n";

@@ -3,7 +3,7 @@
  * Test multiuser funkcí - sdílení evidencí, role, přepínání
  */
 
-require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/helpers.php';
 
 echo "=== TEST MULTIUSER FUNKCÍ ===\n\n";

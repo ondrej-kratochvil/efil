@@ -6,7 +6,7 @@
  * 3. Drop manufacturer_id column from spool_library
  */
 
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../../config.php';
 
 try {
     $db = getDBConnection();

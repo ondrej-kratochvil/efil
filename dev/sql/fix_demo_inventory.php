@@ -8,7 +8,7 @@ declare(strict_types=1);
  * Run this once if you have an existing database where demo inventory was created without is_demo flag
  */
 
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../../config.php';
 
 echo "Fixing demo inventory...\n";
 

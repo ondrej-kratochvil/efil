@@ -81,12 +81,12 @@ SMTP_FROM_NAME=eFil - Evidence Filamentů
 Spusťte inicializační skript, který vytvoří databázi, tabulky a naplní je demo daty:
 
 ```bash
-php init_db.php
+php dev/sql/init_db.php
 ```
 
 Nebo v prohlížeči:
 ```
-http://localhost/a/efil-github/init_db.php
+http://localhost/a/efil-github/dev/sql/init_db.php
 ```
 
 **Poznámka:** Skript automaticky vytvoří databázi, pokud neexistuje, a smaže existující tabulky před vytvořením nových.
@@ -97,13 +97,13 @@ Pokud již máte databázi s daty a potřebujete aktualizovat schéma bez ztrát
 
 ```bash
 # Přidání tabulky inventory_members
-php update_schema.php
+php dev/sql/update_schema.php
 
 # Aktualizace tabulky spool_library (přidání nových polí)
-php update_spool_schema.php
+php dev/sql/update_spool_schema.php
 ```
 
-**Poznámka:** Pro nové instalace použijte `init_db.php`, který vytvoří kompletní schéma. Migrační skripty jsou určeny pouze pro aktualizaci existujících databází.
+**Poznámka:** Pro nové instalace použijte `dev/sql/init_db.php`, který vytvoří kompletní schéma. Migrační skripty jsou určeny pouze pro aktualizaci existujících databází.
 
 ## 🎯 Spuštění
 
@@ -141,16 +141,14 @@ efil-github/
 ├── assets/
 │   ├── css/                     # Styly (Tailwind CSS)
 │   └── js/                      # Frontend JavaScript (ES6+, History API)
-├── database/
-│   └── schema.sql               # Kompletní databázové schéma
-├── tests/                       # Testovací skripty
+├── dev/                         # Vývojové soubory
+│   ├── docs/                    # Dokumentace
+│   ├── scripts/                 # Testovací skripty
+│   ├── sql/                     # SQL schémata a migrace
+│   └── tests/                   # Testovací skripty
 ├── config.php                   # Konfigurace databáze a aplikace
 ├── .env.example                 # Příklad konfigurace prostředí
-├── init_db.php                  # Inicializační skript
-├── update_*.php                 # Migrační skripty
 ├── index.html                   # Hlavní HTML soubor
-├── CHANGELOG.md                 # Seznam změn
-├── UPGRADE.md                   # Návod na upgrade
 └── README.md                    # Tento soubor
 ```
 
@@ -277,30 +275,30 @@ Aplikace používá třístupňovou navigaci:
 
 ## 🧪 Testování
 
-Projekt obsahuje testovací skripty v adresáři `tests/`:
+Projekt obsahuje testovací skripty v adresáři `dev/tests/`:
 
 ```bash
 # Test výpočtu zůstatků
-php tests/balance_test.php
+php dev/tests/balance_test.php
 
 # Test automatického vytváření výrobců
-php tests/manufacturer_auto_create_test.php
+php dev/tests/manufacturer_auto_create_test.php
 
 # Test optgroups v options API
-php tests/options_optgroups_test.php
+php dev/tests/options_optgroups_test.php
 
 # Test správy cívek
-php tests/spool_management_test.php
+php dev/tests/spool_management_test.php
 
 # Test formulářových hodnot
-php tests/form_persistence_test.php
+php dev/tests/form_persistence_test.php
 ```
 
 Všechny testy automaticky vytvářejí testovací data a po dokončení je odstraňují.
 
 ## 📝 Poznámky
 
-- Aplikace automaticky vytvoří databázi při prvním spuštění `init_db.php`
+- Aplikace automaticky vytvoří databázi při prvním spuštění `dev/sql/init_db.php`
 - Demo data jsou vytvořena automaticky při inicializaci
 - Pro produkční nasazení upravte `config.php` pro lepší error handling
 - Noví výrobci se automaticky přidají do tabulky `manufacturers` při ukládání filamentu
@@ -309,7 +307,7 @@ Všechny testy automaticky vytvářejí testovací data a po dokončení je odst
 ## 🐛 Řešení problémů
 
 ### Databáze neexistuje
-Spusťte `init_db.php` - skript automaticky vytvoří databázi.
+Spusťte `dev/sql/init_db.php` - skript automaticky vytvoří databázi.
 
 ### Chyba s indexy (Index column size too large)
 Tento problém byl vyřešen v aktuální verzi schématu pomocí prefix indexů a `ROW_FORMAT=DYNAMIC`.

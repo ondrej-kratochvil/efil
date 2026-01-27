@@ -3,7 +3,7 @@
 // Test: Form Edit Data Loading
 // Validates that when editing a filament, all data is properly loaded and displayed
 
-require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/helpers.php';
 
 echo "Running Form Edit Data Load Tests...\n";

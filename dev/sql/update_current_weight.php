@@ -4,7 +4,7 @@
  * Tento sloupec je vyžadován některými testy a API soubory
  */
 
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../../config.php';
 
 echo "=== Přidání sloupce current_weight do tabulky filaments ===\n\n";
 

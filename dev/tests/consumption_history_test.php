@@ -3,7 +3,7 @@
  * Test historie čerpání - datum, editace, mazání
  */
 
-require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/helpers.php';
 
 echo "=== TEST HISTORIE ČERPÁNÍ ===\n\n";

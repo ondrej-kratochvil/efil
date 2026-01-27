@@ -1,6 +1,6 @@
 <?php
 // update_schema.php - Adds inventory_members table to existing database
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../../config.php';
 
 echo "Updating database schema...\n";
 

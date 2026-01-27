@@ -4,7 +4,7 @@
  * Tyto sloupce jsou vyžadovány některými API soubory a testy
  */
 
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../../config.php';
 
 echo "=== Migrace schématu consumption_log ===\n\n";
 

@@ -4,8 +4,8 @@ declare(strict_types=1);
 // init_db.php - Sets up the database and seeds it with demo data
 
 // Load environment variables if .env exists
-if (file_exists(__DIR__ . '/.env')) {
-    $lines = file(__DIR__ . '/.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+if (file_exists(__DIR__ . '/../../.env')) {
+    $lines = file(__DIR__ . '/../../.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
     foreach ($lines as $line) {
         if (strpos(trim($line), '#') === 0) continue;
         list($name, $value) = explode('=', $line, 2);
@@ -57,7 +57,7 @@ try {
     $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
     
     // 4. Read schema and create tables
-    $schema = file_get_contents(__DIR__ . '/database/schema.sql');
+    $schema = file_get_contents(__DIR__ . '/schema.sql');
     $queries = explode(';', $schema);
     
     echo "Creating tables...\n";

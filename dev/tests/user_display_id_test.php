@@ -1,6 +1,6 @@
 <?php
 // tests/user_display_id_test.php
-require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/helpers.php';
 
 echo "Running User Display ID Tests...\n";

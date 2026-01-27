@@ -3,7 +3,7 @@
  * Test groupování cívek podle výrobce+materiál+barva
  */
 
-require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/helpers.php';
 
 echo "=== TEST GROUPOVÁNÍ CÍVEK ===\n\n";

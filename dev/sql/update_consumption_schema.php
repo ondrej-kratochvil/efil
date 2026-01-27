@@ -6,7 +6,7 @@
  * - Inicializuje current_weight na základě initial_weight_grams a consumption_log
  */
 
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../../config.php';
 
 echo "=== Migrace schématu consumption_log a filaments ===\n\n";
 

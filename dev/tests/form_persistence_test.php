@@ -4,7 +4,7 @@
 // Note: This is a conceptual test since form persistence is primarily frontend logic
 // We test the backend API endpoints that support form persistence
 
-require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/helpers.php';
 
 echo "Running Form Persistence Tests...\n";

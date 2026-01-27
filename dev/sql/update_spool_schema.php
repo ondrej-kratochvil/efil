@@ -1,6 +1,6 @@
 <?php
 // update_spool_schema.php - Updates spool_library table with new fields
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../../config.php';
 
 echo "Updating spool_library table...\n";
 

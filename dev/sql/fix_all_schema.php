@@ -4,7 +4,7 @@
  * Opravuje nesoulad mezi schématem databáze a tím, co očekávají testy a API
  */
 
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../../config.php';
 
 echo "=== Komplexní migrace schématu databáze ===\n\n";
 

@@ -3,7 +3,7 @@
  * Test vazby M:N mezi spool_library a manufacturers
  */
 
-require_once __DIR__ . '/../config.php';
+require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/helpers.php';
 
 echo "=== TEST SPOOL-MANUFACTURER VAZBY ===\n\n";
