@@ -3,6 +3,7 @@ import { state, filaments } from '../state.js';
 import { router } from '../router.js';
 import { BASE_PATH } from '../config.js';
 import { formatKg, getContrast } from '../utils.js';
+import { colorPalette } from '../colors.js';
 
 export function renderMaterials(v) {
     const grid = document.createElement('div'); 
@@ -41,6 +42,12 @@ export function renderMaterials(v) {
         card.innerHTML = `<div class="text-[10px] font-bold text-slate-400 absolute top-2 right-2">${formatKg(stats[m])}</div><div class="text-base font-black uppercase tracking-tight">${m}</div>`;
         grid.appendChild(card);
     });
+    // "+" pro přidání nového filamentu (bez předvyplnění)
+    const addCard = document.createElement('div');
+    addCard.className = "aspect-square bg-indigo-50 border-2 border-dashed border-indigo-200 rounded-2xl p-3 flex items-center justify-center text-center shadow-sm cursor-pointer hover:border-indigo-400 hover:bg-indigo-100 transition-colors";
+    addCard.onclick = () => { if (window.openForm) window.openForm(); };
+    addCard.innerHTML = '<div class="text-3xl font-bold text-indigo-500">+</div>';
+    grid.appendChild(addCard);
     v.appendChild(grid);
 }
 
@@ -72,6 +79,15 @@ export function renderColors(v) {
         card.innerHTML = `<div class="text-[10px] font-bold absolute top-2 right-2 opacity-70">${formatKg(info.g)}</div><div class="text-[13px] font-black uppercase px-1">${c}</div>`;
         grid.appendChild(card);
     });
+    // "+" pro přidání nového filamentu (předvyplní se materiál, pokud je vyfiltrovaný)
+    const addCard = document.createElement('div');
+    addCard.className = "aspect-square bg-indigo-50 border-2 border-dashed border-indigo-200 rounded-2xl p-3 flex items-center justify-center text-center shadow-sm cursor-pointer hover:border-indigo-400 hover:bg-indigo-100 transition-colors";
+    addCard.onclick = () => {
+        const preset = state.filters.mat ? { mat: state.filters.mat } : null;
+        if (window.openForm) window.openForm(preset);
+    };
+    addCard.innerHTML = '<div class="text-3xl font-bold text-indigo-500">+</div>';
+    grid.appendChild(addCard);
     v.appendChild(grid);
 }
 
@@ -175,6 +191,22 @@ export function renderDetails(v) {
         // Zvýraznění jen jednou – po prvním vykreslení vyčisti ID
         state.lastUpdatedFilamentId = null;
     }
+
+    // "+" pro přidání nového filamentu (předvyplní se materiál a barva podle filtrů)
+    const addCard = document.createElement('div');
+    addCard.className = "bg-indigo-50 border-2 border-dashed border-indigo-200 p-4 rounded-2xl flex items-center justify-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-100 transition-colors";
+    addCard.onclick = () => {
+        const preset = {};
+        if (state.filters.mat) preset.mat = state.filters.mat;
+        if (state.filters.color) {
+            preset.color = state.filters.color;
+            const fromFilament = filtered.find(i => i.color === state.filters.color);
+            preset.hex = fromFilament?.hex || colorPalette.find(c => c.name === state.filters.color)?.hex || '#4f46e5';
+        }
+        if (window.openForm) window.openForm(Object.keys(preset).length ? preset : null);
+    };
+    addCard.innerHTML = '<div class="text-2xl font-bold text-indigo-500">+</div><span class="ml-2 font-bold text-indigo-600">Přidat filament</span>';
+    container.appendChild(addCard);
 
     v.appendChild(container);
     const btn = document.createElement('button');

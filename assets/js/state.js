@@ -16,7 +16,8 @@ export const state = {
     consumeMode: 'used', // used (subtract), weight (calculate from gross)
     formFieldsStatus: { mat: 'select', man: 'select', loc: 'select', seller: 'select', spool: 'select' },
     expandedGroups: new Set(), // Track which filament groups are expanded
-    lastUpdatedFilamentId: null // For temporary highlight after save/consume
+    lastUpdatedFilamentId: null, // For temporary highlight after save/consume
+    formPreset: null // { mat?, color?, hex? } when opening form from wizard "+"
 };
 
 // State setters

@@ -49,17 +49,27 @@ export function renderForm(v) {
             date: '',
             seller: ''
         })
-        : {
-            mat: '',
-            color: '',
-            hex: '#4f46e5',
-            man: '',
-            g: 1000,
-            loc: '',
-            price: '',
-            date: '',
-            seller: ''
-        };
+        : (() => {
+            const empty = {
+                mat: '',
+                color: '',
+                hex: '#4f46e5',
+                man: '',
+                g: 1000,
+                loc: '',
+                price: '',
+                date: '',
+                seller: ''
+            };
+            if (state.formPreset) {
+                const p = state.formPreset;
+                if (p.mat !== undefined && p.mat !== '') empty.mat = p.mat;
+                if (p.color !== undefined && p.color !== '') empty.color = p.color;
+                if (p.hex !== undefined && p.hex !== '') empty.hex = p.hex;
+                state.formPreset = null;
+            }
+            return empty;
+        })();
 
     // Calculate next available user_display_id for new filament
     let suggestedDisplayId = null;
@@ -196,13 +206,15 @@ export function renderForm(v) {
 }
 
 // Otevření formuláře (nový nebo editace) a nastavení routingu
-export function openForm() {
+// preset: { mat?, color?, hex? } – předvyplnění při přidání z wizardu (MAT/BAR/VÝR "+")
+export function openForm(preset = null) {
     // If opening fresh (not edit), reset editingId and form status
     if (!state.editingId) {
         state.editingId = null;
         // Reset form fields to select mode
         state.formFieldsStatus = { mat: 'select', man: 'select', loc: 'select', seller: 'select', spool: 'select' };
         state.weightMode = 'netto';
+        state.formPreset = preset && (preset.mat || preset.color || preset.hex) ? preset : null;
     }
     // Always clear formValues when opening form (will be cleared again in renderFormAsync, but this ensures it's cleared early)
     state.formValues = null;
