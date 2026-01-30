@@ -45,16 +45,19 @@ Aplikace používá wizard pro procházení filamentů:
 1. **MAT (Materiál)** - `/wizard/mat`
    - Zobrazení všech materiálů s celkovou hmotností
    - Kliknutí → přechod na BAR nebo VÝR
+   - Karta **+** na konci → přidání nového filamentu (bez předvyplnění)
 
 2. **BAR (Barva)** - `/wizard/bar`
    - Zobrazení barev s celkovou hmotností
    - Barevné karty s kontrastním textem
    - Kliknutí → přechod na MAT nebo VÝR
+   - Karta **+** na konci → přidání nového filamentu (předvyplní se materiál, pokud je vyfiltrovaný)
 
 3. **VÝR (Výrobce/Detail)** - `/wizard/vyr`
    - Detailní seznam filamentů
    - Groupování podle výrobce+materiál+barva
    - Možnost rozbalení skupin
+   - Položka **+ Přidat filament** → přidání nového filamentu (předvyplní se materiál i barva podle filtrů)
 
 ### Header navigace
 

@@ -30,6 +30,13 @@ export function renderHelp(v) {
                 <li><strong>VÝR (Výrobce/Detail)</strong> - Zobrazí se konkrétní filamenty</li>
             </ol>
             <p class="text-slate-500 text-sm mt-3">💡 Filtry můžete kombinovat nebo resetovat tlačítkem <em>Vymazat filtry</em></p>
+            <p class="text-slate-600 mt-4 mb-2 font-bold">Přidání filamentu z wizardu</p>
+            <p class="text-slate-600 text-sm">Na každé obrazovce (MAT, BAR, VÝR) je za kartami položka <strong>+</strong>. Kliknutím otevřete formulář pro nový filament:</p>
+            <ul class="list-disc list-inside space-y-1 text-slate-700 text-sm mt-2 ml-2">
+                <li><strong>MAT</strong> – nic se nepředvyplní</li>
+                <li><strong>BAR</strong> – předvyplní se materiál (pokud jste ho vyfiltrovali)</li>
+                <li><strong>VÝR</strong> – předvyplní se materiál i barva podle aktuálních filtrů</li>
+            </ul>
         </div>
 
         <!-- Zápis čerpání -->
@@ -121,6 +128,7 @@ export function renderHelp(v) {
                 <li>• Číslo filamentu můžete libovolně měnit podle svého systému</li>
                 <li>• Filamenty s nulovou hmotností se automaticky skrývají</li>
                 <li>• Tlačítka Zpět/Vpřed v prohlížeči fungují pro navigaci v aplikaci</li>
+                <li>• Nový filament můžete přidat z kterékoliv obrazovky wizardu pomocí <strong>+</strong> (materiál a barva se předvyplní podle filtrů)</li>
                 <li>• Demo účet slouží pouze k prohlížení, vytvořte si vlastní pro plný přístup</li>
             </ul>
         </div>

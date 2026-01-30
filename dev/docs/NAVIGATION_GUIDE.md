@@ -19,6 +19,8 @@
    - Kliknout na název filamentu (nebo na kartu s výrobcem)
    - Zobrazí se **editační formulář** filamentu
 
+**Přidání nového filamentu z wizardu:** Na každé obrazovce (MAT, BAR, VÝR) je za kartami položka **+**. Kliknutím se otevře formulář pro nový filament. Na MAT se nic nepředvyplní, na BAR se předvyplní materiál (pokud je vyfiltrovaný), na VÝR se předvyplní materiál i barva.
+
 5. **Čerpání filamentu**
    - V editačním formuláři kliknout na **hmotnost**
    - Zobrazí se formulář pro čerpání filamentu
@@ -37,5 +39,6 @@ Homepage (MAT)
 
 - Navigace probíhá pomocí karet MAT → BAR → VÝR
 - Každý krok filtruje filamenty podle předchozího výběru
+- Na každé obrazovce je karta **+** pro přidání nového filamentu (s předvyplněním podle aktuálního filtru)
 - Editační formulář se otevře kliknutím na konkrétní filament
 - Čerpání se otevře kliknutím na hmotnost v editačním formuláři
