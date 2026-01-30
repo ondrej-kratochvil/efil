@@ -15,7 +15,8 @@ export const state = {
     consumeId: null,
     consumeMode: 'used', // used (subtract), weight (calculate from gross)
     formFieldsStatus: { mat: 'select', man: 'select', loc: 'select', seller: 'select', spool: 'select' },
-    expandedGroups: new Set() // Track which filament groups are expanded
+    expandedGroups: new Set(), // Track which filament groups are expanded
+    lastUpdatedFilamentId: null // For temporary highlight after save/consume
 };
 
 // State setters

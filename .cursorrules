@@ -75,10 +75,9 @@ Každá aplikace musí mít definovanou faviconu.
 
 ### Footer
 
-- **Copyright**: Obsahuje copyright text dle projektu
-  - Formát: `© [aktuální rok] [název společnosti/projektu]`
-  - Odkaz na web (pokud je relevantní)
-  - *Poznámka: Text copyrightu se přizpůsobí konkrétnímu projektu*
+- **Copyright**: Obsahuje copyright firmy
+  - Formát: `© [aktuální rok] [Sensio.cz s.r.o.]`
+  - Odkaz na web https://sensio.cz/
 
 ### Responzivita
 
@@ -108,7 +107,6 @@ Každá aplikace musí mít definovanou faviconu.
 ├── config.php                   # Konfigurace (DB, env proměnné) - pouze Full-stack
 ├── api/                         # API endpointy - pouze Full-stack
 │   ├── auth/
-│   ├── filaments/
 │   └── ...
 ├── assets/                      # Statické soubory (CSS, JS, obrázky)
 │   ├── css/
@@ -153,6 +151,32 @@ Každá aplikace musí mít definovanou faviconu.
 - **`dev/sql/`**: Pouze u Full-stack projektů (SQL schémata a migrace)
 - **`dev/scripts/`**: Testovací a diagnostické skripty
 - **`dev/docs/`**: Veškerá dokumentace projektu
+
+### Délka souborů a modularita
+
+**Soubory by měly mít přiměřenou délku a být rozdělené na logické moduly:**
+
+- **Cílová délka (soft limits)**:
+  - **JavaScript**: max. **600 řádků** na soubor
+    - Seskupuj logiku k sobě (např. `ajax.js`, `ui-validations.js`, `router.js`, `views/*.js`)
+  - **PHP**: max. **800 řádků** na soubor
+    - Vzhledem k verbositě (PDO), ale **jeden soubor by neměl řešit více domén / oblastí logiky**
+  - **CSS**: max. **800 řádků** na soubor
+    - Děl logicky podle **sekcí aplikace** (layout, formuláře, dashboard), ne podle jednotlivých HTML elementů
+
+- **Kdy refaktorovat**:
+  - Primárně tehdy, když soubor porušuje **Single Responsibility Principle** (dělá více nesouvisejících věcí)
+  - Délka souboru je vodítko, ne dogma – pokud je soubor kratší, ale míchá více domén, **rozděl ho**
+  - Naopak delší soubor, který řeší jednu jasnou doménu, může zůstat, pokud je stále čitelný
+
+- **Jak refaktorovat a organizovat moduly**:
+  - JavaScript: Používej ES moduly (`import`/`export`), odděluj **API volání, UI logiku a stav** do samostatných souborů
+  - PHP: Rozděluj podle domén (`auth`, `admin`, …), endpointy organizuj do podsložek (`api/user/list.php`, `api/user/save.php`, …)
+  - CSS: Seskupuj styly podle stránek / komponent, ne podle tagů (`.page-dashboard`, `.form-login`, `.menu-main`, …)
+
+- **Antivzory**:
+  - U PHP se vyhni **„God Objects“** – třídám nebo souborům, které „vědí všechno“ a řeší více domén najednou
+  - Pokud třída/soubor obsahuje logiku pro více oblastí (např. auth + reporting + e‑mail), rozděl ji na menší specializované části
 
 ---
 
@@ -206,6 +230,56 @@ Navrhni 2-3 body pro člověka, které nelze automatizovat:
 - Specifické mobilní chování (swipe, touch targets)
 
 ---
+
+## Optimalizace výkonu (Speed & Efficiency)
+
+### Databáze (PDO & SQL)
+
+- **SELECTy**:
+  - V produkci **nikdy nepoužívej `SELECT *`**
+  - Vždy explicitně vyjmenuj potřebné sloupce (`SELECT id, name, price FROM ...`)
+
+- **N+1 problém**:
+  - Vyhni se cyklickým dotazům do DB (dotaz uvnitř `foreach`)
+  - Preferuj:
+    - `JOIN` pro načtení souvisejících dat jedním dotazem
+    - nebo 2 kroky:
+      1. Načti ID do pole
+      2. Použij `WHERE IN (...)` v dalším dotazu
+      3. Spáruj výsledky v PHP (např. pole indexované podle ID)
+
+- **Indexy**:
+  - Ujisti se, že sloupce používané ve **WHERE**, **JOIN** a **ORDER BY** mají vhodné indexy
+  - Pravidelně kontroluj pomalé dotazy (slow query log) a dle potřeby doplň indexy
+
+### Frontend (Vanilla JS & DOM)
+
+- **DOM manipulace**:
+  - Minimalizuj počet přístupů do DOMu
+  - Čtení (layout) a zápis (render) **seskupuj** – nejdřív přečti vše potřebné, pak proveď zápisy
+  - Při vkládání více prvků používej `DocumentFragment` nebo buildni HTML jako string a vlož ho jedním `innerHTML`
+
+- **Event Delegation**:
+  - Místo přidávání listeneru na každé tlačítko/položku použij **delegaci**:
+    - Pověs **jeden listener na rodiče** (container)
+    - Uvnitř handleru pracuj s `event.target` / `closest()` pro zjištění konkrétního prvku
+
+- **Loading**:
+  - Skripty načítej s atributem `defer` (neblokuje parsing HTML, zachová pořadí)
+  - Obrázky mimo první obrazovku (below-the-fold) musí mít `loading="lazy"`
+
+### PHP Backend
+
+- **Statické assets (CSS/JS)**:
+  - Používej **cache-busting** pomocí timestampu, např.:
+    - `style.css?v=<?= filemtime('assets/css/style.css') ?>`
+  - Samotné soubory nech **cachovat prohlížečem** (dlouhý `Cache-Control`, ETag), mění se jen query param
+
+- **Output Buffering**:
+  - Při generování HTML používej `ob_start()`, výstup sestav v bufferu a odešli najednou (`ob_get_clean()` / `ob_end_flush()`)
+  - Umožňuje:
+    - Snadnější práci s hlavičkami (`header()`)
+    - Konsolidovaný výstup (méně chunků, lepší pro některé reverse proxy)
 
 ## GitHub workflow
 

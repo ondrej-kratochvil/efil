@@ -1,3 +1,12 @@
+<?php
+declare(strict_types=1);
+
+$cssFile = __DIR__ . '/assets/css/main.css';
+$jsFile  = __DIR__ . '/assets/js/app.js';
+
+$cssVersion = is_file($cssFile) ? (string)filemtime($cssFile) : '1';
+$jsVersion  = is_file($jsFile) ? (string)filemtime($jsFile) : '1';
+?>
 <!DOCTYPE html>
 <html lang="cs">
 <head>
@@ -11,8 +20,8 @@
         (function() {
             const path = window.location.pathname;
             let cleanPath = path.replace(/\/$/, '');
-            if (cleanPath.endsWith('index.html')) {
-                cleanPath = cleanPath.replace(/\/index\.html$/, '');
+            if (cleanPath.endsWith('index.html') || cleanPath.endsWith('index.php')) {
+                cleanPath = cleanPath.replace(/\/index\.(html|php)$/, '');
             }
             const segments = cleanPath.split('/').filter(s => s);
             const appRoutes = ['wizard', 'form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'admin-stats', 'inventory-switch', 'forgot-password', 'reset-password'];
@@ -59,13 +68,13 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="" id="main-css">
     <script>
-        // Nastavit absolutní cestu k CSS pomocí BASE_PATH
+        // Nastavit absolutní cestu k CSS pomocí BASE_PATH + cache-busting verzí
         (function() {
             const cssLink = document.getElementById('main-css');
             if (cssLink) {
                 const basePath = window.__BASE_PATH__ || '';
                 // Vždy použít absolutní cestu začínající /
-                const correctPath = basePath ? basePath + '/assets/css/main.css' : '/assets/css/main.css';
+                const correctPath = basePath ? basePath + '/assets/css/main.css?v=<?= htmlspecialchars($cssVersion, ENT_QUOTES) ?>' : '/assets/css/main.css?v=<?= htmlspecialchars($cssVersion, ENT_QUOTES) ?>';
                 cssLink.href = correctPath;
             }
         })();
@@ -144,14 +153,16 @@
     <div id="toast" class="fixed bottom-8 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-3 rounded-full text-sm font-bold shadow-2xl opacity-0 transition-opacity pointer-events-none z-[60]">Uloženo</div>
 
     <script type="module">
-        // Nastavit absolutní cestu k JS pomocí BASE_PATH
+        // Nastavit absolutní cestu k JS pomocí BASE_PATH + cache-busting verzí
         (function() {
             const jsScript = document.createElement('script');
             jsScript.type = 'module';
             jsScript.id = 'app-js';
             const basePath = window.__BASE_PATH__ || '';
             // Vždy použít absolutní cestu začínající /
-            const correctPath = basePath ? basePath + '/assets/js/app.js' : '/assets/js/app.js';
+            const correctPath = basePath
+                ? basePath + '/assets/js/app.js?v=<?= htmlspecialchars($jsVersion, ENT_QUOTES) ?>'
+                : '/assets/js/app.js?v=<?= htmlspecialchars($jsVersion, ENT_QUOTES) ?>';
             jsScript.src = correctPath;
             document.body.appendChild(jsScript);
         })();
@@ -163,3 +174,4 @@
     </footer>
 </body>
 </html>
+

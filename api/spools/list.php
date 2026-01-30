@@ -26,18 +26,43 @@ try {
     $stmt->execute([$userId]);
     $spools = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // For each spool, get associated manufacturers
-    $stmtManuf = $pdo->prepare("
-        SELECT m.id, m.name
-        FROM manufacturers m
-        INNER JOIN spool_manufacturer sm ON m.id = sm.manufacturer_id
-        WHERE sm.spool_id = ?
-    ");
+    if (empty($spools)) {
+        echo json_encode([]);
+        exit;
+    }
+
+    // Avoid N+1: load all manufacturers for all spools in a single query
+    $spoolIds = array_column($spools, 'id');
+
+    $placeholders = implode(',', array_fill(0, count($spoolIds), '?'));
+    $sqlManuf = "
+        SELECT sm.spool_id, m.id, m.name
+        FROM spool_manufacturer sm
+        INNER JOIN manufacturers m ON m.id = sm.manufacturer_id
+        WHERE sm.spool_id IN ($placeholders)
+        ORDER BY m.name
+    ";
+    $stmtManuf = $pdo->prepare($sqlManuf);
+    $stmtManuf->execute($spoolIds);
+    $rows = $stmtManuf->fetchAll(PDO::FETCH_ASSOC);
+
+    $manBySpool = [];
+    foreach ($rows as $row) {
+        $spoolId = (int)$row['spool_id'];
+        if (!isset($manBySpool[$spoolId])) {
+            $manBySpool[$spoolId] = [];
+        }
+        $manBySpool[$spoolId][] = [
+            'id' => (int)$row['id'],
+            'name' => $row['name'],
+        ];
+    }
 
     foreach ($spools as &$spool) {
-        $stmtManuf->execute([$spool['id']]);
-        $spool['manufacturers'] = $stmtManuf->fetchAll(PDO::FETCH_ASSOC);
+        $id = (int)$spool['id'];
+        $spool['manufacturers'] = $manBySpool[$id] ?? [];
     }
+    unset($spool);
 
     echo json_encode($spools);
 

@@ -168,14 +168,19 @@ export async function saveFilament(data) {
             body: JSON.stringify(data)
         });
 
+        const result = await res.json();
+
         if (res.ok) {
+            // Zapamatuj si ID uloženého filamentu pro krátké zvýraznění
+            const filamentId = result.id ?? data.id ?? null;
+            state.lastUpdatedFilamentId = filamentId ? parseInt(filamentId) : null;
+
             showToast('Uloženo');
             await loadData();
-            state.filters = { mat: null, color: null };
-            router.push(BASE_PATH + '/wizard/mat');
+            // Filtry neměnit – po editaci zůstat na VÝR s aktuálními filtry a zvýrazněním (jako po čerpání)
+            router.push(BASE_PATH + '/wizard/vyr');
         } else {
-            const err = await res.json();
-            showToast(err.error || 'Chyba při ukládání');
+            showToast(result.error || 'Chyba při ukládání');
         }
     } catch (err) {
         showToast('Chyba sítě');
@@ -199,9 +204,15 @@ export async function consumeFilament(filamentId, amount, description, date) {
         });
         const data = await res.json();
         if (res.ok) {
+            // Zapamatuj si ID filamentu pro krátké zvýraznění
+            state.lastUpdatedFilamentId = filamentId;
+
             showToast('Spotřeba zaznamenána');
+            // Aktualizuj data, ale ponech aktuální filtry
             await loadData();
-            router.push(BASE_PATH + '/wizard/mat');
+            // Po čerpání se vrať na výběr výrobce (VÝR),
+            // aby byl hned vidět aktualizovaný zbytek hmotnosti
+            router.push(BASE_PATH + '/wizard/vyr');
         } else {
             showToast(data.error || 'Chyba při ukládání');
         }

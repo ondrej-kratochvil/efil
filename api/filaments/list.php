@@ -108,6 +108,7 @@ try {
             f.id, f.user_display_id, f.material as mat, f.manufacturer as man, f.color_name as color,
             f.color_hex as hex, f.location as loc, f.price, f.seller, f.purchase_date as date,
             f.spool_type_id as spool_id, COALESCE(sl.weight_grams, 0) as spool_weight,
+            f.initial_weight_grams,
             (f.initial_weight_grams + COALESCE(SUM(cl.amount_grams), 0)) as g
         FROM filaments f
         LEFT JOIN consumption_log cl ON f.id = cl.filament_id

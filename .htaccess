@@ -34,7 +34,9 @@ Options -Indexes
 # UTF-8 encoding
 AddDefaultCharset UTF-8
 
-# SPA Routing - přesměrovat všechny neexistující cesty na index.html
+DirectoryIndex index.php index.html
+
+# SPA Routing - přesměrovat všechny neexistující cesty na index.php
 # Toto umožní obnovení stránky na libovolné client-side route
 <IfModule mod_rewrite.c>
     RewriteEngine On
@@ -52,8 +54,8 @@ AddDefaultCharset UTF-8
     # A není to dev/ složka
     RewriteCond %{REQUEST_URI} !^/dev/ [NC]
 
-    # Přesměruj na index.html
-    RewriteRule ^(.*)$ index.html [L]
+    # Přesměruj na index.php
+    RewriteRule ^(.*)$ index.php [L]
 </IfModule>
 
 # POZNÁMKA:

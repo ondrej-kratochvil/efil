@@ -21,3 +21,11 @@ logs/
 tmp/
 temp/
 
+# Node.js
+node_modules/
+package-lock.json
+
+# Build outputs (generated files)
+# Note: tailwind.css should be committed for production
+# assets/css/tailwind.css
+
