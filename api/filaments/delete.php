@@ -33,6 +33,11 @@ if (!$inventoryId) {
 
 // Get request data
 $data = json_decode(file_get_contents('php://input'), true);
+if (!is_array($data)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid JSON']);
+    exit;
+}
 $filamentId = intval($data['id'] ?? 0);
 
 if (!$filamentId) {
@@ -65,8 +70,8 @@ try {
     $isAdmin = ($user && $user['role'] === 'admin_efil');
     
     // Check if demo mode (and user is not admin)
-    // MySQL BOOLEAN is TINYINT(1), so we need to check for 1 or '1'
-    $isDemo = ($inventory['is_demo'] === 1 || $inventory['is_demo'] === '1' || (bool)$inventory['is_demo']);
+    // MySQL TINYINT(1) may be returned as int or string; use int comparison to avoid (bool)'0' quirks
+    $isDemo = ((int)($inventory['is_demo'] ?? 0) === 1);
     if ($isDemo && !$isAdmin) {
         http_response_code(403);
         echo json_encode(['error' => 'V demo režimu nelze mazat']);

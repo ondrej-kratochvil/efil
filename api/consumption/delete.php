@@ -90,8 +90,8 @@ try {
     $isAdmin = ($user && $user['role'] === 'admin_efil');
 
     // Check if demo mode (and user is not admin)
-    // MySQL BOOLEAN is TINYINT(1), so we need to check for 1 or '1'
-    $isDemo = ($consumption['is_demo'] === 1 || $consumption['is_demo'] === '1' || (bool)$consumption['is_demo']);
+    // MySQL TINYINT(1) may be returned as int or string; use int comparison to avoid (bool)'0' quirks
+    $isDemo = ((int)($consumption['is_demo'] ?? 0) === 1);
     if ($isDemo && !$isAdmin) {
         http_response_code(403);
         echo json_encode(['error' => 'V demo režimu nelze upravovat data']);

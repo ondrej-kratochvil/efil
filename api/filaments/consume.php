@@ -17,6 +17,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
+if (!is_array($input)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid JSON']);
+    exit;
+}
 $userId = $_SESSION['user_id'];
 $filamentId = $input['filament_id'] ?? null;
 $amount = isset($input['amount_grams']) ? (int)$input['amount_grams'] : ((int)($input['amount'] ?? 0)); // Negative for consumption, positive for correction
@@ -67,8 +72,8 @@ try {
     $isAdmin = ($user && $user['role'] === 'admin_efil');
 
     // Check if demo mode (and user is not admin)
-    // MySQL BOOLEAN is TINYINT(1), so we need to check for 1 or '1'
-    $isDemo = ($filamentData['is_demo'] === 1 || $filamentData['is_demo'] === '1' || (bool)$filamentData['is_demo']);
+    // MySQL TINYINT(1) may be returned as int or string; use int comparison to avoid (bool)'0' quirks
+    $isDemo = ((int)($filamentData['is_demo'] ?? 0) === 1);
     if ($isDemo && !$isAdmin) {
         http_response_code(403);
         echo json_encode(['error' => 'V demo režimu nelze upravovat data. Vytvořte si vlastní účet pro plný přístup.']);

@@ -26,6 +26,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
+if (!is_array($input)) {
+    jsonResponse(['error' => 'Invalid JSON'], 400);
+}
 $userId = $_SESSION['user_id'];
 
 // Get user's inventory (owned or shared with write/manage permission)
@@ -57,8 +60,8 @@ $user = $stmt->fetch();
 $isAdmin = ($user && $user['role'] === 'admin_efil');
 
 // Check if demo mode (and user is not admin)
-// MySQL BOOLEAN is TINYINT(1), so we need to check for 1 or '1'
-$isDemo = ($inv['is_demo'] === 1 || $inv['is_demo'] === '1' || (bool)$inv['is_demo']);
+// MySQL TINYINT(1) may be returned as int or string; use int comparison to avoid (bool)'0' quirks
+$isDemo = ((int)($inv['is_demo'] ?? 0) === 1);
 if ($isDemo && !$isAdmin) {
     jsonResponse(['error' => 'V demo režimu nelze upravovat data. Vytvořte si vlastní účet pro plný přístup.'], 403);
 }
