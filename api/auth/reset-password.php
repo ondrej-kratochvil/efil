@@ -28,9 +28,9 @@ if (!$token) {
     exit;
 }
 
-if (strlen($password) < 6) {
+if (strlen($password) < 8) {
     http_response_code(400);
-    echo json_encode(['error' => 'Heslo musí mít alespoň 6 znaků']);
+    echo json_encode(['error' => 'Heslo musí mít alespoň 8 znaků']);
     exit;
 }
 

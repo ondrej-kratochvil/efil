@@ -28,9 +28,9 @@ $currentPassword = $data['current_password'] ?? '';
 $newPassword = $data['new_password'] ?? '';
 
 // Validate input
-if (strlen($newPassword) < 6) {
+if (strlen($newPassword) < 8) {
     http_response_code(400);
-    echo json_encode(['error' => 'Nové heslo musí mít alespoň 6 znaků']);
+    echo json_encode(['error' => 'Nové heslo musí mít alespoň 8 znaků']);
     exit;
 }
 
