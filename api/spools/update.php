@@ -86,9 +86,9 @@ try {
     $hasManufUpdate = $manufData !== null;
     $hasSpoolUpdate = count($updates) > 0;
     
-    // Use transaction if both spool data and manufacturer associations are being updated
-    // to ensure atomicity - if manufacturer validation fails, spool update should also rollback
-    $useTransaction = $hasSpoolUpdate && $hasManufUpdate;
+    // Use transaction whenever multiple operations run: spool UPDATE and/or manufacturer DELETE+INSERT.
+    // Required when only manufacturers are updated so that failed INSERT after DELETE can roll back.
+    $useTransaction = $hasSpoolUpdate || $hasManufUpdate;
     
     if ($useTransaction) {
         $pdo->beginTransaction();
