@@ -3,10 +3,12 @@
 ## Cíl
 Přesunout všechny vývojové soubory do `dev/` a jeho podsložek, aby v rootu zůstaly pouze produkční soubory.
 
+**Stav:** Reorganizace byla provedena. Testy jsou v `dev/tests/`, SQL a migrace v `dev/sql/`, skripty v `dev/scripts/`, dokumentace v `dev/docs/`.
+
 ## Aktuální vs. Cílový stav
 
 ### Root (produkční soubory - zůstávají)
-- ✅ `index.html`
+- ✅ `index.php`
 - ✅ `.htaccess`
 - ✅ `.gitignore`
 - ✅ `README.md`

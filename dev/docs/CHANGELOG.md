@@ -72,12 +72,12 @@ SMTP_FROM_NAME=eFil - Evidence Filamentů
 
 Spusťte migrační skript pro existující databáze:
 ```bash
-php update_consumption_schema.php
+php dev/sql/update_consumption_schema.php
 ```
 
 Nebo pro nové instalace:
 ```bash
-php init_db.php
+php dev/sql/init_db.php
 ```
 
 ### 📝 Poznámky pro vývojáře

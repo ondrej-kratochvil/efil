@@ -111,7 +111,7 @@ php dev/sql/update_spool_schema.php
 
 2. **Otevřete aplikaci v prohlížeči:**
    ```
-   http://localhost/a/efil-github/index.html
+   http://localhost/a/efil-github/index.php
    ```
 
 3. **Přihlaste se pomocí demo účtu:**
@@ -148,7 +148,7 @@ efil-github/
 │   └── tests/                   # Testovací skripty
 ├── config.php                   # Konfigurace databáze a aplikace
 ├── .env.example                 # Příklad konfigurace prostředí
-├── index.html                   # Hlavní HTML soubor
+├── index.php                    # Vstupní bod aplikace
 └── README.md                    # Tento soubor
 ```
 
