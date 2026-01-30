@@ -4,15 +4,16 @@ declare(strict_types=1);
 /**
  * Add user to inventory
  * POST /api/users/add.php
- * 
+ *
  * Body: { email, role }
- * 
+ *
  * If user exists: adds to inventory and sends notification
  * If user doesn't exist: creates account without password and sends setup email
  */
 
 session_start();
 require_once '../../config.php';
+require_once '../helpers/inventory.php';
 require_once '../helpers/jwt.php';
 require_once '../helpers/email.php';
 
@@ -53,64 +54,31 @@ if (!in_array($role, ['read', 'write', 'manage'])) {
 }
 
 try {
-    // Check if user has manage permission
-    $stmt = $pdo->prepare("
-        SELECT role FROM inventory_members 
-        WHERE inventory_id = ? AND user_id = ?
-    ");
-    $stmt->execute([$inventoryId, $userId]);
-    $member = $stmt->fetch();
-    
-    // Check if user is owner
-    $stmt = $pdo->prepare("SELECT owner_id, name FROM inventories WHERE id = ?");
-    $stmt->execute([$inventoryId]);
-    $inventory = $stmt->fetch();
-    
-    // Verify inventory exists
-    if (!$inventory) {
-        http_response_code(404);
-        echo json_encode(['error' => 'Evidence nenalezena']);
-        exit;
-    }
-    
-    $isOwner = ((int) $inventory['owner_id'] === (int) $userId);
-    
-    // Check if user is admin_efil
-    $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
-    $stmt->execute([$userId]);
-    $user = $stmt->fetch();
-    $isAdmin = ($user && $user['role'] === 'admin_efil');
-    
-    // Only owner, manage role, or admin can add users
-    if (!$isOwner && !$isAdmin && (!$member || $member['role'] !== 'manage')) {
-        http_response_code(403);
-        echo json_encode(['error' => 'Nedostatečná oprávnění']);
-        exit;
-    }
-    
+    $inventory = requireInventoryManageAccess($pdo, (int) $inventoryId, (int) $userId);
+
     // Check if user exists
     $stmt = $pdo->prepare("SELECT id, email, password_hash FROM users WHERE email = ?");
     $stmt->execute([$email]);
     $targetUser = $stmt->fetch();
-    
+
     if ($targetUser) {
         // User exists - check if already in inventory (as member)
         $stmt = $pdo->prepare("SELECT id FROM inventory_members WHERE inventory_id = ? AND user_id = ?");
         $stmt->execute([$inventoryId, $targetUser['id']]);
-        
+
         if ($stmt->fetch()) {
             http_response_code(400);
             echo json_encode(['error' => 'Uživatel je již v evidenci']);
             exit;
         }
-        
+
         // Check if user is the owner of this inventory
         if ((int) $inventory['owner_id'] === (int) $targetUser['id']) {
             http_response_code(400);
             echo json_encode(['error' => 'Vlastník inventáře nemůže být přidán jako člen']);
             exit;
         }
-        
+
         // Add to inventory and send email in transaction (rollback if email fails)
         $pdo->beginTransaction();
         try {
@@ -138,7 +106,7 @@ try {
             $pdo->rollBack();
             throw $e;
         }
-        
+
     } else {
         // User doesn't exist - create account without password (transaction: rollback if email fails)
         $pdo->beginTransaction();
@@ -146,6 +114,13 @@ try {
             $stmt = $pdo->prepare("INSERT INTO users (email, password_hash, role) VALUES (?, NULL, 'user')");
             $stmt->execute([$email]);
             $newUserId = $pdo->lastInsertId();
+            $newUserId = $newUserId !== false && $newUserId !== '' ? (int) $newUserId : 0;
+            if ($newUserId <= 0) {
+                $pdo->rollBack();
+                http_response_code(500);
+                echo json_encode(['error' => 'Vytvoření uživatele se nezdařilo']);
+                exit;
+            }
 
             $stmt = $pdo->prepare("INSERT INTO inventory_members (inventory_id, user_id, role) VALUES (?, ?, ?)");
             $stmt->execute([$inventoryId, $newUserId, $role]);
@@ -175,7 +150,7 @@ try {
             throw $e;
         }
     }
-    
+
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Chyba databáze: ' . $e->getMessage()]);

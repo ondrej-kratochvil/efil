@@ -43,14 +43,14 @@ try {
         $stmt->execute([$inv['id']]);
         $topMaterials = $stmt->fetchAll(PDO::FETCH_COLUMN);
         
-        // Get manufacturer frequencies: only from lookup table so top/others use same source
+        // Get manufacturer frequencies: from filaments only (no join to manufacturers lookup)
+        // so all values are visible even if some are missing from the lookup table
         $sql = "
-            SELECT m.name, COUNT(*) as count
-            FROM filaments f
-            INNER JOIN manufacturers m ON f.manufacturer = m.name
-            WHERE f.inventory_id = ? AND f.manufacturer IS NOT NULL AND f.manufacturer != ''
-            GROUP BY m.name
-            ORDER BY count DESC, m.name ASC
+            SELECT manufacturer, COUNT(*) as count
+            FROM filaments
+            WHERE inventory_id = ? AND manufacturer IS NOT NULL AND manufacturer != ''
+            GROUP BY manufacturer
+            ORDER BY count DESC, manufacturer ASC
             LIMIT 5
         ";
         $stmt = $pdo->prepare($sql);
@@ -63,13 +63,12 @@ try {
         $stmt->execute([$inv['id']]);
         $dbMaterials = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-        // Get manufacturers that appear in this inventory (from lookup table, filtered by inventory)
+        // Get manufacturers that appear in this inventory (from filaments only)
         $sql = "
-            SELECT DISTINCT m.name
-            FROM filaments f
-            INNER JOIN manufacturers m ON f.manufacturer = m.name
-            WHERE f.inventory_id = ? AND f.manufacturer IS NOT NULL AND f.manufacturer != ''
-            ORDER BY m.name
+            SELECT DISTINCT manufacturer
+            FROM filaments
+            WHERE inventory_id = ? AND manufacturer IS NOT NULL AND manufacturer != ''
+            ORDER BY manufacturer
         ";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$inv['id']]);
