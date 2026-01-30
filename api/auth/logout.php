@@ -11,7 +11,7 @@ $cookieParams = session_get_cookie_params();
 $_SESSION = array();
 
 // Delete the session cookie FIRST (before session_destroy)
-// Use the same options as when the cookie was set (path, domain, secure, httponly, samesite)
+// PHP 7.3+: use options array (third parameter) so samesite is applied; do not mix with legacy positional params
 if (ini_get("session.use_cookies")) {
     $options = [
         'expires' => time() - 3600,
@@ -19,10 +19,8 @@ if (ini_get("session.use_cookies")) {
         'domain' => $cookieParams['domain'],
         'secure' => $cookieParams['secure'],
         'httponly' => $cookieParams['httponly'],
+        'samesite' => $cookieParams['samesite'] ?? 'Lax',
     ];
-    if (isset($cookieParams['samesite'])) {
-        $options['samesite'] = $cookieParams['samesite'];
-    }
     setcookie($sessionName, '', $options);
 }
 

@@ -24,6 +24,11 @@ $userId = $_SESSION['user_id'];
 
 // Get request data
 $data = json_decode(file_get_contents('php://input'), true);
+if (!is_array($data)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Neplatný JSON']);
+    exit;
+}
 $newEmail = trim($data['new_email'] ?? '');
 $password = $data['password'] ?? '';
 
