@@ -80,7 +80,30 @@ try {
                     exit;
                 }
             } else {
-                // Use IDs directly
+                // Use IDs directly - validate they exist (same as spools/update.php)
+                $placeholders = implode(',', array_fill(0, count($manufData), '?'));
+                $stmtValidate = $pdo->prepare("SELECT id FROM manufacturers WHERE id IN ($placeholders)");
+                $stmtValidate->execute($manufData);
+                $validIds = $stmtValidate->fetchAll(PDO::FETCH_COLUMN);
+
+                if (count($validIds) !== count($manufData)) {
+                    $validIdsSet = array_flip(array_map('intval', $validIds));
+                    $invalidIds = [];
+                    foreach ($manufData as $id) {
+                        $idInt = (int) $id;
+                        if (!isset($validIdsSet[$idInt])) {
+                            $invalidIds[] = $idInt;
+                        }
+                    }
+                    $pdo->rollBack();
+                    http_response_code(400);
+                    echo json_encode([
+                        'error' => 'Některé ID výrobců nejsou platné',
+                        'invalid_ids' => $invalidIds
+                    ]);
+                    exit;
+                }
+
                 $stmtManuf = $pdo->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
                 foreach ($manufData as $manufId) {
                     $stmtManuf->execute([$spoolId, $manufId]);
