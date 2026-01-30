@@ -54,7 +54,7 @@ try {
         // Use INNER JOIN to ensure filament exists and belongs to the inventory
         try {
             $stmt = $pdo->prepare("
-                SELECT cl.id, ABS(cl.amount_grams) as consumed_weight, cl.consumption_date, cl.description as note, cl.created_at,
+                SELECT cl.id, cl.amount_grams, ABS(cl.amount_grams) as consumed_weight, cl.consumption_date, cl.description as note, cl.created_at,
                        f.manufacturer, f.material, f.color_name as color, f.user_display_id, f.location,
                        u.email as created_by_email
                 FROM consumption_log cl
@@ -73,7 +73,7 @@ try {
         // Use INNER JOIN to ensure filament exists and belongs to the inventory
         try {
             $stmt = $pdo->prepare("
-                SELECT cl.id, ABS(cl.amount_grams) as consumed_weight, cl.consumption_date, cl.description as note, cl.created_at,
+                SELECT cl.id, cl.amount_grams, ABS(cl.amount_grams) as consumed_weight, cl.consumption_date, cl.description as note, cl.created_at,
                        f.manufacturer, f.material, f.color_name as color, f.user_display_id, f.location,
                        u.email as created_by_email
                 FROM consumption_log cl

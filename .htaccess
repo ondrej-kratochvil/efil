@@ -45,14 +45,14 @@ DirectoryIndex index.php index.html
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
 
-    # A není to API endpoint
-    RewriteCond %{REQUEST_URI} !^/api/
+    # A není to API endpoint (podpora i pro podadresář, např. /a/efil-github/api/)
+    RewriteCond %{REQUEST_URI} !/api/
 
     # A není to fyzický soubor (CSS, JS, obrázky, atd.)
     RewriteCond %{REQUEST_URI} !\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ [NC]
 
-    # A není to dev/ složka
-    RewriteCond %{REQUEST_URI} !^/dev/ [NC]
+    # A není to dev/ složka (podpora i pro podadresář)
+    RewriteCond %{REQUEST_URI} !/dev/
 
     # Přesměruj na index.php
     RewriteRule ^(.*)$ index.php [L]
