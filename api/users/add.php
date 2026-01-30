@@ -111,19 +111,33 @@ try {
             exit;
         }
         
-        // Add to inventory
-        $stmt = $pdo->prepare("INSERT INTO inventory_members (inventory_id, user_id, role) VALUES (?, ?, ?)");
-        $stmt->execute([$inventoryId, $targetUser['id'], $role]);
-        
-        // Send notification email - get root of application (not /api)
-        $loginUrl = getFullBaseUrl();
-        sendInventoryInvitationEmail($email, $inventory['name'], $loginUrl, $smtpConfig);
-        
-        echo json_encode([
-            'success' => true,
-            'message' => 'Uživatel přidán',
-            'user_existed' => true
-        ]);
+        // Add to inventory and send email in transaction (rollback if email fails)
+        $pdo->beginTransaction();
+        try {
+            $stmt = $pdo->prepare("INSERT INTO inventory_members (inventory_id, user_id, role) VALUES (?, ?, ?)");
+            $stmt->execute([$inventoryId, $targetUser['id'], $role]);
+
+            $loginUrl = getFullBaseUrl();
+            $emailSent = sendInventoryInvitationEmail($email, $inventory['name'], $loginUrl, $smtpConfig);
+            if (!$emailSent) {
+                $pdo->rollBack();
+                http_response_code(503);
+                echo json_encode([
+                    'error' => 'Nepodařilo se odeslat e-mail s pozvánkou. Uživatel nebyl přidán. Zkontrolujte konfiguraci SMTP a zkuste to znovu.'
+                ]);
+                exit;
+            }
+
+            $pdo->commit();
+            echo json_encode([
+                'success' => true,
+                'message' => 'Uživatel přidán',
+                'user_existed' => true
+            ]);
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
         
     } else {
         // User doesn't exist - create account without password (transaction: rollback if email fails)
