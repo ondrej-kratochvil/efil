@@ -38,7 +38,7 @@ try {
 
         // Set default inventory_id if user has any inventory (owned first, then shared)
         $stmtInv = $pdo->prepare("
-            SELECT * FROM (
+            SELECT inv.id, inv.is_demo, inv.role, inv._priority FROM (
                 SELECT i.id, i.is_demo, 'owner' as role, 1 as _priority
                 FROM inventories i
                 WHERE i.owner_id = ?
@@ -48,7 +48,7 @@ try {
                 JOIN inventory_members im ON i.id = im.inventory_id
                 WHERE im.user_id = ?
             ) AS inv
-            ORDER BY _priority DESC, id ASC
+            ORDER BY inv._priority DESC, inv.id ASC
             LIMIT 1
         ");
         $stmtInv->execute([$user['id'], $user['id']]);
