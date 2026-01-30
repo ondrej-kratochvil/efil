@@ -74,6 +74,8 @@ try {
     $stmt = $pdo->prepare("UPDATE users SET email = ? WHERE id = ?");
     $stmt->execute([$newEmail, $userId]);
     
+    $_SESSION['email'] = $newEmail;
+    
     echo json_encode([
         'success' => true,
         'message' => 'Email byl změněn'
