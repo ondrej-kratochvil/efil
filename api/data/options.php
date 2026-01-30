@@ -63,10 +63,16 @@ try {
         $stmt->execute([$inv['id']]);
         $dbMaterials = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-        // Get manufacturers from lookup table (single source of truth for options)
-        $sql = "SELECT name FROM manufacturers ORDER BY name";
+        // Get manufacturers that appear in this inventory (from lookup table, filtered by inventory)
+        $sql = "
+            SELECT DISTINCT m.name
+            FROM filaments f
+            INNER JOIN manufacturers m ON f.manufacturer = m.name
+            WHERE f.inventory_id = ? AND f.manufacturer IS NOT NULL AND f.manufacturer != ''
+            ORDER BY m.name
+        ";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute();
+        $stmt->execute([$inv['id']]);
         $dbManufacturers = $stmt->fetchAll(PDO::FETCH_COLUMN);
         
         // Use only database values (no defaults)
