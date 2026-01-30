@@ -90,8 +90,8 @@ try {
     $isAdmin = ($user && $user['role'] === 'admin_efil');
 
     // Check if demo mode (and user is not admin)
-    // MySQL BOOLEAN is TINYINT(1), so we need to check for 1 or '1'
-    $isDemo = ($consumption['is_demo'] === 1 || $consumption['is_demo'] === '1' || (bool)$consumption['is_demo']);
+    // MySQL TINYINT(1) may be returned as int or string; use int comparison to avoid (bool)'0' quirks
+    $isDemo = ((int)($consumption['is_demo'] ?? 0) === 1);
     if ($isDemo && !$isAdmin) {
         http_response_code(403);
         echo json_encode(['error' => 'V demo režimu nelze upravovat data']);
@@ -103,17 +103,38 @@ try {
     $params = [];
 
     if (isset($data['consumed_weight'])) {
-        $newWeight = intval($data['consumed_weight']);
-        
+        $newWeight = (int) $data['consumed_weight'];
+
+        // Reject zero and negative weight (consistent with filaments/consume.php).
+        // Zero would void a consumption record without deleting it; negative would flip type via sign logic.
+        if ($newWeight <= 0) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Hmotnost musí být větší než nula. Pro zrušení záznamu použijte smazání.']);
+            exit;
+        }
+
         // Check if we're updating a correction (positive) or consumption (negative)
         // If amount_grams is provided with sign, use it directly; otherwise use consumed_weight
         if (isset($data['amount_grams'])) {
             // Frontend sent the full amount_grams value (can be positive or negative)
-            $amountGrams = intval($data['amount_grams']);
+            $amountGrams = (int) $data['amount_grams'];
+            $originalAmount = (int) ($consumption['old_weight'] ?? 0);
+            // Reject zero (would void the record)
+            if ($amountGrams === 0) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Hmotnost musí být větší než nula. Pro zrušení záznamu použijte smazání.']);
+                exit;
+            }
+            // Reject sign flip: consumption type must stay the same (positive = correction, negative = consumption)
+            if (($originalAmount >= 0 && $amountGrams < 0) || ($originalAmount < 0 && $amountGrams > 0)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Nelze změnit typ záznamu (čerpání / korekce). Upravte pouze hodnotu.']);
+                exit;
+            }
         } else {
             // Legacy: if only consumed_weight is provided, check original value to preserve sign
             // If original was positive (correction), keep it positive; if negative (consumption), keep negative
-            $originalAmount = $consumption['old_weight'] ?? 0;
+            $originalAmount = (int) ($consumption['old_weight'] ?? 0);
             if ($originalAmount > 0) {
                 // Original was a correction, so new value should also be positive
                 $amountGrams = $newWeight;
@@ -122,7 +143,7 @@ try {
                 $amountGrams = -$newWeight;
             }
         }
-        
+
         $updates[] = "amount_grams = ?";
         $params[] = $amountGrams;
         // Weight is computed dynamically: initial_weight_grams + SUM(consumption_log.amount_grams).
