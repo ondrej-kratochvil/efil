@@ -11,7 +11,8 @@ declare(strict_types=1);
  */
 
 session_start();
-require_once '../../config.php';
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../helpers/demo.php';
 
 header('Content-Type: application/json');
 
@@ -63,24 +64,17 @@ try {
         exit;
     }
     
-    // Check if user is admin_efil
+    checkDemoModeAccess($pdo, (int) $userId, $inventory['is_demo'] ?? null, 'V demo režimu nelze mazat');
+
+    $isOwner = ((int) $inventory['owner_id'] === (int) $userId);
+    $hasWriteAccess = ($inventory['role'] === 'write' || $inventory['role'] === 'manage');
+
+    // Check if user is admin_efil (needed for permission check below)
     $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
     $stmt->execute([$userId]);
     $user = $stmt->fetch();
     $isAdmin = ($user && $user['role'] === 'admin_efil');
-    
-    // Check if demo mode (and user is not admin)
-    // MySQL TINYINT(1) may be returned as int or string; use int comparison to avoid (bool)'0' quirks
-    $isDemo = ((int)($inventory['is_demo'] ?? 0) === 1);
-    if ($isDemo && !$isAdmin) {
-        http_response_code(403);
-        echo json_encode(['error' => 'V demo režimu nelze mazat']);
-        exit;
-    }
-    
-    $isOwner = ((int) $inventory['owner_id'] === (int) $userId);
-    $hasWriteAccess = ($inventory['role'] === 'write' || $inventory['role'] === 'manage');
-    
+
     // User must be owner, have write/manage access, or be admin
     if (!$isOwner && !$hasWriteAccess && !$isAdmin) {
         http_response_code(403);

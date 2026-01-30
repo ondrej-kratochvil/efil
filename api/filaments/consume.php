@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../helpers/demo.php';
 
 session_start();
 header('Content-Type: application/json');
@@ -65,20 +66,7 @@ try {
         exit;
     }
 
-    // Check if user is admin_efil
-    $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
-    $stmt->execute([$userId]);
-    $user = $stmt->fetch();
-    $isAdmin = ($user && $user['role'] === 'admin_efil');
-
-    // Check if demo mode (and user is not admin)
-    // MySQL TINYINT(1) may be returned as int or string; use int comparison to avoid (bool)'0' quirks
-    $isDemo = ((int)($filamentData['is_demo'] ?? 0) === 1);
-    if ($isDemo && !$isAdmin) {
-        http_response_code(403);
-        echo json_encode(['error' => 'V demo režimu nelze upravovat data. Vytvořte si vlastní účet pro plný přístup.']);
-        exit;
-    }
+    checkDemoModeAccess($pdo, (int) $userId, $filamentData['is_demo'] ?? null);
 
     // Log all weight changes: negative = consumption, positive = correction/addition.
     // current_weight = initial_weight_grams + SUM(consumption_log.amount_grams). Audit trail requires every change.
