@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../helpers/demo.php';
 
 header('Content-Type: application/json');
 session_start();
@@ -27,34 +28,12 @@ if (!isset($data['id'])) {
 
 try {
     $consumptionId = $data['id'];
-    $userId = $_SESSION['user_id'];
-    
-    // Get inventory_id from session, or get first available inventory
-    $inventoryId = $_SESSION['inventory_id'] ?? null;
-    
-    if (!$inventoryId) {
-        // Get first available inventory for user
-        $stmtInv = $pdo->prepare("
-            SELECT i.id
-            FROM inventories i
-            WHERE i.owner_id = ?
-            UNION
-            SELECT i.id
-            FROM inventories i
-            JOIN inventory_members im ON i.id = im.inventory_id
-            WHERE im.user_id = ?
-            LIMIT 1
-        ");
-        $stmtInv->execute([$userId, $userId]);
-        $inv = $stmtInv->fetch(PDO::FETCH_ASSOC);
-        
-        if (!$inv) {
-            http_response_code(404);
-            echo json_encode(['error' => 'No inventory found']);
-            exit;
-        }
-        
-        $inventoryId = $inv['id'];
+    $userId = (int) $_SESSION['user_id'];
+    $inventoryId = getInventoryIdForUser($pdo, $userId);
+    if ($inventoryId === null) {
+        http_response_code(404);
+        echo json_encode(['error' => 'No inventory found']);
+        exit;
     }
 
     // Verify access - user must have write/manage permission to the inventory
@@ -83,20 +62,7 @@ try {
         exit;
     }
 
-    // Check if user is admin_efil
-    $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
-    $stmt->execute([$userId]);
-    $user = $stmt->fetch(PDO::FETCH_ASSOC);
-    $isAdmin = ($user && $user['role'] === 'admin_efil');
-
-    // Check if demo mode (and user is not admin)
-    // MySQL TINYINT(1) may be returned as int or string; use int comparison to avoid (bool)'0' quirks
-    $isDemo = ((int)($consumption['is_demo'] ?? 0) === 1);
-    if ($isDemo && !$isAdmin) {
-        http_response_code(403);
-        echo json_encode(['error' => 'V demo režimu nelze upravovat data']);
-        exit;
-    }
+    checkDemoModeAccess($pdo, $userId, $consumption['is_demo'] ?? null, 'V demo režimu nelze upravovat data');
 
     // Weight is computed dynamically: initial_weight_grams + SUM(consumption_log.amount_grams).
     // Deleting the record automatically updates the derived weight; no filaments UPDATE.
