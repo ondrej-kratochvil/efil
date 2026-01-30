@@ -114,7 +114,7 @@ try {
     // Recent activity (last 20 consumption records)
     $stmt = $pdo->prepare("
         SELECT cl.id, ABS(cl.amount_grams) as consumed_weight, cl.consumption_date, cl.description as note,
-               f.manufacturer, f.material, f.color,
+               f.manufacturer, f.material, f.color_name as color,
                u.email as user_email,
                i.name as inventory_name
         FROM consumption_log cl
