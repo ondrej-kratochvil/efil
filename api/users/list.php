@@ -63,9 +63,10 @@ try {
             u.id,
             u.email,
             u.role as system_role,
-            CASE 
+            CASE
                 WHEN i.owner_id = u.id THEN 'owner'
-                ELSE im.role
+                WHEN im.role IS NOT NULL THEN im.role
+                ELSE NULL
             END as inventory_role,
             i.owner_id = u.id as is_owner,
             im.created_at as added_at
@@ -78,7 +79,7 @@ try {
             u.email
     ");
     $stmt->execute([$inventoryId, $inventoryId, $inventoryId]);
-    $users = $stmt->fetchAll();
+    $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     echo json_encode($users);
     
