@@ -46,8 +46,16 @@ try {
         $baseUrl = getFullBaseUrl();
         $resetUrl = $baseUrl . '/reset-password?token=' . $token;
         
-        // Send email
-        sendPasswordResetEmail($email, $resetUrl, $smtpConfig);
+        // Send email and check result (like api/users/add.php)
+        $emailSent = sendPasswordResetEmail($email, $resetUrl, $smtpConfig);
+        if (!$emailSent) {
+            http_response_code(503);
+            echo json_encode([
+                'success' => false,
+                'error' => 'Nepodařilo se odeslat email. Zkontrolujte konfiguraci SMTP nebo zkuste to později.'
+            ]);
+            exit;
+        }
     }
     
     echo json_encode([

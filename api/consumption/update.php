@@ -160,12 +160,16 @@ try {
         $params[] = $data['note'];
     }
 
-    if (count($updates) > 0) {
-        $params[] = $consumptionId;
-        $sql = "UPDATE consumption_log SET " . implode(", ", $updates) . " WHERE id = ?";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute($params);
+    if (count($updates) === 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Žádná pole k aktualizaci. Uveďte consumed_weight, consumption_date nebo note.']);
+        exit;
     }
+
+    $params[] = $consumptionId;
+    $sql = "UPDATE consumption_log SET " . implode(", ", $updates) . " WHERE id = ?";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
 
     echo json_encode(['success' => true, 'message' => 'Záznam aktualizován']);
 

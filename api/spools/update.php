@@ -85,6 +85,12 @@ try {
     $manufData = $data['manufacturer_ids'] ?? $data['manufacturer_names'] ?? null;
     $hasManufUpdate = $manufData !== null;
     $hasSpoolUpdate = count($updates) > 0;
+
+    if (!$hasSpoolUpdate && !$hasManufUpdate) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Žádná pole k aktualizaci. Uveďte alespoň jedno pole (weight_grams, color, material, outer_diameter_mm, width_mm, visual_description nebo manufacturer_ids).']);
+        exit;
+    }
     
     // Use transaction whenever multiple operations run: spool UPDATE and/or manufacturer DELETE+INSERT.
     // Required when only manufacturers are updated so that failed INSERT after DELETE can roll back.
