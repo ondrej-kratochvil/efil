@@ -143,7 +143,7 @@ try {
         // User doesn't exist - create account without password (transaction: rollback if email fails)
         $pdo->beginTransaction();
         try {
-            $stmt = $pdo->prepare("INSERT INTO users (email, password_hash, role) VALUES (?, '', 'user')");
+            $stmt = $pdo->prepare("INSERT INTO users (email, password_hash, role) VALUES (?, NULL, 'user')");
             $stmt->execute([$email]);
             $newUserId = $pdo->lastInsertId();
 

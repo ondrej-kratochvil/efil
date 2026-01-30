@@ -48,6 +48,12 @@ try {
         exit;
     }
     
+    if ($user['password_hash'] === null) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Účet nemá nastavené heslo. Použijte odkaz z e-mailu pro první nastavení hesla.']);
+        exit;
+    }
+    
     // Verify password
     if (!password_verify($password, $user['password_hash'])) {
         http_response_code(400);

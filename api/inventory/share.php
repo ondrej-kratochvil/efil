@@ -12,15 +12,26 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $userId = $_SESSION['user_id'];
+$inventoryId = $_SESSION['inventory_id'] ?? null;
 $input = json_decode(file_get_contents('php://input'), true);
 
-// Create a new share link
+if (!$inventoryId) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Žádná aktivní evidence']);
+    exit;
+}
+
+// Create a new share link for the currently active inventory
 try {
-    // Get user's inventory
-    $stmt = $pdo->prepare("SELECT id FROM inventories WHERE owner_id = ? LIMIT 1");
-    $stmt->execute([$userId]);
+    // Use active inventory and verify current user is owner
+    $stmt = $pdo->prepare("SELECT id FROM inventories WHERE id = ? AND owner_id = ?");
+    $stmt->execute([$inventoryId, $userId]);
     $inv = $stmt->fetch();
-    if (!$inv) { http_response_code(404); exit; }
+    if (!$inv) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Můžete sdílet pouze vlastní evidenci']);
+        exit;
+    }
     
     // Check if code exists
     $stmt = $pdo->prepare("SELECT access_code FROM inventory_access WHERE inventory_id = ? LIMIT 1");
