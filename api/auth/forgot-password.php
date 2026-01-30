@@ -4,9 +4,9 @@ declare(strict_types=1);
 /**
  * Request password reset
  * POST /api/auth/forgot-password.php
- * 
+ *
  * Body: { email }
- * 
+ *
  * Sends password reset email with JWT token
  */
 
@@ -32,7 +32,7 @@ try {
     $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
     $stmt->execute([$email]);
     $user = $stmt->fetch();
-    
+
     // Always return success to prevent email enumeration
     // but only send email if user exists
     if ($user) {
@@ -41,28 +41,24 @@ try {
             'email' => $email,
             'purpose' => 'password_reset'
         ], $jwtSecret, 3600);
-        
+
         // Build reset URL - get root of application (not /api)
         $baseUrl = getFullBaseUrl();
         $resetUrl = $baseUrl . '/reset-password?token=' . $token;
-        
-        // Send email and check result (like api/users/add.php)
+
+        // Send email; on failure still return success to prevent email enumeration
         $emailSent = sendPasswordResetEmail($email, $resetUrl, $smtpConfig);
         if (!$emailSent) {
-            http_response_code(503);
-            echo json_encode([
-                'success' => false,
-                'error' => 'Nepodařilo se odeslat email. Zkontrolujte konfiguraci SMTP nebo zkuste to později.'
-            ]);
-            exit;
+            // Log for debugging; do not expose to client (same response as when user missing)
+            error_log('Forgot-password: failed to send reset email to ' . $email);
         }
     }
-    
+
     echo json_encode([
         'success' => true,
         'message' => 'Pokud účet existuje, byl odeslán email s instrukcemi'
     ]);
-    
+
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Chyba serveru']);
