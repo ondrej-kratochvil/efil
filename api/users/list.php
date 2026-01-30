@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 session_start();
 require_once '../../config.php';
+require_once '../helpers/inventory.php';
 
 header('Content-Type: application/json');
 
@@ -30,33 +31,8 @@ if (!$inventoryId) {
 }
 
 try {
-    // Check if user has manage permission
-    $stmt = $pdo->prepare("
-        SELECT role FROM inventory_members 
-        WHERE inventory_id = ? AND user_id = ?
-    ");
-    $stmt->execute([$inventoryId, $userId]);
-    $member = $stmt->fetch();
-    
-    // Check if user is owner
-    $stmt = $pdo->prepare("SELECT owner_id FROM inventories WHERE id = ?");
-    $stmt->execute([$inventoryId]);
-    $inventory = $stmt->fetch();
-    $isOwner = ($inventory && (int) $inventory['owner_id'] === (int) $userId);
-    
-    // Check if user is admin_efil
-    $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
-    $stmt->execute([$userId]);
-    $user = $stmt->fetch();
-    $isAdmin = ($user && $user['role'] === 'admin_efil');
-    
-    // Only owner, manage role, or admin can view users
-    if (!$isOwner && !$isAdmin && (!$member || $member['role'] !== 'manage')) {
-        http_response_code(403);
-        echo json_encode(['error' => 'Nedostatečná oprávnění']);
-        exit;
-    }
-    
+    $inventory = requireInventoryManageAccess($pdo, (int) $inventoryId, (int) $userId);
+
     // Get all users with access to this inventory
     $stmt = $pdo->prepare("
         SELECT 

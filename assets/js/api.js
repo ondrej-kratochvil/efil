@@ -222,21 +222,19 @@ export async function consumeFilament(filamentId, amount, description, date) {
 }
 
 /**
- * Update admin menu with dynamic items
+ * Update admin menu with dynamic items (vloží do slotů v stromovém menu)
  */
 export async function updateAdminMenu() {
     const menu = document.getElementById('action-menu');
-    const existingAdminBtn = menu.querySelector('[data-admin-stats]');
-    const existingInvSwitchBtn = menu.querySelector('[data-inventory-switch]');
+    if (!menu) return;
+    const slotInv = menu.querySelector('#menu-slot-inventory-switch');
+    const slotAdmin = menu.querySelector('#menu-slot-admin-stats');
+    if (!slotInv || !slotAdmin) return;
 
-    // Remove existing dynamic buttons if present
-    if (existingAdminBtn) existingAdminBtn.remove();
-    if (existingInvSwitchBtn) existingInvSwitchBtn.remove();
+    slotInv.innerHTML = '';
+    slotAdmin.innerHTML = '';
 
-    const logoutBtn = menu.querySelector('button[onclick="logout()"]');
-    if (!logoutBtn) return;
-
-    // Check if user has access to multiple inventories
+    // Přepnout evidenci – více evidencí
     try {
         const res = await fetch(`${API_BASE}/inventory/list.php`);
         if (res.ok) {
@@ -253,14 +251,13 @@ export async function updateAdminMenu() {
                     <div class="bg-blue-100 text-blue-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg></div>
                     Přepnout evidenci
                 `;
-                logoutBtn.parentNode.insertBefore(invSwitchBtn, logoutBtn);
+                slotInv.appendChild(invSwitchBtn);
             }
         }
     } catch (err) {
         console.error('Failed to check inventories:', err);
     }
 
-    // Add admin button if user is admin_efil
     if (user && user.role === 'admin_efil') {
         const adminBtn = document.createElement('button');
         adminBtn.setAttribute('data-admin-stats', 'true');
@@ -273,6 +270,6 @@ export async function updateAdminMenu() {
             <div class="bg-emerald-100 text-emerald-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="20" x2="12" y2="10"></line><line x1="18" y1="20" x2="18" y2="4"></line><line x1="6" y1="20" x2="6" y2="16"></line></svg></div>
             Statistiky eFil
         `;
-        logoutBtn.parentNode.insertBefore(adminBtn, logoutBtn);
+        slotAdmin.appendChild(adminBtn);
     }
 }

@@ -128,7 +128,7 @@ export function renderAuth(v) {
                 </div>
                 <div>
                     <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Heslo</label>
-                    <input type="password" name="password" autocomplete="current-password" required class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="********">
+                    <input type="password" name="password" autocomplete="${isLogin ? 'current-password' : 'new-password'}" required class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="********">
                 </div>
                 ${isLogin ? `
                 <div class="text-right">

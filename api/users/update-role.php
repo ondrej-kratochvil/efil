@@ -10,6 +10,7 @@ declare(strict_types=1);
 
 session_start();
 require_once '../../config.php';
+require_once '../helpers/inventory.php';
 require_once '../helpers/email.php';
 
 header('Content-Type: application/json');
@@ -49,41 +50,8 @@ if (!in_array($newRole, ['read', 'write', 'manage'])) {
 }
 
 try {
-    // Check if current user has manage permission
-    $stmt = $pdo->prepare("
-        SELECT role FROM inventory_members 
-        WHERE inventory_id = ? AND user_id = ?
-    ");
-    $stmt->execute([$inventoryId, $userId]);
-    $member = $stmt->fetch();
-    
-    // Check if current user is owner
-    $stmt = $pdo->prepare("SELECT owner_id, name FROM inventories WHERE id = ?");
-    $stmt->execute([$inventoryId]);
-    $inventory = $stmt->fetch();
-    
-    // Verify inventory exists
-    if (!$inventory) {
-        http_response_code(404);
-        echo json_encode(['error' => 'Evidence nenalezena']);
-        exit;
-    }
-    
-    $isOwner = ((int) $inventory['owner_id'] === (int) $userId);
-    
-    // Check if current user is admin_efil
-    $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
-    $stmt->execute([$userId]);
-    $user = $stmt->fetch();
-    $isAdmin = ($user && $user['role'] === 'admin_efil');
-    
-    // Only owner, manage role, or admin can update roles
-    if (!$isOwner && !$isAdmin && (!$member || $member['role'] !== 'manage')) {
-        http_response_code(403);
-        echo json_encode(['error' => 'Nedostatečná oprávnění']);
-        exit;
-    }
-    
+    $inventory = requireInventoryManageAccess($pdo, (int) $inventoryId, (int) $userId);
+
     // Cannot change owner's role
     if ($targetUserId === (int) $inventory['owner_id']) {
         http_response_code(400);
@@ -92,7 +60,7 @@ try {
     }
     
     // Cannot change your own role (unless admin)
-    if ($targetUserId === $userId && !$isAdmin) {
+    if ($targetUserId === $userId && !$inventory['is_admin']) {
         http_response_code(400);
         echo json_encode(['error' => 'Nelze změnit vlastní oprávnění']);
         exit;

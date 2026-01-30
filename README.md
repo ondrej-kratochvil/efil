@@ -227,7 +227,7 @@ Aplikace používá třístupňovou navigaci:
 3. **VÝR** (Výrobce/Detail) - Detailní seznam filamentů
 
 ### Správa filamentů
-- **Přidání** - Klikněte na "Přidat nový filament" v menu nebo na tlačítko, pokud není žádný filament
+- **Přidání** - Klikněte na "Přidat nový filament" v menu, nebo na položku **+** na kterékoliv obrazovce wizardu (MAT, BAR, VÝR). Na MAT se nic nepředvyplní, na BAR se předvyplní materiál, na VÝR materiál i barva.
 - **Úprava** - Klikněte na filament v detailním zobrazení
 - **Spotřeba** - Klikněte na hmotnost filamentu pro záznam spotřeby
 - **Číslování** - Každý filament má `user_display_id` začínající od #1 pro každou evidenci

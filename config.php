@@ -49,30 +49,30 @@ try {
 /**
  * Get base URL of the application (excluding /api/)
  * This function reliably constructs the base URL regardless of subdirectory installation
- * 
+ *
  * @return string Base URL path (e.g., '/a/efil-github' or '')
  */
 function getBaseUrl() {
     // Get the script path (e.g., '/a/efil-github/api/auth/forgot-password.php')
     $scriptPath = $_SERVER['SCRIPT_NAME'] ?? '';
-    
+
     // Remove /api/ and everything after it
     // This works because all API scripts are under /api/
     $basePath = preg_replace('#/api/.*$#', '', $scriptPath);
-    
+
     // Ensure we have a path (even if empty for root install)
     return $basePath ?: '';
 }
 
 /**
  * Get full base URL with protocol and host
- * 
+ *
  * @return string Full base URL (e.g., 'https://example.com/a/efil-github')
  */
 function getFullBaseUrl() {
     $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http';
     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
     $basePath = getBaseUrl();
-    
+
     return $protocol . '://' . $host . $basePath;
 }

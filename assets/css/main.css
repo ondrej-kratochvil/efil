@@ -56,6 +56,60 @@
     --transition-slow: 300ms ease;
 }
 
+/* Dark theme – přepínač v menu, ukládá se do localStorage */
+[data-theme="dark"] {
+    --color-bg: #0f172a;
+    --color-bg-white: #1e293b;
+    --color-bg-slate-50: #1e293b;
+    --color-bg-slate-100: #334155;
+    --color-text: #f1f5f9;
+    --color-text-muted: #e2e8f0;
+    --color-text-light: #94a3b8;
+    --color-text-lighter: #64748b;
+    --color-border: #334155;
+    --color-border-light: #1e293b;
+}
+
+[data-theme="dark"] body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+}
+
+[data-theme="dark"] .bg-white {
+    background-color: var(--color-bg-white);
+}
+
+[data-theme="dark"] .bg-slate-50,
+[data-theme="dark"] .hover\:bg-slate-50:hover {
+    background-color: var(--color-bg-slate-50);
+}
+
+[data-theme="dark"] .text-slate-900,
+[data-theme="dark"] .text-slate-800 {
+    color: var(--color-text);
+}
+
+[data-theme="dark"] .text-slate-600,
+[data-theme="dark"] .text-slate-700,
+[data-theme="dark"] .text-slate-500 {
+    color: var(--color-text-light);
+}
+
+[data-theme="dark"] .border-slate-200,
+[data-theme="dark"] .border-slate-100 {
+    border-color: var(--color-border);
+}
+
+[data-theme="dark"] header,
+[data-theme="dark"] #action-menu {
+    background-color: var(--color-bg-white);
+    border-color: var(--color-border);
+}
+
+[data-theme="dark"] .bg-slate-100 {
+    background-color: var(--color-bg-slate-100);
+}
+
 body {
     font-family: 'Inter', sans-serif;
     background-color: var(--color-bg);
@@ -87,6 +141,15 @@ body {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
     gap: var(--spacing-base);
+}
+
+/* Menu: šipka u rozbalovacích položek (Evidence, Nastavení) – zavřeno = doprava, otevřeno = dolů */
+.menu-expandable .menu-chevron {
+    transition: transform var(--transition-base);
+    transform: rotate(-90deg);
+}
+.menu-expandable[open] .menu-chevron {
+    transform: rotate(0);
 }
 
 #action-menu {

@@ -6,6 +6,12 @@ Jsi seniorní full-stack vývojář a architekt. Tvým úkolem je vyvíjet, audi
 
 ---
 
+## Důležité: upřesnění před implementací
+
+**Před vytvářením nebo úpravou kódu:** Pokud je při zpracování promptu cokoliv nejasného (rozsah úpravy, konkrétní chování, volba klávesových zkratek pro jednotlivé funkce, priorita požadavků, konflikt s existující logikou atd.), **nejdříve se zeptej uživatele na upřesnění**. Nezačínej implementaci na základě vlastního odhadu – upřesnění zabrání zbytečným úpravám a zajistí, že výsledek odpovídá očekávání.
+
+---
+
 ## Detekce typu projektu
 
 Projekt se automaticky detekuje podle vstupního souboru:
@@ -61,13 +67,19 @@ Pravidla se aplikují podle typu projektu.
   - Umístění: levý horní roh
   - Odkazuje na homepage
 - **Menu**:
-  - Maximálně 7 položek v první úrovni
-  - Více položek organizuj do stromové struktury (dropdowny)
+  - Menu udržuj **stručné** – nepřetěžuj první úroveň.
+  - Maximálně **7 položek v první úrovni**.
+  - **Podobné položky seskupuj** do stromové struktury (dropdown, podmenu) – např. „Nastavení“ → Účet, Cívky, Uživatelé; nebo „Evidence“ → Filamenty, Čerpání, Statistiky.
+  - Více položek než 7 organizuj výhradně do stromové struktury (dropdowny).
 - **Mobilní zobrazení**: Hamburger menu v pravém horním rohu
 
 ### Homepage
 
-Musí obsahovat stručné, ale výstižné informace o účelu aplikace a jejích funkcích (zdroj pro uživatele a SEO).
+- **Úvodní text (SEO a první návštěva):**
+  - Na homepage musí být vždy stručný text popisující **hlavní funkce aplikace** – zdroj klíčových slov pro SEO a orientace pro nové uživatele.
+  - Tato sekce musí být **skrývatelná** (např. tlačítko „Skrýt úvod“ / „Zobrazit úvod“) nebo jinak nezavazet při opakovaném použití.
+  - Uživatel, který aplikaci používá opakovaně, nemusí tuto část stále přeskakovat – preference „skrýt úvod“ se ukládá (např. `localStorage`).
+- Obecně: stručné, výstižné informace o účelu aplikace a jejích funkcích.
 
 ### Favicon
 
@@ -78,6 +90,20 @@ Každá aplikace musí mít definovanou faviconu.
 - **Copyright**: Obsahuje copyright firmy
   - Formát: `© [aktuální rok] [Sensio.cz s.r.o.]`
   - Odkaz na web https://sensio.cz/
+
+### Přístupnost (a11y), klávesové zkratky a SEO
+
+- **Pravidla přístupnosti:**
+  - Dbát na pravidla přístupnosti (WCAG v rozsahu odpovídajícím typu aplikace).
+  - Sémantické HTML, kontrast, focus stavy, popisky formulářů, `aria-*` tam, kde to pomůže.
+- **Prohlášení o přístupnosti:**
+  - Každá aplikace má **prohlášení o přístupnosti** (samostatná stránka nebo sekce v nápovědě / footeru).
+  - V prohlášení uvést: úroveň souladu, kontakt pro připomínky, datum poslední revize.
+- **Klávesové zkratky:**
+  - Nejpoužívanějším operacím přiřadit **klávesové zkratky** (např. nový záznam, vyhledávání, nápověda, přepnutí evidence).
+  - Zkratky **uvést v prohlášení o přístupnosti** a zároveň je zobrazit v nápovědě / v menu (např. „Nápověda (F1)“ nebo tooltip u akce).
+- **Mapa webu:**
+  - U **rozsáhlejšího webu** (více sekcí, podstránek) vytvořit **mapu webu** (sitemap) – buď statickou stránku s odkazy, nebo `sitemap.xml` pro vyhledávače, podle potřeby.
 
 ### Responzivita
 

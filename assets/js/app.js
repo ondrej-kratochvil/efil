@@ -119,6 +119,13 @@ function render() {
         renderStats(appView);
     } else if (state.view === 'help') {
         renderHelp(appView);
+        if (state.scrollToAccessibility) {
+            state.scrollToAccessibility = false;
+            requestAnimationFrame(() => {
+                const section = document.querySelector('[data-section="accessibility"]');
+                if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
     } else if (state.view === 'account') {
         renderAccount(appView);
     } else if (state.view === 'users') {
@@ -153,6 +160,7 @@ function updateHeader() {
     }
 
     menuTrigger.classList.remove('hidden');
+    updateThemeToggleLabel();
 
     if (['form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'adminStats', 'inventorySwitch'].includes(state.view)) {
         nav.classList.add('hidden');
@@ -353,7 +361,22 @@ window.setStep = (s) => {
 window.toggleActionMenu = () => {
     const menu = document.getElementById('action-menu');
     menu.classList.toggle('hidden');
+    updateThemeToggleLabel();
 };
+window.toggleTheme = () => {
+    const root = document.documentElement;
+    const current = root.getAttribute('data-theme') || 'light';
+    const next = current === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('efil-theme', next); } catch (_) {}
+    updateThemeToggleLabel();
+};
+function updateThemeToggleLabel() {
+    const label = document.getElementById('theme-toggle-label');
+    if (!label) return;
+    const current = document.documentElement.getAttribute('data-theme') || 'light';
+    label.textContent = current === 'dark' ? 'Světlý režim' : 'Tmavý režim';
+}
 // updateWeightInfo and openForm moved to views/form.js
 
 window.openConsume = (id) => {
@@ -390,10 +413,47 @@ document.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
         const menu = document.getElementById('action-menu');
-        if (!menu.classList.contains('hidden')) {
+        if (menu && !menu.classList.contains('hidden')) {
             menu.classList.add('hidden');
         }
+        return;
+    }
+    if (e.key === 'F1') {
+        e.preventDefault();
+        if (user) {
+            document.getElementById('action-menu').classList.add('hidden');
+            router.push(BASE_PATH + '/help');
+        }
+        return;
+    }
+    if (e.ctrlKey && e.key === 'n') {
+        e.preventDefault();
+        if (user) {
+            document.getElementById('action-menu').classList.add('hidden');
+            openForm();
+        }
+        return;
+    }
+    if (e.ctrlKey && e.key === 's') {
+        e.preventDefault();
+        if (user) {
+            document.getElementById('action-menu').classList.add('hidden');
+            openStats();
+        }
+        return;
     }
 });
+
+// Footer: odkaz na prohlášení o přístupnosti → Nápověda + scroll
+(function() {
+    const footerLink = document.getElementById('footer-accessibility-link');
+    if (footerLink) {
+        footerLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            state.scrollToAccessibility = true;
+            router.push(BASE_PATH + '/help');
+        });
+    }
+})();
 
 checkAuth();

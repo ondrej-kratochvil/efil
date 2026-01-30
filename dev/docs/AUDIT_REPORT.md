@@ -1,142 +1,146 @@
 # Audit Report - eFil Project
-**Datum:** 2026-01-25  
+
+**Datum:** 2026-01-30  
 **Auditor:** AI Assistant  
-**Verze pravidel:** .cursorrules (Vanilla Stack)
+**Verze pravidel:** .cursorrules (Vanilla Stack, včetně a11y, menu, homepage, footer)
 
 ---
 
-## 📋 Shrnutí
+## Shrnutí
 
 | Kategorie | Status | Poznámky |
 |-----------|--------|----------|
-| **Struktura projektu** | ✅ VÝBORNĚ | Root je čistý, všechny vývojové soubory v `dev/` |
-| **PHP standardy** | ✅ VÝBORNĚ | Všechny soubory mají `declare(strict_types=1)` |
-| **Bezpečnost (PDO)** | ✅ VÝBORNĚ | Všechny dotazy používají prepared statements |
-| **UI/UX standardy** | ✅ DOBŘE | Favicon, copyright, responzivita OK |
-| **CSS standardy** | ✅ DOBŘE | Design systém s proměnnými, oprávněné fixní šířky |
-| **Dokumentace** | ✅ VÝBORNĚ | Kompletní modulární dokumentace v `dev/docs/` |
-| **Dark mode** | ⚠️ NENÍ | Uživatel preferuje pouze tmavé téma (není dark mode toggle) |
+| **Struktura projektu** | Vyhovuje | Root čistý, vývoj v `dev/`; v rootu jsou `package.json` a `tailwind.config.js` (build) |
+| **PHP standardy** | Vyhovuje | Všechny API soubory mají `declare(strict_types=1)`, PDO prepared statements |
+| **SQL** | Vyhovuje | Žádné `SELECT *`, parametrizované dotazy |
+| **UI/UX – Header, Favicon** | Vyhovuje | Logo SVG, favicon, hamburger menu |
+| **UI/UX – Homepage úvod** | Částečně | Úvodní text je na přihlašovací stránce; na homepage (wizard) chybí skrývatelný úvod |
+| **UI/UX – Footer** | Nesoulad | V index.php je „© 2026 eFil“; předpis: „© [rok] Sensio.cz s.r.o.“ + odkaz |
+| **UI/UX – Menu** | Částečně | 7 položek OK; chybí seskupení do stromu (např. Nastavení → Účet, Cívky, Uživatelé) |
+| **Light/Dark mode** | Chybí | Není `prefers-color-scheme` ani přepínač s uložením do localStorage |
+| **Přístupnost (a11y)** | Částečně | Sémantika a formuláře v pořádku; chybí prohlášení o přístupnosti |
+| **Klávesové zkratky** | Částečně | Pouze Escape (zavření menu); chybí zkratky pro hlavní akce a jejich uvedení v prohlášení |
+| **Dokumentace** | Vyhovuje | `dev/docs/` kompletní, včetně main.md, architektury, roadmapy |
+| **Výkon** | Vyhovuje | Cache-busting CSS/JS, skripty jako moduly (defer), žádný N+1 v dotazech |
 
 ---
 
-## ✅ Dodržené standardy
+## Dodržené standardy
 
 ### 1. Struktura projektu
-- ✅ **Root je čistý**: Obsahuje pouze produkční soubory
-  - `index.html`, `.htaccess`, `.gitignore`, `README.md`, `.env.example`
-  - `config.php`, `api/`, `assets/`
-- ✅ **Vývojové soubory v `dev/`**:
-  - `dev/docs/` - dokumentace
-  - `dev/tests/` - testy
-  - `dev/scripts/` - diagnostické skripty
-  - `dev/sql/` - SQL schémata a migrace
 
-### 2. PHP standardy
-- ✅ **Strict types**: Všechny 34 API souborů mají `declare(strict_types=1);`
-- ✅ **Moderní PHP**: Používání PDO, prepared statements
-- ✅ **Session management**: Správné použití `$_SESSION` pro autentizaci
+- **Root obsahuje pouze nasazovatelné soubory:** `index.php`, `.htaccess`, `.gitignore`, `README.md`, `.env.example`, `config.php`, `api/`, `assets/`.
+- **Vývojové soubory v `dev/`:**
+  - `dev/docs/` – dokumentace (včetně main.md, BUILD.md, DEPLOYMENT.md, …)
+  - `dev/tests/` – automatizované testy
+  - `dev/scripts/` – diagnostika (test_connection.php, test_email.php)
+  - `dev/sql/` – schémata a migrace
+- **Poznámka:** V rootu jsou `package.json` a `tailwind.config.js` – slouží k buildu CSS. Předpis výslovně povoluje v rootu jen produkční soubory; build konfigurace je na hraně (běžná praxe je nechat je v rootu pro CI/build).
 
-### 3. Bezpečnost
-- ✅ **PDO prepared statements**: Všechny SQL dotazy používají prepared statements
-- ✅ **Parametrizované dotazy**: Použití `?` nebo pojmenovaných parametrů
-- ✅ **Žádné SQL injection riziko**: Nenalezeny žádné string concatenace v SQL
+### 2. PHP a backend
 
-### 4. UI/UX standardy
-- ✅ **Favicon**: Definovaná v `assets/img/favicon.svg`, dynamicky nastavená
-- ✅ **Copyright**: Footer obsahuje `© 2026 eFil - Evidence Filamentů`
-- ✅ **Logo**: SVG logo v headeru, odkazuje na homepage
-- ✅ **Menu**: Hamburger menu pro mobilní zobrazení
-- ✅ **Homepage**: Obsahuje informace o aplikaci
+- **Strict types:** Všechny relevantní PHP soubory v `api/` mají `declare(strict_types=1);`.
+- **PDO:** Pouze prepared statements, žádná konkatenace SQL.
+- **SELECT:** Žádné `SELECT *` v API.
+- **API struktura:** Endpointy rozdělené podle domén (auth, filaments, consumption, inventory, users, spools, account, admin, …).
 
-### 5. CSS standardy
-- ✅ **Design systém**: CSS proměnné pro barvy, spacing, shadows
-- ✅ **Relativní jednotky**: Použití `rem`, `em`, `%` pro layout
-- ✅ **Fixní šířky**: Pouze oprávněné případy (max-width pro layout, 1px pro linky)
+### 3. Frontend
 
-### 6. JavaScript standardy
-- ✅ **ES6+ moduly**: Vanilla JavaScript s ESM
-- ✅ **Oddělené soubory**: Struktura v `/assets/js/`
-- ✅ **History API**: Client-side routing implementováno
+- **JavaScript:** Vanilla ES6+ moduly (ESM), logika v `/assets/js` a `views/`.
+- **Délka souborů:** Všechny kontrolované JS soubory pod 600 řádků (největší např. form.js ~403 řádků).
+- **Načítání:** Hlavní skript jako `type="module"` (implicitně defer), cache-busting přes `?v=filemtime`.
+- **Favicon:** Nastavená v `assets/img/favicon.svg`, v HTML dynamicky podle base path.
 
-### 7. Dokumentace
-- ✅ **Modulární struktura**: Dokumentace v `dev/docs/`
-- ✅ **Kompletní pokrytí**: Architektura, algoritmy, UI, manuální testy, roadmapa
+### 4. Dokumentace
+
+- **`dev/docs/main.md`:** Přítomen jako rozcestník.
+- **Ostatní:** Architektura, algoritmy, UI, deployment, BUILD, VERIFY_CHECKLIST, manuální testy, roadmapa – k dispozici.
 
 ---
 
-## ⚠️ Nalezené problémy a doporučení
+## Nesoulady a technický dluh
 
-### 1. Dark mode (NENÍ problém - uživatelská preference)
-- **Status**: ⚠️ Není implementován dark mode toggle
-- **Poznámka**: Uživatel preferuje pouze tmavé téma, dark mode toggle není požadován
-- **Akce**: Žádná (podle uživatelské preference)
+### 1. Footer – copyright (nesoulad s předpisem)
 
-### 2. Tailwind CDN v produkci
-- **Status**: ⚠️ `index.html` používá `https://cdn.tailwindcss.com`
-- **Problém**: CDN by nemělo být použito v produkci
-- **Doporučení**: 
-  - Nainstalovat Tailwind jako PostCSS plugin
-  - Nebo použít Tailwind CLI pro build
-- **Priorita**: Střední (funguje, ale není optimální)
+- **Předpis:** „© [aktuální rok] [Sensio.cz s.r.o.]“ + odkaz na https://sensio.cz/
+- **Stav:** V `index.php` je „© 2026 eFil - Evidence Filamentů“ bez Sensio.cz. Odkaz na Sensio.cz je v auth view a v help view, ne v hlavním footeru.
+- **Návrh:** Upravit footer v `index.php` na formát dle předpisu (© rok, Sensio.cz s.r.o., odkaz). Případně sjednotit s auth/help (jedna značka v celé aplikaci).
 
-### 3. Autocomplete atributy
-- **Status**: ⚠️ Chybí `autocomplete` atributy na input elementech
-- **Problém**: Browser varování o chybějících autocomplete atributech
-- **Doporučení**: Přidat `autocomplete="current-password"` na password inputy
-- **Priorita**: Nízká (UX vylepšení)
+### 2. Homepage – skrývatelný úvodní text (částečný soulad)
 
----
+- **Předpis:** Na homepage musí být stručný text o hlavních funkcích (SEO + první návštěva). Sekce musí být skrývatelná; preference „skrýt úvod“ se ukládá (např. localStorage), aby opakovaný uživatel nemusel úvod přeskakovat.
+- **Stav:** Úvodní blok s popisem funkcí je na **přihlašovací stránce** (auth view). Na **homepage po přihlášení** (wizard – MAT/BAR/VÝR) žádný úvodní text ani skrývání není.
+- **Návrh:** Buď (a) doplnit na wizard view krátký úvodní blok (hlavní funkce, klíčová slova) se tlačítkem „Skrýt úvod“ / „Zobrazit úvod“ a ukládáním do `localStorage`, nebo (b) na přihlašovací stránce doplnit skrývání úvodu + localStorage, aby se úvod po dalších návštěvách znovu nezobrazoval. Ideálně obojí: úvod na login skrývatelný + úvod na wizard (po přihlášení) skrývatelný.
 
-## 📊 Technický dluh
+### 3. Light/Dark mode (chybí)
 
-### Nízký technický dluh
-- ✅ Všechny API endpointy používají prepared statements
-- ✅ Strict types všude
-- ✅ Čistá struktura projektu
-- ✅ Kompletní dokumentace
+- **Předpis:** Výchozí téma dle `prefers-color-scheme`; manuální přepínač v menu s uložením (např. localStorage).
+- **Stav:** Žádné použití `prefers-color-scheme`, žádný přepínač tématu.
+- **Návrh:** Implementovat světlé/tmavé téma (CSS proměnné + media query + třída na `<html>`), přepínač v menu (nebo v účtu) a ukládat volbu do localStorage.
 
-### Střední priority
-1. **Tailwind CDN** → Přesunout na build proces
-2. **Autocomplete atributy** → Přidat pro lepší UX
+### 4. Prohlášení o přístupnosti (chybí)
 
----
+- **Předpis:** Každá aplikace má prohlášení o přístupnosti (stránka nebo sekce v nápovědě/footeru). Uvést úroveň souladu, kontakt, datum revize.
+- **Stav:** V aplikaci žádné prohlášení; zmínky jen v dokumentaci a v .cursorrules.
+- **Návrh:** Přidat sekci „Přístupnost“ do Nápovědy (nebo samostatnou stránku / pododkaz v footeru) s textem: úroveň WCAG, kontakt pro připomínky, datum poslední revize.
 
-## 🎯 Doporučené úpravy
+### 5. Klávesové zkratky (částečně)
 
-### Okamžité (vysoká priorita)
-- Žádné kritické problémy
+- **Předpis:** Nejpoužívanějším operacím přiřadit zkratky; uvést je v prohlášení o přístupnosti a v nápovědě/menu (např. „Nápověda (F1)“).
+- **Stav:** Jediná globální zkratka je Escape (zavření action menu). Žádné zkratky pro Přidat filament, Přehled, Nápověda, Přepnutí evidence atd.
+- **Návrh:** Definovat zkratky (např. F1 = Nápověda, Ctrl+N = nový filament, …), implementovat je v `keydown` a uvést v prohlášení o přístupnosti a v Nápovědě (např. tabulka zkratek).
 
-### Krátkodobé (střední priorita)
-1. **Tailwind build**: Přesunout z CDN na build proces
-   - Nainstalovat Tailwind jako PostCSS plugin
-   - Nebo použít Tailwind CLI
-   - Vytvořit build script
+### 6. Menu – stromová struktura (doporučení)
 
-2. **Autocomplete atributy**: Přidat na formuláře
-   - `autocomplete="current-password"` na password inputy
-   - `autocomplete="email"` na email inputy
-   - `autocomplete="username"` na username inputy
+- **Předpis:** Menu stručné; max. 7 položek v první úrovni; podobné položky seskupit do stromu (dropdown).
+- **Stav:** V action menu je 7 položek (Přidat, Přehled, Účet, Uživatelé, Cívky, Nápověda, Odhlásit) – počet vyhovuje, ale všechny jsou v jedné úrovni.
+- **Návrh:** Seskupit např. „Nastavení“ → Účet, Správa uživatelů, Typy cívek; nebo „Evidence“ → Přidat filament, Přehled skladu. Tím zůstane první úroveň přehlednější a lépe se škáluje při dalších funkcích.
 
-### Dlouhodobé (nízká priorita)
-- Žádné dlouhodobé úpravy
+### 7. Tailwind CDN a autocomplete (střední priorita)
+
+- **Tailwind:** Aplikace stále používá `https://cdn.tailwindcss.com`. Předpis a BUILD.md doporučují lokální build (Tailwind CLI / PostCSS).
+- **Autocomplete:** U přihlašovacích a jiných formulářů doplnit vhodné `autocomplete` atributy (email, current-password, username), kde to dává smysl.
 
 ---
 
-## ✅ Závěr
+## Optimalizace výkonu
 
-Projekt **výborně dodržuje** standardy definované v `.cursorrules`. 
+- **Cache-busting:** V index.php se pro CSS a JS používá `filemtime()` v query parametru – vyhovuje.
+- **Skripty:** Načítání jako modul = defer – vyhovuje.
+- **Databáze:** V kontrolovaných endpointech není cyklické dotazování (N+1); používání JOINů a jednoduchých dotazů je v pořádku.
 
-**Hlavní silné stránky:**
-- ✅ Čistá struktura projektu (root obsahuje pouze produkční soubory)
-- ✅ Všechny PHP soubory mají strict types
-- ✅ Všechny SQL dotazy používají prepared statements
-- ✅ Kompletní dokumentace
-- ✅ Moderní JavaScript (ES6+ moduly)
+---
 
-**Drobné vylepšení:**
-- Přesunout Tailwind z CDN na build proces
-- Přidat autocomplete atributy na formuláře
+## Návrh úprav (prioritně)
 
-**Celkové hodnocení: 9/10** ⭐⭐⭐⭐⭐
+### Vysoká priorita (soulad s předpisem)
 
-Projekt je připraven pro produkci s minimálním technickým dluhem.
+1. **Footer:** Upravit hlavní footer v `index.php` na „© [rok] Sensio.cz s.r.o.“ s odkazem na https://sensio.cz/
+
+### Střední priorita
+
+2. **Homepage úvod:** Na wizard (homepage po přihlášení) přidat krátký úvodní text (hlavní funkce + SEO) se skrýváním a ukládáním preference do localStorage.  
+3. **Prohlášení o přístupnosti:** Přidat sekci/stránku s prohlášením (úroveň, kontakt, datum) a odkaz z Nápovědy nebo footeru.  
+4. **Klávesové zkratky:** Zavedení zkratek pro hlavní akce a jejich uvedení v prohlášení a v Nápovědě.  
+5. **Light/Dark mode:** Implementace podle předpisu (prefers-color-scheme + přepínač + localStorage).
+
+### Nízká priorita
+
+6. **Menu:** Seskupit položky do stromu (např. Nastavení / Evidence).  
+7. **Tailwind:** Přesun z CDN na lokální build.  
+8. **Autocomplete:** Doplnit na formuláře.
+
+---
+
+## Závěr
+
+Projekt **většinou dodržuje** .cursorrules: struktura, PHP, SQL, dokumentace a základní UI jsou v pořádku. Hlavní mezery jsou:
+
+- **Footer** (copyright Sensio.cz),
+- **Skrývatelný úvod na homepage** (wizard + případně login),
+- **Light/Dark mode**,
+- **Prohlášení o přístupnosti** a **klávesové zkratky** (včetně jejich uvedení v prohlášení).
+
+Po doplnění těchto bodů bude soulad s předpisem výrazně vyšší.
+
+**Celkové hodnocení:** cca 7,5/10 – solidní základ, několik cílených úprav dovede projekt plně do souladu s .cursorrules.
