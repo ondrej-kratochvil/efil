@@ -73,7 +73,7 @@ try {
         exit;
     }
     
-    $isOwner = ($inventory['owner_id'] == $userId);
+    $isOwner = ((int) $inventory['owner_id'] === (int) $userId);
     
     // Check if user is admin_efil
     $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
@@ -105,7 +105,7 @@ try {
         }
         
         // Check if user is the owner of this inventory
-        if ($inventory['owner_id'] == $targetUser['id']) {
+        if ((int) $inventory['owner_id'] === (int) $targetUser['id']) {
             http_response_code(400);
             echo json_encode(['error' => 'Vlastník inventáře nemůže být přidán jako člen']);
             exit;

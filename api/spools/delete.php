@@ -46,7 +46,7 @@ try {
         exit;
     }
     
-    if ($spool['created_by'] != $userId) {
+    if ((int) $spool['created_by'] !== (int) $userId) {
         http_response_code(403);
         echo json_encode(['error' => 'Nemáte oprávnění smazat tento typ cívky']);
         exit;

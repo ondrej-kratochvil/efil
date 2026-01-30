@@ -62,7 +62,7 @@ try {
         exit;
     }
     
-    $isOwner = ($inventory['owner_id'] == $userId);
+    $isOwner = ((int) $inventory['owner_id'] === (int) $userId);
     
     // Check if current user is admin_efil
     $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
@@ -78,14 +78,14 @@ try {
     }
     
     // Cannot remove owner
-    if ($targetUserId == $inventory['owner_id']) {
+    if ($targetUserId === (int) $inventory['owner_id']) {
         http_response_code(400);
         echo json_encode(['error' => 'Nelze odebrat vlastníka evidence']);
         exit;
     }
     
     // Cannot remove yourself (unless admin)
-    if ($targetUserId == $userId && !$isAdmin) {
+    if ($targetUserId === $userId && !$isAdmin) {
         http_response_code(400);
         echo json_encode(['error' => 'Nelze odebrat sám sebe']);
         exit;

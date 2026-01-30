@@ -46,7 +46,7 @@ try {
         foreach ($allInventories as $inv) {
             $found = false;
             foreach ($inventories as $userInv) {
-                if ($userInv['id'] == $inv['id']) {
+                if ((int) $userInv['id'] === (int) $inv['id']) {
                     $found = true;
                     break;
                 }
@@ -64,8 +64,8 @@ try {
 
         // Re-sort
         usort($inventories, function($a, $b) {
-            if ($a['is_owner'] != $b['is_owner']) {
-                return $b['is_owner'] - $a['is_owner'];
+            if ((int) $a['is_owner'] !== (int) $b['is_owner']) {
+                return (int) $b['is_owner'] - (int) $a['is_owner'];
             }
             return strcmp($a['name'], $b['name']);
         });
@@ -74,7 +74,7 @@ try {
     // Mark current inventory
     $currentInventoryId = $_SESSION['inventory_id'] ?? null;
     foreach ($inventories as &$inv) {
-        $inv['is_current'] = ($currentInventoryId !== null && $inv['id'] == $currentInventoryId);
+        $inv['is_current'] = ($currentInventoryId !== null && (int) $inv['id'] === (int) $currentInventoryId);
     }
     unset($inv); // Clear reference
 

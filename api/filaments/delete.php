@@ -73,7 +73,7 @@ try {
         exit;
     }
     
-    $isOwner = ($inventory['owner_id'] == $userId);
+    $isOwner = ((int) $inventory['owner_id'] === (int) $userId);
     $hasWriteAccess = ($inventory['role'] === 'write' || $inventory['role'] === 'manage');
     
     // User must be owner, have write/manage access, or be admin

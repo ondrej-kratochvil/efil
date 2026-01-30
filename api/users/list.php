@@ -42,7 +42,7 @@ try {
     $stmt = $pdo->prepare("SELECT owner_id FROM inventories WHERE id = ?");
     $stmt->execute([$inventoryId]);
     $inventory = $stmt->fetch();
-    $isOwner = ($inventory && $inventory['owner_id'] == $userId);
+    $isOwner = ($inventory && (int) $inventory['owner_id'] === (int) $userId);
     
     // Check if user is admin_efil
     $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
