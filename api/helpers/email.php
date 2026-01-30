@@ -80,7 +80,8 @@ function sendEmailViaPHPMailer($to, $subject, $htmlBody, $config) {
         return true;
         
     } catch (\PHPMailer\PHPMailer\Exception $e) {
-        error_log("PHPMailer Error: {$mail->ErrorInfo}");
+        $info = isset($mail) ? $mail->ErrorInfo : $e->getMessage();
+        error_log("PHPMailer Error: " . $info);
         return false;
     } catch (Exception $e) {
         error_log("Email Error: " . $e->getMessage());

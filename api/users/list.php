@@ -1,4 +1,6 @@
 <?php
+declare(strict_types=1);
+
 /**
  * List users in current inventory with their roles
  * GET /api/users/list.php
