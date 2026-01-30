@@ -14,10 +14,10 @@ if (!isset($_SESSION['user_id'])) {
 
 try {
     $userId = $_SESSION['user_id'];
-    
+
     // Get inventory_id from session, or get first available inventory
     $inventoryId = $_SESSION['inventory_id'] ?? null;
-    
+
     if (!$inventoryId) {
         // Get first available inventory for user
         $stmtInv = $pdo->prepare("
@@ -33,13 +33,13 @@ try {
         ");
         $stmtInv->execute([$userId, $userId]);
         $inv = $stmtInv->fetch(PDO::FETCH_ASSOC);
-        
+
         if (!$inv) {
             http_response_code(404);
-            echo json_encode(['error' => 'No inventory found', 'debug' => ['user_id' => $userId]]);
+            echo json_encode(['error' => 'No inventory found']);
             exit;
         }
-        
+
         $inventoryId = $inv['id'];
         // Optionally set it in session for future requests
         $_SESSION['inventory_id'] = $inventoryId;
@@ -47,9 +47,6 @@ try {
 
     // Check if filtering by specific filament
     $filamentId = isset($_GET['filament_id']) ? intval($_GET['filament_id']) : null;
-    
-    // Debug: Log request parameters
-    error_log("Consumption list request: user_id=$userId, inventory_id=$inventoryId, filament_id=" . ($filamentId ?? 'null'));
 
     // Build query
     if ($filamentId) {
@@ -94,9 +91,6 @@ try {
     }
 
     $consumptions = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Debug: Log result count
-    error_log("Consumption list result: " . count($consumptions) . " records");
 
     echo json_encode($consumptions);
 
