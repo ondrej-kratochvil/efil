@@ -11,17 +11,19 @@ $cookieParams = session_get_cookie_params();
 $_SESSION = array();
 
 // Delete the session cookie FIRST (before session_destroy)
-// Use the exact same parameters as when the cookie was set
+// Use the same options as when the cookie was set (path, domain, secure, httponly, samesite)
 if (ini_get("session.use_cookies")) {
-    setcookie(
-        $sessionName,
-        '',
-        time() - 3600,
-        $cookieParams["path"],
-        $cookieParams["domain"],
-        $cookieParams["secure"],
-        $cookieParams["httponly"]
-    );
+    $options = [
+        'expires' => time() - 3600,
+        'path' => $cookieParams['path'],
+        'domain' => $cookieParams['domain'],
+        'secure' => $cookieParams['secure'],
+        'httponly' => $cookieParams['httponly'],
+    ];
+    if (isset($cookieParams['samesite'])) {
+        $options['samesite'] = $cookieParams['samesite'];
+    }
+    setcookie($sessionName, '', $options);
 }
 
 // Destroy the session
