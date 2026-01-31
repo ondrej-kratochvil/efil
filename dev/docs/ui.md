@@ -306,6 +306,14 @@ Formulář pro čerpání podporuje dva režimy:
    - Automatický výpočet netto = brutto - tára
    - Zobrazení: "Tára cívky: {tára}g - bude odečtena automaticky"
 
+### Statistiky (view stats)
+
+Stránka Statistiky zobrazuje přehled **aktivně vybrané evidence** (API `dashboard/stats.php`):
+- **Přehledové karty**: Celkem na skladě (g), Odhad hodnoty (Kč), Počet cívek, Spotřeba (30 dní) v kg
+- **Rozložení materiálů**: Koláčový graf (zbývající hmotnost podle materiálu), paleta odlišných barev (`PIE_COLORS`)
+- **Historie čerpání**: Sloupcový graf spotřeby po dnech (30 dní) nad tabulkou záznamů s možností úpravy/smazání
+- **Ochrana proti zdvojení**: `statsRenderCounter` a kontrola před appendem zajišťují, že sekce se vykreslí jen jednou i při více voláních `renderStats`
+
 ### Skrytí prázdných filamentů
 
 Filamenty s nulovou nebo zápornou hmotností se automaticky skrývají:

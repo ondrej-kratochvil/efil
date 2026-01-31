@@ -39,6 +39,12 @@
 - **Materiály a výrobci pouze z DB** - odstraněny hardcoded seznamy
 - **Jednotná barevná paleta** - demo i uživatelské rozhraní používají stejné barvy
 
+#### 📈 Statistiky pro uživatele (dashboard)
+- **API dashboard/stats.php** – data vždy pro aktivně vybranou evidenci (`getInventoryIdForUser`); celková hmotnost, odhad hodnoty, počet cívek, spotřeba za 30 dní
+- **Rozložení materiálů** – koláčový graf (zbývající hmotnost podle materiálu), paleta odlišných barev
+- **Historie čerpání** – sloupcový graf spotřeby po dnech (30 dní) nad tabulkou záznamů
+- **Oprava** – v dotazu pro celkovou hmotnost/hodnotu/počet se používala proměnná `$invId` místo `$inventoryId` (nulové hodnoty)
+
 #### 🏭 Verzování výrobců (manufacturers)
 - **Verzovaná tabulka výrobců** – soft delete, `invalidated_at` / `invalidated_by` (kdo smazal)
 - **API výrobců** – list, create, update, delete; admin: pending, approve, reject
@@ -58,7 +64,7 @@
 - [ ] Správa typů cívek s vazbami na výrobce (M:N)
 - [ ] Představení aplikace na přihlašovací stránce
 - [ ] Podrobná nápověda
-- [ ] Statistiky eFil pro admina
+- [ ] Statistiky eFil pro admina (platformové)
 
 ### 🔒 Bezpečnost
 - JWT tokeny pro reset hesla (1 hodina platnost)

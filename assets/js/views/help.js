@@ -68,6 +68,22 @@ export function renderHelp(v) {
             <p class="text-slate-500 text-sm mt-3">💡 Pro přesné vážení nastavte typ cívky při přidávání filamentu</p>
         </div>
 
+        <!-- Statistiky -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-black text-indigo-600 mb-3">📊 Statistiky evidence</h2>
+            <p class="text-slate-600 mb-3">V menu zvolte <strong>Statistiky</strong>. Zobrazí se přehled vaší <strong>aktivně vybrané evidence</strong> (při více evidencích záleží na té, kterou máte právě zvolenou).</p>
+            <ul class="list-disc list-inside space-y-1 text-slate-700 mb-3">
+                <li><strong>Celkem na skladě</strong> – součet zbývající hmotnosti všech filamentů (g)</li>
+                <li><strong>Odhad hodnoty</strong> – odhad v Kč podle ceny a zbývající hmotnosti</li>
+                <li><strong>Počet cívek</strong> – počet filamentů v evidenci</li>
+                <li><strong>Spotřeba (30 dní)</strong> – celková spotřeba za posledních 30 dní (kg)</li>
+            </ul>
+            <p class="text-slate-600 mb-2 font-bold">Rozložení materiálů</p>
+            <p class="text-slate-600 text-sm mb-3">Koláčový graf zobrazuje podíl zbývající hmotnosti podle materiálu (PLA, PETG, atd.).</p>
+            <p class="text-slate-600 mb-2 font-bold">Historie čerpání</p>
+            <p class="text-slate-600 text-sm">Sloupcový graf ukazuje spotřebu po dnech (posledních 30 dní). Pod ním je tabulka jednotlivých záznamů čerpání s možností úpravy nebo smazání.</p>
+        </div>
+
         <!-- Výrobci -->
         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
             <h2 class="text-xl font-black text-indigo-600 mb-3">🏭 Výrobci filamentů</h2>

@@ -110,6 +110,25 @@ Tento dokument obsahuje scénáře pro manuální testování funkcí, které ne
 
 ---
 
+### Test: Statistiky evidence (dashboard)
+**Cíl**: Ověřit, že stránka Statistiky zobrazuje data aktivní evidence a grafy správně.
+
+**Kroky**:
+1. Přihlaste se a přejděte do menu → **Statistiky**
+2. Zkontrolujte:
+   - Zobrazí se **jednou** (žádné zdvojené sekce)
+   - **Celkem na skladě**, **Odhad hodnoty**, **Počet cívek** – hodnoty odpovídají součtu v evidenci (ne 0, pokud máte filamenty)
+   - **Spotřeba (30 dní)** – zobrazuje spotřebu za posledních 30 dní
+   - **Rozložení materiálů** – koláčový graf s odlišnými barvami podle materiálu (zbývající hmotnost)
+   - **Historie čerpání** – sloupcový graf po dnech nad tabulkou záznamů
+3. Pokud máte více evidencí: přepněte evidenci a znovu otevřete Statistiky – čísla a grafy by měly odpovídat nově vybrané evidenci
+
+**Očekávaný výsledek**: Statistiky se zobrazí jednou, hodnoty a grafy odpovídají aktivní evidenci.
+
+**Poznámky**: Při nulových hodnotách při neprázdné evidenci zkontrolujte, že API dashboard/stats.php používá `$inventoryId` (ne `$invId`).
+
+---
+
 ### Test: Touch interakce (mobilní zařízení)
 **Cíl**: Ověřit, že aplikace je použitelná na dotykových zařízeních.
 
