@@ -73,7 +73,7 @@ try {
     $stmt = $pdo->prepare("INSERT INTO consumption_log (filament_id, amount_grams, description, consumption_date, created_by) VALUES (?, ?, ?, ?, ?)");
     $stmt->execute([$filamentId, $amount, $description, $consumptionDate, $userId]);
 
-    echo json_encode(['message' => 'Logged successfully']);
+    echo json_encode(['success' => true, 'message' => 'Logged successfully']);
 
 } catch (Exception $e) {
     http_response_code(500);

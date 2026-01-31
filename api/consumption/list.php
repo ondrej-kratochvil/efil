@@ -15,7 +15,7 @@ if (!isset($_SESSION['user_id'])) {
 
 try {
     $userId = (int) $_SESSION['user_id'];
-    $inventoryId = getInventoryIdForUser($pdo, $userId, true);
+    $inventoryId = getInventoryIdForUser($pdo, $userId);
     if ($inventoryId === null) {
         http_response_code(404);
         echo json_encode(['error' => 'No inventory found']);
