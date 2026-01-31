@@ -35,10 +35,8 @@ try {
             m_approved.name AS current_approved_name
         FROM manufacturers m
         JOIN users u ON u.id = m.created_by
-        LEFT JOIN manufacturers m_approved
-            ON m_approved.manufacturer_id = m.manufacturer_id
-            AND m_approved.approved = 1
-            AND m_approved.invalidated_at IS NULL
+        LEFT JOIN (SELECT manufacturer_id, MAX(id) AS mid FROM manufacturers WHERE approved = 1 AND invalidated_at IS NULL GROUP BY manufacturer_id) m_approved_ids ON m.manufacturer_id = m_approved_ids.manufacturer_id
+        LEFT JOIN manufacturers m_approved ON m_approved.id = m_approved_ids.mid AND m_approved.manufacturer_id = m_approved_ids.manufacturer_id
         WHERE m.approved = 0 AND m.invalidated_at IS NULL
         ORDER BY m.created_at ASC
     ");
