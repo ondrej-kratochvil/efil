@@ -27,5 +27,4 @@ if (ini_get("session.use_cookies")) {
 // Destroy the session
 session_destroy();
 
-header('Content-Type: application/json');
 echo json_encode(['message' => 'Logged out']);

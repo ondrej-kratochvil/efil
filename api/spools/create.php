@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../helpers/manufacturers.php';
 
 header('Content-Type: application/json');
 session_start();
@@ -18,6 +19,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $data = json_decode(file_get_contents('php://input'), true);
+if (!is_array($data)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Invalid JSON or request body']);
+    exit;
+}
 
 try {
     $userId = $_SESSION['user_id'];
@@ -53,15 +59,19 @@ try {
             $isNames = !is_numeric($manufData[0]);
             
             if ($isNames) {
-                // Resolve names to IDs
-                $stmtGetId = $pdo->prepare("SELECT id FROM manufacturers WHERE name = ?");
+                // Resolve names to logical manufacturer_id (approved version)
+                $stmtGetId = $pdo->prepare("
+                    SELECT manufacturer_id FROM manufacturers
+                    WHERE approved = 1 AND invalidated_at IS NULL AND LOWER(TRIM(name)) = LOWER(?)
+                    LIMIT 1
+                ");
                 $stmtManuf = $pdo->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
                 
                 foreach ($manufData as $manufName) {
-                    $stmtGetId->execute([$manufName]);
+                    $stmtGetId->execute([trim($manufName)]);
                     $manufId = $stmtGetId->fetchColumn();
-                    if ($manufId) {
-                        $stmtManuf->execute([$spoolId, $manufId]);
+                    if ($manufId !== false) {
+                        $stmtManuf->execute([$spoolId, (int) $manufId]);
                         $createdAssociations++;
                     } else {
                         $notFoundNames[] = $manufName;
@@ -80,9 +90,12 @@ try {
                     exit;
                 }
             } else {
-                // Use IDs directly - validate they exist (same as spools/update.php)
+                // Use logical manufacturer_id – validate they exist (approved version)
                 $placeholders = implode(',', array_fill(0, count($manufData), '?'));
-                $stmtValidate = $pdo->prepare("SELECT id FROM manufacturers WHERE id IN ($placeholders)");
+                $stmtValidate = $pdo->prepare("
+                    SELECT manufacturer_id FROM manufacturers
+                    WHERE approved = 1 AND invalidated_at IS NULL AND manufacturer_id IN ($placeholders)
+                ");
                 $stmtValidate->execute($manufData);
                 $validIds = $stmtValidate->fetchAll(PDO::FETCH_COLUMN);
 

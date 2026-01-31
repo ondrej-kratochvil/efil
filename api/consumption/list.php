@@ -32,15 +32,17 @@ try {
         try {
             $stmt = $pdo->prepare("
                 SELECT cl.id, cl.amount_grams, ABS(cl.amount_grams) as consumed_weight, cl.consumption_date, cl.description as note, cl.created_at,
-                       f.manufacturer, f.material, f.color_name as color, f.user_display_id, f.location,
+                       COALESCE(m_proposal.name, m_approved.name) AS manufacturer, f.material, f.color_name as color, f.user_display_id, f.location,
                        u.email as created_by_email
                 FROM consumption_log cl
                 INNER JOIN filaments f ON cl.filament_id = f.id
+                LEFT JOIN manufacturers m_approved ON f.manufacturer_id = m_approved.manufacturer_id AND m_approved.approved = 1 AND m_approved.invalidated_at IS NULL
+                LEFT JOIN manufacturers m_proposal ON f.manufacturer_id = m_proposal.manufacturer_id AND m_proposal.approved = 0 AND m_proposal.invalidated_at IS NULL AND m_proposal.created_by = ?
                 LEFT JOIN users u ON cl.created_by = u.id
                 WHERE cl.filament_id = ? AND f.inventory_id = ?
                 ORDER BY cl.consumption_date DESC, cl.created_at DESC
             ");
-            $stmt->execute([$filamentId, $inventoryId]);
+            $stmt->execute([$userId, $filamentId, $inventoryId]);
         } catch (PDOException $e) {
             error_log("SQL Error in consumption list (filament_id=$filamentId): " . $e->getMessage());
             throw $e;
@@ -51,16 +53,18 @@ try {
         try {
             $stmt = $pdo->prepare("
                 SELECT cl.id, cl.amount_grams, ABS(cl.amount_grams) as consumed_weight, cl.consumption_date, cl.description as note, cl.created_at,
-                       f.manufacturer, f.material, f.color_name as color, f.user_display_id, f.location,
+                       COALESCE(m_proposal.name, m_approved.name) AS manufacturer, f.material, f.color_name as color, f.user_display_id, f.location,
                        u.email as created_by_email
                 FROM consumption_log cl
                 INNER JOIN filaments f ON cl.filament_id = f.id
+                LEFT JOIN manufacturers m_approved ON f.manufacturer_id = m_approved.manufacturer_id AND m_approved.approved = 1 AND m_approved.invalidated_at IS NULL
+                LEFT JOIN manufacturers m_proposal ON f.manufacturer_id = m_proposal.manufacturer_id AND m_proposal.approved = 0 AND m_proposal.invalidated_at IS NULL AND m_proposal.created_by = ?
                 LEFT JOIN users u ON cl.created_by = u.id
                 WHERE f.inventory_id = ?
                 ORDER BY cl.consumption_date DESC, cl.created_at DESC
                 LIMIT 100
             ");
-            $stmt->execute([$inventoryId]);
+            $stmt->execute([$userId, $inventoryId]);
         } catch (PDOException $e) {
             error_log("SQL Error in consumption list (inventory_id=$inventoryId): " . $e->getMessage());
             throw $e;
