@@ -93,7 +93,7 @@ try {
                 // Use logical manufacturer_id – validate they exist (approved version)
                 $placeholders = implode(',', array_fill(0, count($manufData), '?'));
                 $stmtValidate = $pdo->prepare("
-                    SELECT manufacturer_id FROM manufacturers
+                    SELECT DISTINCT manufacturer_id FROM manufacturers
                     WHERE approved = 1 AND invalidated_at IS NULL AND manufacturer_id IN ($placeholders)
                 ");
                 $stmtValidate->execute($manufData);

@@ -119,14 +119,18 @@ try {
                 $isNames = !is_numeric($manufData[0]);
 
                 if ($isNames) {
-                    // Validate all names first - resolve to IDs before any deletion
-                    $stmtGetId = $pdo->prepare("SELECT id FROM manufacturers WHERE name = ?");
+                    // Resolve names to logical manufacturer_id (approved version)
+                    $stmtGetId = $pdo->prepare("
+                        SELECT manufacturer_id FROM manufacturers
+                        WHERE approved = 1 AND invalidated_at IS NULL AND LOWER(TRIM(name)) = LOWER(?)
+                        LIMIT 1
+                    ");
                     
                     foreach ($manufData as $manufName) {
-                        $stmtGetId->execute([$manufName]);
+                        $stmtGetId->execute([trim($manufName)]);
                         $manufId = $stmtGetId->fetchColumn();
-                        if ($manufId) {
-                            $manufacturerIds[] = $manufId;
+                        if ($manufId !== false) {
+                            $manufacturerIds[] = (int) $manufId;
                         } else {
                             $notFoundNames[] = $manufName;
                         }
@@ -145,9 +149,12 @@ try {
                         exit;
                     }
                 } else {
-                    // Use IDs directly - validate they exist
+                    // Use logical manufacturer_id – validate they exist
                     $placeholders = implode(',', array_fill(0, count($manufData), '?'));
-                    $stmtValidate = $pdo->prepare("SELECT id FROM manufacturers WHERE id IN ($placeholders)");
+                    $stmtValidate = $pdo->prepare("
+                        SELECT DISTINCT manufacturer_id FROM manufacturers
+                        WHERE approved = 1 AND invalidated_at IS NULL AND manufacturer_id IN ($placeholders)
+                    ");
                     $stmtValidate->execute($manufData);
                     $validIds = $stmtValidate->fetchAll(PDO::FETCH_COLUMN);
                     
