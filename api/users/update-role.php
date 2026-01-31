@@ -22,7 +22,7 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$userId = $_SESSION['user_id'];
+$userId = (int) $_SESSION['user_id'];
 $inventoryId = $_SESSION['inventory_id'] ?? null;
 
 if (!$inventoryId) {
@@ -50,7 +50,7 @@ if (!in_array($newRole, ['read', 'write', 'manage'])) {
 }
 
 try {
-    $inventory = requireInventoryManageAccess($pdo, (int) $inventoryId, (int) $userId);
+    $inventory = requireInventoryManageAccess($pdo, (int) $inventoryId, $userId);
 
     // Cannot change owner's role
     if ($targetUserId === (int) $inventory['owner_id']) {

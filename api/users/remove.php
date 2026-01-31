@@ -22,7 +22,7 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$userId = $_SESSION['user_id'];
+$userId = (int) $_SESSION['user_id'];
 $inventoryId = $_SESSION['inventory_id'] ?? null;
 
 if (!$inventoryId) {
@@ -43,7 +43,7 @@ if (!$targetUserId) {
 }
 
 try {
-    $inventory = requireInventoryManageAccess($pdo, (int) $inventoryId, (int) $userId);
+    $inventory = requireInventoryManageAccess($pdo, (int) $inventoryId, $userId);
 
     // Cannot remove owner
     if ($targetUserId === (int) $inventory['owner_id']) {
