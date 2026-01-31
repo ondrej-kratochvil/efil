@@ -39,7 +39,7 @@ try {
         SELECT sm.spool_id, m.manufacturer_id AS id, m.name
         FROM spool_manufacturer sm
         INNER JOIN (SELECT manufacturer_id, MAX(id) AS mid FROM manufacturers WHERE approved = 1 AND invalidated_at IS NULL GROUP BY manufacturer_id) m_approved_ids ON sm.manufacturer_id = m_approved_ids.manufacturer_id
-        INNER JOIN manufacturers m ON m.id = m_approved_ids.mid
+        INNER JOIN manufacturers m ON m.id = m_approved_ids.mid AND m.manufacturer_id = m_approved_ids.manufacturer_id
         WHERE sm.spool_id IN ($placeholders)
         ORDER BY m.name
     ";
