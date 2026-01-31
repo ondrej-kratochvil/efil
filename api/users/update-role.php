@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Update user role in inventory
  * POST /api/users/update-role.php
- * 
+ *
  * Body: { user_id, role }
  */
 
@@ -60,39 +60,42 @@ try {
         echo json_encode(['error' => 'Nelze změnit oprávnění vlastníka']);
         exit;
     }
-    
+
     // Cannot change your own role (unless admin)
     if ($targetUserId === $userId && !$inventory['is_admin']) {
         http_response_code(400);
         echo json_encode(['error' => 'Nelze změnit vlastní oprávnění']);
         exit;
     }
-    
-    // Update role
-    $stmt = $pdo->prepare("UPDATE inventory_members SET role = ? WHERE inventory_id = ? AND user_id = ?");
-    $stmt->execute([$newRole, $inventoryId, $targetUserId]);
-    
-    if ($stmt->rowCount() === 0) {
+
+    // Verify user is in inventory (rowCount after UPDATE = affected rows, not matched – same role => 0)
+    $stmt = $pdo->prepare("SELECT 1 FROM inventory_members WHERE inventory_id = ? AND user_id = ?");
+    $stmt->execute([$inventoryId, $targetUserId]);
+    if (!$stmt->fetch()) {
         http_response_code(404);
         echo json_encode(['error' => 'Uživatel nenalezen v evidenci']);
         exit;
     }
-    
+
+    // Update role (idempotent: same role => success, no row "affected")
+    $stmt = $pdo->prepare("UPDATE inventory_members SET role = ? WHERE inventory_id = ? AND user_id = ?");
+    $stmt->execute([$newRole, $inventoryId, $targetUserId]);
+
     // Get target user email for notification
     $stmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
     $stmt->execute([$targetUserId]);
     $targetUser = $stmt->fetch();
-    
+
     // Send notification email
     if ($targetUser) {
         sendRoleChangeEmail($targetUser['email'], $inventory['name'], $newRole, $smtpConfig);
     }
-    
+
     echo json_encode([
         'success' => true,
         'message' => 'Oprávnění změněna'
     ]);
-    
+
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Chyba databáze']);
