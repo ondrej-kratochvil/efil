@@ -55,8 +55,13 @@ function verifyJWT($token, $secret) {
         return null;
     }
     
-    // Decode payload
-    $payload = json_decode(base64_decode(str_replace(['-', '_'], ['+', '/'], $base64UrlPayload)), true);
+    // Decode payload: restore base64url padding per RFC 7515 before decoding
+    $base64Payload = str_replace(['-', '_'], ['+', '/'], $base64UrlPayload);
+    $pad = strlen($base64Payload) % 4;
+    if ($pad) {
+        $base64Payload .= str_repeat('=', 4 - $pad);
+    }
+    $payload = json_decode(base64_decode($base64Payload), true);
     
     if (!$payload) {
         return null;
