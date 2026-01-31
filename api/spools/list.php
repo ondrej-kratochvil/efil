@@ -36,9 +36,10 @@ try {
 
     $placeholders = implode(',', array_fill(0, count($spoolIds), '?'));
     $sqlManuf = "
-        SELECT sm.spool_id, m.id, m.name
+        SELECT sm.spool_id, m.manufacturer_id AS id, m.name
         FROM spool_manufacturer sm
-        INNER JOIN manufacturers m ON m.id = sm.manufacturer_id
+        INNER JOIN (SELECT manufacturer_id, MAX(id) AS mid FROM manufacturers WHERE approved = 1 AND invalidated_at IS NULL GROUP BY manufacturer_id) m_approved_ids ON sm.manufacturer_id = m_approved_ids.manufacturer_id
+        INNER JOIN manufacturers m ON m.id = m_approved_ids.mid
         WHERE sm.spool_id IN ($placeholders)
         ORDER BY m.name
     ";
