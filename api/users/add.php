@@ -38,6 +38,11 @@ if (!$inventoryId) {
 
 // Get request data
 $data = json_decode(file_get_contents('php://input'), true);
+if (!is_array($data)) {
+    http_response_code(400);
+    echo json_encode(['error' => 'Neplatná nebo prázdná data (očekává se JSON objekt)']);
+    exit;
+}
 $email = trim($data['email'] ?? '');
 $role = $data['role'] ?? 'read';
 
