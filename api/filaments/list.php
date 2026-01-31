@@ -36,9 +36,9 @@ try {
         FROM filaments f
         LEFT JOIN consumption_log cl ON f.id = cl.filament_id
         LEFT JOIN (SELECT manufacturer_id, MAX(id) AS mid FROM manufacturers WHERE approved = 1 AND invalidated_at IS NULL GROUP BY manufacturer_id) m_approved_ids ON f.manufacturer_id = m_approved_ids.manufacturer_id
-        LEFT JOIN manufacturers m_approved ON m_approved.id = m_approved_ids.mid
+        LEFT JOIN manufacturers m_approved ON m_approved.id = m_approved_ids.mid AND m_approved.manufacturer_id = m_approved_ids.manufacturer_id
         LEFT JOIN (SELECT manufacturer_id, created_by, MAX(id) AS mid FROM manufacturers WHERE approved = 0 AND invalidated_at IS NULL GROUP BY manufacturer_id, created_by) m_proposal_ids ON f.manufacturer_id = m_proposal_ids.manufacturer_id AND m_proposal_ids.created_by = ?
-        LEFT JOIN manufacturers m_proposal ON m_proposal.id = m_proposal_ids.mid
+        LEFT JOIN manufacturers m_proposal ON m_proposal.id = m_proposal_ids.mid AND m_proposal.manufacturer_id = m_proposal_ids.manufacturer_id AND m_proposal.created_by = m_proposal_ids.created_by
         WHERE f.inventory_id = ?
         GROUP BY f.id
         ORDER BY g DESC
