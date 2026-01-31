@@ -1,14 +1,24 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../config.php';
+/**
+ * Úprava typu cívky:
+ * - Vlastní soukromý (public=0, created_by=userId): nová verze, stará invalidována.
+ * - Veřejný (public=1): běžný uživatel vytvoří návrh (approved=0); admin upraví přímo.
+ * POST /api/spools/update.php
+ * Body: { "id": spool_type_id (logické), weight_grams, color, material, outer_diameter_mm, width_mm, visual_description, manufacturer_ids? }
+ */
 
-header('Content-Type: application/json');
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../helpers/spool_types.php';
+require_once __DIR__ . '/../helpers/manufacturers.php';
+
 session_start();
+header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
+    echo json_encode(['error' => 'Nepřihlášen']);
     exit;
 }
 
@@ -18,188 +28,178 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $data = json_decode(file_get_contents('php://input'), true);
+$spoolTypeId = isset($data['id']) ? (int) $data['id'] : 0;
 
-if (!isset($data['id'])) {
+if ($spoolTypeId <= 0) {
     http_response_code(400);
-    echo json_encode(['error' => 'Missing spool ID']);
+    echo json_encode(['error' => 'ID typu cívky je povinné']);
     exit;
 }
 
+$userId = (int) $_SESSION['user_id'];
+$isAdmin = ($_SESSION['role'] ?? '') === 'admin_efil';
+
+$weightGrams = array_key_exists('weight_grams', $data) ? ($data['weight_grams'] !== null && $data['weight_grams'] !== '' ? (int) $data['weight_grams'] : null) : null;
+$color = array_key_exists('color', $data) ? ($data['color'] === '' ? null : trim((string) $data['color'])) : null;
+$material = array_key_exists('material', $data) ? ($data['material'] === '' ? null : trim((string) $data['material'])) : null;
+$outerDiameter = array_key_exists('outer_diameter_mm', $data) ? ($data['outer_diameter_mm'] !== null && $data['outer_diameter_mm'] !== '' ? (int) $data['outer_diameter_mm'] : null) : null;
+$width = array_key_exists('width_mm', $data) ? ($data['width_mm'] !== null && $data['width_mm'] !== '' ? (int) $data['width_mm'] : null) : null;
+$visualDescription = array_key_exists('visual_description', $data) ? ($data['visual_description'] === '' ? null : trim((string) $data['visual_description'])) : null;
+$manufData = $data['manufacturer_ids'] ?? $data['manufacturer_names'] ?? null;
+
 try {
-    $userId = $_SESSION['user_id'];
-    $spoolId = $data['id'];
-
-    // Verify user can edit this spool (must be creator or it must be a standard spool)
-    $stmt = $pdo->prepare("SELECT created_by FROM spool_library WHERE id = ?");
-    $stmt->execute([$spoolId]);
-    $spool = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if (!$spool) {
+    $current = getSpoolTypeCurrentRow($pdo, $spoolTypeId, $userId);
+    if ($current === null) {
         http_response_code(404);
         echo json_encode(['error' => 'Typ cívky nenalezen']);
         exit;
     }
 
-    if ($spool['created_by'] === null) {
-        http_response_code(403);
-        echo json_encode(['error' => 'Nelze upravit standardní typ cívky']);
-        exit;
-    }
+    $isPublic = (int) ($current['public'] ?? 0) === 1;
+    $createdBy = (int) ($current['created_by'] ?? 0);
 
-    if ((int) $spool['created_by'] !== (int) $userId) {
-        http_response_code(403);
-        echo json_encode(['error' => 'Nemáte oprávnění upravovat tento typ cívky']);
-        exit;
-    }
-
-    // Update spool – only fields explicitly provided (partial updates supported)
-    $updates = [];
-    $params = [];
-
-    if (array_key_exists('weight_grams', $data)) {
-        $updates[] = "weight_grams = ?";
-        $params[] = $data['weight_grams'] !== null && $data['weight_grams'] !== '' ? (int) $data['weight_grams'] : null;
-    }
-    if (array_key_exists('color', $data)) {
-        $updates[] = "color = ?";
-        $params[] = $data['color'] === '' ? null : ($data['color'] ?? null);
-    }
-    if (array_key_exists('material', $data)) {
-        $updates[] = "material = ?";
-        $params[] = $data['material'] === '' ? null : ($data['material'] ?? null);
-    }
-    if (array_key_exists('outer_diameter_mm', $data)) {
-        $updates[] = "outer_diameter_mm = ?";
-        $params[] = $data['outer_diameter_mm'] !== null && $data['outer_diameter_mm'] !== '' ? (int) $data['outer_diameter_mm'] : null;
-    }
-    if (array_key_exists('width_mm', $data)) {
-        $updates[] = "width_mm = ?";
-        $params[] = $data['width_mm'] !== null && $data['width_mm'] !== '' ? (int) $data['width_mm'] : null;
-    }
-    if (array_key_exists('visual_description', $data)) {
-        $updates[] = "visual_description = ?";
-        $params[] = $data['visual_description'] === '' ? null : ($data['visual_description'] ?? null);
-    }
-
-    // Check if manufacturer associations are being updated
-    $manufData = $data['manufacturer_ids'] ?? $data['manufacturer_names'] ?? null;
-    $hasManufUpdate = $manufData !== null;
-    $hasSpoolUpdate = count($updates) > 0;
-
-    if (!$hasSpoolUpdate && !$hasManufUpdate) {
+    $useWeight = $weightGrams !== null;
+    $useColor = $color !== null;
+    $useMaterial = $material !== null;
+    $useOuter = $outerDiameter !== null;
+    $useWidth = $width !== null;
+    $useDesc = $visualDescription !== null;
+    $useManuf = $manufData !== null;
+    if (!$useWeight && !$useColor && !$useMaterial && !$useOuter && !$useWidth && !$useDesc && !$useManuf) {
         http_response_code(400);
-        echo json_encode(['error' => 'Žádná pole k aktualizaci. Uveďte alespoň jedno pole (weight_grams, color, material, outer_diameter_mm, width_mm, visual_description nebo manufacturer_ids).']);
+        echo json_encode(['error' => 'Žádná pole k aktualizaci']);
         exit;
     }
-    
-    // Use transaction whenever multiple operations run: spool UPDATE and/or manufacturer DELETE+INSERT.
-    // Required when only manufacturers are updated so that failed INSERT after DELETE can roll back.
-    $useTransaction = $hasSpoolUpdate || $hasManufUpdate;
-    
-    if ($useTransaction) {
-        $pdo->beginTransaction();
+
+    // Validace výrobců před zápisem (stejně jako v create.php) – žádné tiché přeskočení
+    $validManufIds = null;
+    if ($useManuf) {
+        if (!is_array($manufData) || count($manufData) === 0) {
+            $validManufIds = [];
+        } else {
+            $isNames = !is_numeric($manufData[0]);
+            if ($isNames) {
+                $notFoundNames = [];
+                $validManufIds = [];
+                $stmtGetId = $pdo->prepare("SELECT manufacturer_id FROM manufacturers WHERE approved = 1 AND invalidated_at IS NULL AND LOWER(TRIM(name)) = LOWER(?) LIMIT 1");
+                foreach ($manufData as $name) {
+                    $stmtGetId->execute([trim((string) $name)]);
+                    $manufId = $stmtGetId->fetchColumn();
+                    if ($manufId !== false) {
+                        $validManufIds[] = (int) $manufId;
+                    } else {
+                        $notFoundNames[] = $name;
+                    }
+                }
+                if (count($notFoundNames) > 0) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Některé výrobce nebyly nalezeny', 'not_found' => $notFoundNames]);
+                    exit;
+                }
+            } else {
+                $placeholders = implode(',', array_fill(0, count($manufData), '?'));
+                $stmtValidate = $pdo->prepare("SELECT DISTINCT manufacturer_id FROM manufacturers WHERE approved = 1 AND invalidated_at IS NULL AND manufacturer_id IN ($placeholders)");
+                $stmtValidate->execute(array_map('intval', $manufData));
+                $validIds = $stmtValidate->fetchAll(PDO::FETCH_COLUMN);
+                if (count($validIds) !== count($manufData)) {
+                    http_response_code(400);
+                    echo json_encode(['error' => 'Některé ID výrobců nejsou platné']);
+                    exit;
+                }
+                $validManufIds = array_map('intval', $manufData);
+            }
+        }
     }
-    
+
+    $w = $useWeight ? $weightGrams : ($current['weight_grams'] ?? null);
+    $c = $useColor ? $color : ($current['color'] ?? null);
+    $m = $useMaterial ? $material : ($current['material'] ?? null);
+    $o = $useOuter ? $outerDiameter : ($current['outer_diameter_mm'] ?? null);
+    $wi = $useWidth ? $width : ($current['width_mm'] ?? null);
+    $v = $useDesc ? $visualDescription : ($current['visual_description'] ?? null);
+
+    if ($isPublic) {
+        if ($isAdmin) {
+            $pdo->beginTransaction();
+            try {
+                $stmtInv = $pdo->prepare("UPDATE spool_types SET invalidated_at = NOW(), invalidated_by = ? WHERE spool_type_id = ? AND invalidated_at IS NULL");
+                $stmtInv->execute([$userId, $spoolTypeId]);
+                $stmtIns = $pdo->prepare("
+                    INSERT INTO spool_types (spool_type_id, weight_grams, color, material, outer_diameter_mm, width_mm, visual_description, public, approved, created_at, created_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1, NOW(), ?)
+                ");
+                $stmtIns->execute([$spoolTypeId, $w, $c, $m, $o, $wi, $v, $userId]);
+                if ($validManufIds !== null) {
+                    $stmtDel = $pdo->prepare("DELETE FROM spool_manufacturer WHERE spool_id = ?");
+                    $stmtDel->execute([$spoolTypeId]);
+                    $stmtManuf = $pdo->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
+                    foreach ($validManufIds as $manufId) {
+                        $stmtManuf->execute([$spoolTypeId, $manufId]);
+                    }
+                }
+                $pdo->commit();
+                echo json_encode(['success' => true, 'id' => $spoolTypeId, 'message' => 'Typ cívky byl upraven']);
+                exit;
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                throw $e;
+            }
+        }
+
+        $stmtProposal = $pdo->prepare("SELECT 1 FROM spool_types WHERE spool_type_id = ? AND approved = 0 AND invalidated_at IS NULL LIMIT 1");
+        $stmtProposal->execute([$spoolTypeId]);
+        if ($stmtProposal->fetchColumn() !== false) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Pro tento typ cívky již existuje čekající návrh na změnu.']);
+            exit;
+        }
+        $stmt = $pdo->prepare("
+            INSERT INTO spool_types (spool_type_id, weight_grams, color, material, outer_diameter_mm, width_mm, visual_description, public, approved, created_at, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, NOW(), ?)
+        ");
+        $stmt->execute([$spoolTypeId, $w, $c, $m, $o, $wi, $v, $userId]);
+        if ($validManufIds !== null) {
+            $stmtDel = $pdo->prepare("DELETE FROM spool_manufacturer WHERE spool_id = ?");
+            $stmtDel->execute([$spoolTypeId]);
+            $stmtManuf = $pdo->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
+            foreach ($validManufIds as $manufId) {
+                $stmtManuf->execute([$spoolTypeId, $manufId]);
+            }
+        }
+        echo json_encode(['success' => true, 'id' => $spoolTypeId, 'message' => 'Návrh na změnu byl odeslán. Po schválení administrátorem se typ cívky změní.']);
+        exit;
+    }
+
+    if ($createdBy !== $userId) {
+        http_response_code(403);
+        echo json_encode(['error' => 'Nemáte oprávnění upravit tento typ cívky']);
+        exit;
+    }
+
+    $pdo->beginTransaction();
     try {
-        // Update spool data (if any fields provided)
-        if ($hasSpoolUpdate) {
-            $params[] = $spoolId;
-            $sql = "UPDATE spool_library SET " . implode(", ", $updates) . " WHERE id = ?";
-            $stmt = $pdo->prepare($sql);
-            $stmt->execute($params);
-        }
-        
-        // Update manufacturer associations (if provided)
-        if ($hasManufUpdate) {
-            // First, validate all manufacturer names (if using names) BEFORE deleting anything
-            $notFoundNames = [];
-            $manufacturerIds = [];
-            
-            if (is_array($manufData) && count($manufData) > 0) {
-                $isNames = !is_numeric($manufData[0]);
-
-                if ($isNames) {
-                    // Resolve names to logical manufacturer_id (approved version)
-                    $stmtGetId = $pdo->prepare("
-                        SELECT manufacturer_id FROM manufacturers
-                        WHERE approved = 1 AND invalidated_at IS NULL AND LOWER(TRIM(name)) = LOWER(?)
-                        LIMIT 1
-                    ");
-                    
-                    foreach ($manufData as $manufName) {
-                        $stmtGetId->execute([trim($manufName)]);
-                        $manufId = $stmtGetId->fetchColumn();
-                        if ($manufId !== false) {
-                            $manufacturerIds[] = (int) $manufId;
-                        } else {
-                            $notFoundNames[] = $manufName;
-                        }
-                    }
-                    
-                    // If any names were not found, rollback and return error
-                    if (count($notFoundNames) > 0) {
-                        if ($useTransaction) {
-                            $pdo->rollBack();
-                        }
-                        http_response_code(400);
-                        echo json_encode([
-                            'error' => 'Některé výrobce nebyly nalezeny',
-                            'not_found' => $notFoundNames
-                        ]);
-                        exit;
-                    }
-                } else {
-                    // Use logical manufacturer_id – validate they exist
-                    $placeholders = implode(',', array_fill(0, count($manufData), '?'));
-                    $stmtValidate = $pdo->prepare("
-                        SELECT DISTINCT manufacturer_id FROM manufacturers
-                        WHERE approved = 1 AND invalidated_at IS NULL AND manufacturer_id IN ($placeholders)
-                    ");
-                    $stmtValidate->execute($manufData);
-                    $validIds = $stmtValidate->fetchAll(PDO::FETCH_COLUMN);
-                    
-                    if (count($validIds) !== count($manufData)) {
-                        if ($useTransaction) {
-                            $pdo->rollBack();
-                        }
-                        http_response_code(400);
-                        echo json_encode(['error' => 'Některé ID výrobců nejsou platné']);
-                        exit;
-                    }
-                    
-                    $manufacturerIds = $manufData;
-                }
-            }
-            
-            // Now that validation passed, delete existing associations
-            $stmt = $pdo->prepare("DELETE FROM spool_manufacturer WHERE spool_id = ?");
-            $stmt->execute([$spoolId]);
-
-            // Add new associations
-            if (count($manufacturerIds) > 0) {
-                $stmtManuf = $pdo->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
-                foreach ($manufacturerIds as $manufId) {
-                    $stmtManuf->execute([$spoolId, $manufId]);
-                }
+        $stmtInv = $pdo->prepare("UPDATE spool_types SET invalidated_at = NOW(), invalidated_by = ? WHERE spool_type_id = ? AND approved = 1 AND invalidated_at IS NULL");
+        $stmtInv->execute([$userId, $spoolTypeId]);
+        $stmtIns = $pdo->prepare("
+            INSERT INTO spool_types (spool_type_id, weight_grams, color, material, outer_diameter_mm, width_mm, visual_description, public, approved, created_at, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, NOW(), ?)
+        ");
+        $stmtIns->execute([$spoolTypeId, $w, $c, $m, $o, $wi, $v, $userId]);
+        if ($validManufIds !== null) {
+            $stmtDel = $pdo->prepare("DELETE FROM spool_manufacturer WHERE spool_id = ?");
+            $stmtDel->execute([$spoolTypeId]);
+            $stmtManuf = $pdo->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
+            foreach ($validManufIds as $manufId) {
+                $stmtManuf->execute([$spoolTypeId, $manufId]);
             }
         }
-        
-        // Commit transaction if one was started
-        if ($useTransaction) {
-            $pdo->commit();
-        }
-        
+        $pdo->commit();
+        echo json_encode(['success' => true, 'id' => $spoolTypeId, 'message' => 'Typ cívky byl upraven']);
     } catch (Exception $e) {
-        // Rollback on any error if transaction was started
-        if ($useTransaction) {
-            $pdo->rollBack();
-        }
+        $pdo->rollBack();
         throw $e;
     }
-
-    echo json_encode(['success' => true]);
-
-} catch (Exception $e) {
+} catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'Chyba databáze']);
 }
