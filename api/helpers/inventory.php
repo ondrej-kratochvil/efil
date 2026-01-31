@@ -70,15 +70,19 @@ function getInventoryIdForUser(PDO $pdo, int $userId, bool $updateSession = fals
         return (int) $inventoryId;
     }
 
+    // Prefer owned inventory over shared (same logic as login.php)
     $stmtInv = $pdo->prepare("
-        SELECT i.id
-        FROM inventories i
-        WHERE i.owner_id = ?
-        UNION
-        SELECT i.id
-        FROM inventories i
-        JOIN inventory_members im ON i.id = im.inventory_id
-        WHERE im.user_id = ?
+        SELECT inv.id FROM (
+            SELECT i.id, 1 AS _priority
+            FROM inventories i
+            WHERE i.owner_id = ?
+            UNION
+            SELECT i.id, 0 AS _priority
+            FROM inventories i
+            JOIN inventory_members im ON i.id = im.inventory_id
+            WHERE im.user_id = ?
+        ) AS inv
+        ORDER BY inv._priority DESC, inv.id ASC
         LIMIT 1
     ");
     $stmtInv->execute([$userId, $userId]);
