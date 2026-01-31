@@ -74,7 +74,7 @@ try {
         ";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$invId]);
-        $topManIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+        $topManIds = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
 
         $manById = [];
         foreach ($manList as $m) {
@@ -88,7 +88,7 @@ try {
             }
         }
         foreach ($manList as $m) {
-            if (!in_array($m['id'], $topManIds, true)) {
+            if (!in_array((int) $m['id'], $topManIds, true)) {
                 $othersManufacturers[] = $m;
             }
         }
