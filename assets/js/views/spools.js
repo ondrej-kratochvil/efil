@@ -4,6 +4,12 @@ import { API_BASE } from '../config.js';
 import { showToast } from '../utils.js';
 import { loadData } from '../api.js';
 
+function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
+}
+
 export async function renderSpools(v) {
     const container = document.createElement('div');
     container.className = "max-w-4xl mx-auto space-y-6";
@@ -70,7 +76,7 @@ export async function renderSpools(v) {
                 <div>
                     <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Výrobci (multiselect)</label>
                     <select multiple id="spool-manufacturers" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" style="min-height: 100px;">
-                        ${manufacturers.map(m => `<option value="${m}">${m}</option>`).join('')}
+                        ${manufacturers.map(m => typeof m === 'object' && m && 'id' in m ? `<option value="${m.id}">${escapeHtml(m.name)}</option>` : `<option value="${m}">${escapeHtml(String(m))}</option>`).join('')}
                     </select>
                     <div class="text-xs text-slate-500 mt-1">Držte Ctrl/Cmd pro výběr více výrobců</div>
                 </div>
@@ -135,15 +141,9 @@ export async function handleSpoolSubmit(e) {
     const manufSelect = document.getElementById('spool-manufacturers');
     const selectedManuf = Array.from(manufSelect.selectedOptions).map(o => o.value);
 
-    // Get manufacturer IDs from options.manufacturers
-    const manufIds = [];
-    if (options.manufacturers) {
-        for (const manufName of selectedManuf) {
-            // Manufacturers are loaded from DB, need to match by name
-            // Will need to extend API to accept names or load IDs
-            manufIds.push(manufName);
-        }
-    }
+    const manufIds = selectedManuf.filter(v => v !== '').map(v => /^\d+$/.test(String(v)) ? parseInt(v, 10) : v);
+    const manufacturerIds = manufIds.filter(v => typeof v === 'number');
+    const manufacturerNames = manufIds.filter(v => typeof v === 'string');
 
     const payload = {
         color,
@@ -151,9 +151,10 @@ export async function handleSpoolSubmit(e) {
         outer_diameter_mm: diameter,
         width_mm: width,
         weight_grams: weight,
-        visual_description: description,
-        manufacturer_names: manufIds // Send names, API will resolve to IDs
+        visual_description: description
     };
+    if (manufacturerIds.length > 0) payload.manufacturer_ids = manufacturerIds;
+    if (manufacturerNames.length > 0) payload.manufacturer_names = manufacturerNames;
 
     if (spoolId) {
         payload.id = parseInt(spoolId);
@@ -205,11 +206,11 @@ export async function editSpool(spoolId) {
         document.getElementById('spool-weight').value = spool.weight_grams || '';
         document.getElementById('spool-description').value = spool.visual_description || '';
 
-        // Select manufacturers
+        // Select manufacturers (by id; spool.manufacturers have id and name)
         const manufSelect = document.getElementById('spool-manufacturers');
-        const manufNames = spool.manufacturers.map(m => m.name);
+        const manufIds = (spool.manufacturers || []).map(m => m.id != null ? m.id : m).filter(Boolean);
         Array.from(manufSelect.options).forEach(opt => {
-            opt.selected = manufNames.includes(opt.value);
+            opt.selected = manufIds.some(id => id == opt.value);
         });
 
         // Update form title and show cancel button

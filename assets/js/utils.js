@@ -20,7 +20,7 @@ export function getBasePath() {
     }
     // If path contains known app routes, extract base path
     const segments = cleanPath.split('/').filter(s => s);
-    const appRoutes = ['wizard', 'form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'admin-stats', 'inventory-switch', 'forgot-password', 'reset-password'];
+    const appRoutes = ['wizard', 'form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'manufacturers', 'admin-stats', 'inventory-switch', 'forgot-password', 'reset-password'];
 
     // Find first app route index
     let routeIndex = segments.length;
@@ -119,6 +119,22 @@ export function formatKg(grams) {
         return (grams / 1000).toFixed(1).replace('.', ',') + ' kg';
     }
     return grams + 'g';
+}
+
+/**
+ * Průměrná cena za kg (Kč/kg) z pole filamentů. Započítávají se jen položky s vyplněnou cenou (price > 0).
+ * Vrací zaokrouhlené číslo nebo null, pokud nelze spočítat.
+ * @param {Array<{price?: *, initial_weight_grams?: *}>} items
+ * @returns {number|null}
+ */
+export function getAvgCzkPerKg(items) {
+    if (!Array.isArray(items) || items.length === 0) return null;
+    const withPrice = items.filter(i => (parseFloat(i.price) || 0) > 0);
+    if (withPrice.length === 0) return null;
+    const totalPrice = withPrice.reduce((s, i) => s + (parseFloat(i.price) || 0), 0);
+    const totalInitialG = withPrice.reduce((s, i) => s + (parseInt(i.initial_weight_grams) || 0), 0);
+    if (totalInitialG <= 0) return null;
+    return Math.round(totalPrice / (totalInitialG / 1000));
 }
 
 /**

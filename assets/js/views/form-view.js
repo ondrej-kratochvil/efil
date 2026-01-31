@@ -91,6 +91,7 @@ export function renderForm(v) {
         user_display_id: state.formValues.user_display_id !== undefined && state.formValues.user_display_id !== '' ? state.formValues.user_display_id : (baseItem.user_display_id || suggestedDisplayId),
         mat: state.formValues.mat !== undefined && state.formValues.mat !== '' ? state.formValues.mat : baseItem.mat,
         man: state.formValues.man !== undefined && state.formValues.man !== '' ? state.formValues.man : baseItem.man,
+        man_id: state.formValues.man_id != null ? state.formValues.man_id : (baseItem.man_id ?? (/^\d+$/.test(String(state.formValues.man || '')) ? parseInt(state.formValues.man, 10) : undefined)),
         loc: state.formValues.loc !== undefined && state.formValues.loc !== '' ? state.formValues.loc : baseItem.loc,
         seller: state.formValues.seller !== undefined && state.formValues.seller !== '' ? state.formValues.seller : baseItem.seller,
         color: state.formValues.color !== undefined && state.formValues.color !== '' ? state.formValues.color : baseItem.color,
@@ -99,7 +100,7 @@ export function renderForm(v) {
         price: state.formValues.price !== undefined && state.formValues.price !== '' ? state.formValues.price : baseItem.price,
         date: state.formValues.date !== undefined && state.formValues.date !== '' ? state.formValues.date : baseItem.date,
         spool_id: state.formValues.spool !== undefined && state.formValues.spool !== '' ? state.formValues.spool : baseItem.spool_id
-    } : { ...baseItem, user_display_id: baseItem.user_display_id || suggestedDisplayId, g: originalWeight };
+    } : { ...baseItem, user_display_id: baseItem.user_display_id || suggestedDisplayId, g: originalWeight, man_id: baseItem.man_id };
 
     // Update weight mode from saved values
     if (state.formValues && state.formValues.weightMode) {
@@ -149,7 +150,7 @@ export function renderForm(v) {
         </div>
         <div class="field-container">
             <label class="text-[10px] font-bold text-slate-400 uppercase">Výrobce</label>
-            <div class="input-group">${renderFieldInput('man', mans, item.man)}</div>
+            <div class="input-group">${renderFieldInput('man', mans, item.man_id != null && item.man_id !== '' ? item.man_id : item.man)}</div>
         </div>
         <div class="field-container">
             <label class="text-[10px] font-bold text-slate-400 uppercase">Počáteční hmotnost (g) <span class="text-red-500">*</span></label>

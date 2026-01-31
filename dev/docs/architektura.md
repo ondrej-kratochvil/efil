@@ -210,6 +210,16 @@ Aplikace používá **History API** pro podporu tlačítek Zpět/Vpřed:
 /inventory-switch → Přepínání evidencí
 ```
 
+### Pomocné funkce (DRY)
+
+Opakující se logika je v **jedné funkci**, kterou volají všechny view:
+
+- **`assets/js/utils.js`**:
+  - **`getAvgCzkPerKg(items)`** – průměrná cena za kg (Kč/kg) z pole filamentů; započítávají se jen položky s `price > 0`, základ je `initial_weight_grams`. Používá se na kartách MAT, BAR a VÝR.
+  - **`formatKg(grams)`** – formátování hmotnosti (g/kg).
+  - **`getContrast(hex)`** – barva textu (černá/bílá) pro pozadí.
+- Pravidlo: výpočty a formátování nekopírovat, vždy volat společnou funkci (viz `.cursorrules` – Znovupoužitelnost a DRY).
+
 ### State Management
 
 Globální state objekt:

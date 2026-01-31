@@ -24,13 +24,20 @@ git pull origin main
 
 ### 3. Aktualizace databáze
 
-Spusťte migrační skript pro přidání nových sloupců:
+Spusťte migrační skripty v pořadí podle potřeby.
 
+**Výrobci (verzování)** – pokud máte staré schéma (sloupec `filaments.manufacturer` VARCHAR):
 ```bash
-php update_consumption_schema.php
+php dev/sql/migrate_manufacturers_versioned.php
+```
+Před spuštěním záloha DB. Při předchozím selhání migrace lze skript spustit znovu (resume). Viz [MANUFACTURERS.md](MANUFACTURERS.md).
+
+**Čerpání a další sloupce:**
+```bash
+php dev/sql/update_consumption_schema.php
 ```
 
-Tento skript přidá:
+Tento skript přidá mj.:
 - `consumption_date` - datum čerpání
 - `created_by` - ID uživatele, který vytvořil záznam
 

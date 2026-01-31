@@ -2,13 +2,15 @@
 // tests/balance_test.php
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/../../api/helpers/manufacturers.php';
 
 echo "Running Balance Calculation Tests...\n";
 echo "------------------------------------\n";
 
-// Setup Test Data
+// Setup Test Data (FK manufacturers.created_by -> users: nejdřív výrobce, pak uživatele)
 $testEmail = 'test_calc_' . time() . '@example.com';
-$pdo->exec("DELETE FROM users WHERE email LIKE 'test_calc_%'"); // Cleanup old
+$pdo->exec("DELETE FROM manufacturers WHERE created_by IN (SELECT id FROM users WHERE email LIKE 'test_calc_%')");
+$pdo->exec("DELETE FROM users WHERE email LIKE 'test_calc_%'");
 
 try {
     // 1. Create User
@@ -42,14 +44,17 @@ try {
     assertResult("After Correction (+50g)", 850, $balance);
 
     // 6. Test Brutto Calculation with Spool
-    // Add Spool (200g)
-    $stmt = $pdo->prepare("INSERT INTO manufacturers (name) VALUES ('TestMan')");
-    $stmt->execute();
-    $manId = $pdo->lastInsertId();
+    // Add manufacturer (versioned schema) and spool (200g)
+    $manLogicalId = getNextManufacturerId($pdo);
+    $stmt = $pdo->prepare("INSERT INTO manufacturers (manufacturer_id, name, public, approved, created_by) VALUES (?, 'TestMan', 0, 1, ?)");
+    $stmt->execute([$manLogicalId, $userId]);
+    $manRowId = $pdo->lastInsertId();
 
-    $stmt = $pdo->prepare("INSERT INTO spool_library (manufacturer_id, weight_grams) VALUES (?, 200)");
-    $stmt->execute([$manId]);
+    $stmt = $pdo->prepare("INSERT INTO spool_library (weight_grams) VALUES (200)");
+    $stmt->execute();
     $spoolId = $pdo->lastInsertId();
+    $stmt = $pdo->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
+    $stmt->execute([$spoolId, $manLogicalId]);
 
     // Assign spool to filament
     $stmt = $pdo->prepare("UPDATE filaments SET spool_type_id = ? WHERE id = ?");
@@ -59,10 +64,12 @@ try {
     $brutto = getBrutto($pdo, $filId);
     assertResult("Brutto Weight (Netto 850 + Tare 200)", 1050, $brutto);
 
-    // Cleanup
-    $pdo->exec("DELETE FROM users WHERE id = $userId"); // Cascade deletes inventory & filaments
+    // Cleanup (manufacturers.created_by -> users.id: smazat výrobce před uživatelem)
+    $pdo->exec("DELETE FROM spool_manufacturer WHERE spool_id = $spoolId");
     $pdo->exec("DELETE FROM spool_library WHERE id = $spoolId");
-    $pdo->exec("DELETE FROM manufacturers WHERE id = $manId");
+    $stmt = $pdo->prepare("DELETE FROM manufacturers WHERE created_by = ?");
+    $stmt->execute([$userId]);
+    $pdo->exec("DELETE FROM users WHERE id = $userId"); // Cascade: inventory & filaments
 
     echo "\nAll Tests Passed!\n";
 

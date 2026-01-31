@@ -24,7 +24,7 @@ $jsVersion  = is_file($jsFile) ? (string)filemtime($jsFile) : '1';
                 cleanPath = cleanPath.replace(/\/index\.(html|php)$/, '');
             }
             const segments = cleanPath.split('/').filter(s => s);
-            const appRoutes = ['wizard', 'form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'admin-stats', 'inventory-switch', 'forgot-password', 'reset-password'];
+            const appRoutes = ['wizard', 'form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'manufacturers', 'admin-stats', 'inventory-switch', 'forgot-password', 'reset-password'];
             let routeIndex = segments.length;
             for (let i = 0; i < segments.length; i++) {
                 if (appRoutes.includes(segments[i])) {
@@ -155,6 +155,10 @@ $jsVersion  = is_file($jsFile) ? (string)filemtime($jsFile) : '1';
                         <button onclick="openSpools()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left">
                             <div class="bg-teal-100 text-teal-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg></div>
                             Správa typů cívek
+                        </button>
+                        <button onclick="openManufacturers()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left">
+                            <div class="bg-sky-100 text-sky-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5m-4 0h4"></path></svg></div>
+                            Správa výrobců
                         </button>
                         <button onclick="openHelp()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left">
                             <div class="bg-amber-100 text-amber-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div>

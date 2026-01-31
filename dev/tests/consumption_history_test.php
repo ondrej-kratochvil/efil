@@ -5,6 +5,7 @@
 
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/../../api/helpers/manufacturers.php';
 
 echo "=== TEST HISTORIE ČERPÁNÍ ===\n\n";
 
@@ -14,15 +15,19 @@ try {
     // 1. Vytvoření testovacího uživatele a evidence
     echo "1. Vytváření testovacího uživatele...\n";
     $testUser = createTestUser($db);
+    $userId = (int) $testUser['id'];
     $testInventory = createTestInventory($db, $testUser['id']);
     
-    // 2. Vytvoření testovacího filamentu
+    // 2. Vytvoření výrobce (versioned schema) a testovacího filamentu
     echo "2. Vytváření testovacího filamentu...\n";
+    $manLogicalId = getNextManufacturerId($db);
+    $stmtM = $db->prepare("INSERT INTO manufacturers (manufacturer_id, name, public, approved, created_by) VALUES (?, 'Prusament', 0, 1, ?)");
+    $stmtM->execute([$manLogicalId, $userId]);
     $stmt = $db->prepare("
-        INSERT INTO filaments (inventory_id, user_display_id, material, manufacturer, color_name, color_hex, initial_weight_grams)
-        VALUES (?, 1, 'PLA (STANDARD)', 'Prusament', 'Černá', '#000000', 1000)
+        INSERT INTO filaments (inventory_id, user_display_id, material, manufacturer_id, color_name, color_hex, initial_weight_grams)
+        VALUES (?, 1, 'PLA (STANDARD)', ?, 'Černá', '#000000', 1000)
     ");
-    $stmt->execute([$testInventory['id']]);
+    $stmt->execute([$testInventory['id'], $manLogicalId]);
     $filamentId = $db->lastInsertId();
     echo "   Filament vytvořen s ID: $filamentId\n";
 
@@ -115,8 +120,10 @@ try {
     assert($history[0]['consumption_date'] == '2024-01-20', "Řazení historie je špatné");
     echo "   ✓ Historie načtena a správně seřazena\n";
     
-    // Cleanup
+    // Cleanup (manufacturers.created_by -> users: smazat výrobce před uživatelem)
     echo "\n7. Úklid testovacích dat...\n";
+    $stmt = $db->prepare("DELETE FROM manufacturers WHERE created_by = ?");
+    $stmt->execute([$userId]);
     cleanupTestData($db, $testUser['id']);
     echo "   ✓ Testovací data odstraněna\n";
     

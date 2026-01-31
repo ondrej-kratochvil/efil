@@ -2,7 +2,7 @@
 import { state, filaments } from '../state.js';
 import { router } from '../router.js';
 import { BASE_PATH } from '../config.js';
-import { formatKg, getContrast } from '../utils.js';
+import { formatKg, getContrast, getAvgCzkPerKg } from '../utils.js';
 import { colorPalette } from '../colors.js';
 
 export function renderMaterials(v) {
@@ -13,7 +13,10 @@ export function renderMaterials(v) {
     const activeFilaments = filaments.filter(i => parseInt(i.g) > 0);
     const data = state.filters.color ? activeFilaments.filter(i => i.color === state.filters.color) : activeFilaments;
     const stats = data.reduce((acc, i) => { 
-        acc[i.mat] = (acc[i.mat] || 0) + (parseInt(i.g) || 0); 
+        if (!acc[i.mat]) acc[i.mat] = { g: 0, count: 0, items: [] };
+        acc[i.mat].g += (parseInt(i.g) || 0);
+        acc[i.mat].count += 1;
+        acc[i.mat].items.push(i);
         return acc; 
     }, {});
 
@@ -30,7 +33,7 @@ export function renderMaterials(v) {
         return;
     }
 
-    Object.keys(stats).sort((a,b)=>stats[b]-stats[a]).forEach(m => {
+    Object.keys(stats).sort((a,b)=>stats[b].g-stats[a].g).forEach(m => {
         const card = document.createElement('div');
         card.className = "aspect-square bg-white border border-slate-200 rounded-2xl p-3 flex items-center justify-center text-center relative shadow-sm cursor-pointer hover:border-indigo-300 transition-colors";
         card.onclick = () => {
@@ -39,7 +42,10 @@ export function renderMaterials(v) {
             state.currentStep = nextStep;
             router.push(BASE_PATH + (nextStep === 2 ? '/wizard/bar' : '/wizard/vyr'));
         };
-        card.innerHTML = `<div class="text-[10px] font-bold text-slate-400 absolute top-2 right-2">${formatKg(stats[m])}</div><div class="text-base font-black uppercase tracking-tight">${m}</div>`;
+        const count = stats[m].count;
+        const avgCzkPerKg = getAvgCzkPerKg(stats[m].items);
+        const avgPriceHtml = avgCzkPerKg != null ? `<div class="text-[10px] font-bold text-slate-400 absolute bottom-2 right-2">x̄ ${avgCzkPerKg} Kč/kg</div>` : '';
+        card.innerHTML = `<div class="text-[10px] font-bold text-slate-400 absolute top-2 left-2">${count} ks</div><div class="text-[10px] font-bold text-slate-400 absolute top-2 right-2">${formatKg(stats[m].g)}</div>${avgPriceHtml}<div class="text-base font-black uppercase tracking-tight">${m}</div>`;
         grid.appendChild(card);
     });
     // "+" pro přidání nového filamentu (bez předvyplnění)
@@ -59,8 +65,10 @@ export function renderColors(v) {
     const activeFilaments = filaments.filter(i => parseInt(i.g) > 0);
     const data = state.filters.mat ? activeFilaments.filter(i => i.mat === state.filters.mat) : activeFilaments;
     const stats = data.reduce((acc, i) => { 
-        if(!acc[i.color]) acc[i.color]={g:0, hex:i.hex}; 
-        acc[i.color].g+=(parseInt(i.g)||0); 
+        if(!acc[i.color]) acc[i.color]={g:0, hex:i.hex, count:0, items:[]}; 
+        acc[i.color].g+=(parseInt(i.g)||0);
+        acc[i.color].count += 1;
+        acc[i.color].items.push(i);
         return acc; 
     }, {});
 
@@ -76,7 +84,9 @@ export function renderColors(v) {
             state.currentStep = nextStep;
             router.push(BASE_PATH + (nextStep === 1 ? '/wizard/mat' : '/wizard/vyr'));
         };
-        card.innerHTML = `<div class="text-[10px] font-bold absolute top-2 right-2 opacity-70">${formatKg(info.g)}</div><div class="text-[13px] font-black uppercase px-1">${c}</div>`;
+        const avgCzkPerKg = getAvgCzkPerKg(info.items);
+        const avgPriceHtml = avgCzkPerKg != null ? `<div class="text-[10px] font-bold absolute bottom-2 right-2 opacity-70">x̄ ${avgCzkPerKg} Kč/kg</div>` : '';
+        card.innerHTML = `<div class="text-[10px] font-bold absolute top-2 left-2 opacity-70">${info.count} ks</div><div class="text-[10px] font-bold absolute top-2 right-2 opacity-70">${formatKg(info.g)}</div>${avgPriceHtml}<div class="text-[13px] font-black uppercase px-1">${c}</div>`;
         grid.appendChild(card);
     });
     // "+" pro přidání nového filamentu (předvyplní se materiál, pokud je vyfiltrovaný)
@@ -127,8 +137,10 @@ export function renderDetails(v) {
             const isExpanded = state.expandedGroups.has(key);
 
             if (isMultiple && !isExpanded) {
-                // Show grouped item
+                // Show grouped item – průměr jen z filamentů s vyplněnou cenou
                 const totalWeight = items.reduce((sum, i) => sum + parseInt(i.g), 0);
+                const avgCzkPerKg = getAvgCzkPerKg(items);
+                const priceSuffix = avgCzkPerKg != null ? ` • x̄ ${avgCzkPerKg} Kč/kg` : '';
                 const firstItem = items[0];
 
                 const groupCard = document.createElement('div');
@@ -142,7 +154,7 @@ export function renderDetails(v) {
                         <div class="w-10 h-10 rounded-full border-2 border-indigo-300 shadow-inner" style="background-color: ${firstItem.hex}"></div>
                         <div>
                             <div class="font-bold text-slate-900 flex items-center gap-2">${firstItem.man}</div>
-                            <div class="text-xs text-slate-500 font-medium uppercase mt-0.5">${firstItem.mat} • ${firstItem.color}</div>
+                            <div class="text-xs text-slate-500 font-medium uppercase mt-0.5">${firstItem.mat} • ${firstItem.color}${priceSuffix}</div>
                             <div class="text-[10px] text-indigo-600 font-bold mt-1 uppercase">${items.length} cívek</div>
                         </div>
                     </div>
@@ -152,6 +164,8 @@ export function renderDetails(v) {
             } else {
                 // Show individual items (or single item, or expanded group)
                 items.sort((a,b)=>parseInt(b.g)-parseInt(a.g)).forEach((item, idx) => {
+                    const avgCzkPerKg = getAvgCzkPerKg([item]);
+                    const priceSuffix = avgCzkPerKg != null ? ` • ${avgCzkPerKg} Kč/kg` : ''; // bez x̄ – u jednotlivého filamentu jde o cenu za kg, ne průměr
                     const card = document.createElement('div');
                     const isInExpandedGroup = isMultiple && isExpanded;
                     const isHighlighted = state.lastUpdatedFilamentId === item.id;
@@ -165,7 +179,7 @@ export function renderDetails(v) {
                             <div class="w-10 h-10 rounded-full border border-slate-100 shadow-inner" style="background-color: ${item.hex}"></div>
                             <div>
                                 <div class="font-bold text-slate-900 flex items-center gap-2">${item.man}</div>
-                                <div class="text-xs text-slate-500 font-medium uppercase mt-0.5">${item.mat} • ${item.color}</div>
+                                <div class="text-xs text-slate-500 font-medium uppercase mt-0.5">${item.mat} • ${item.color}${priceSuffix}</div>
                                 <div class="text-[10px] text-indigo-500 font-bold mt-1 uppercase">${item.loc ? `${item.loc} | ` : ''}#${item.user_display_id || item.id}</div>
                             </div>
                         </div>

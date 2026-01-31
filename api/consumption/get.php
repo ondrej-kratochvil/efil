@@ -34,12 +34,14 @@ try {
     // Frontend should handle display of absolute value and sign
     $stmt = $pdo->prepare("
         SELECT cl.id, cl.amount_grams, ABS(cl.amount_grams) as consumed_weight, cl.consumption_date, cl.description as note,
-               f.id as filament_id, f.manufacturer, f.material, f.color_name as color
+               f.id as filament_id, COALESCE(m_proposal.name, m_approved.name) AS manufacturer, f.material, f.color_name as color
         FROM consumption_log cl
         INNER JOIN filaments f ON cl.filament_id = f.id
+        LEFT JOIN manufacturers m_approved ON f.manufacturer_id = m_approved.manufacturer_id AND m_approved.approved = 1 AND m_approved.invalidated_at IS NULL
+        LEFT JOIN manufacturers m_proposal ON f.manufacturer_id = m_proposal.manufacturer_id AND m_proposal.approved = 0 AND m_proposal.invalidated_at IS NULL AND m_proposal.created_by = ?
         WHERE cl.id = ? AND f.inventory_id = ?
     ");
-    $stmt->execute([$consumptionId, $inventoryId]);
+    $stmt->execute([$userId, $consumptionId, $inventoryId]);
     $consumption = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$consumption) {

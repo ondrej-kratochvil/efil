@@ -5,31 +5,38 @@
 
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/../../api/helpers/manufacturers.php';
 
 echo "Running Form Edit Data Load Tests...\n";
 echo "------------------------------------\n";
 
-// Setup Test Data
+// Setup Test Data (FK manufacturers.created_by -> users: nejdřív výrobce, pak uživatele)
 $testEmail = 'test_edit_' . time() . '@example.com';
-$pdo->exec("DELETE FROM users WHERE email LIKE 'test_edit_%'"); // Cleanup old
+$pdo->exec("DELETE FROM manufacturers WHERE created_by IN (SELECT id FROM users WHERE email LIKE 'test_edit_%')");
+$pdo->exec("DELETE FROM users WHERE email LIKE 'test_edit_%'");
 
 try {
     // 1. Create User and Inventory
     $user = createTestUser($pdo, $testEmail);
+    $userId = (int) $user['id'];
     $inventory = createTestInventory($pdo, $user['id'], 'Test Inventory');
     
     echo "[PASS] User and Inventory created.\n";
 
-    // 2. Create a filament with all fields
+    // 2. Create manufacturer (versioned schema) and filament with manufacturer_id
+    $manufacturer = 'Test Manufacturer';
+    $manLogicalId = getNextManufacturerId($pdo);
+    $stmtM = $pdo->prepare("INSERT INTO manufacturers (manufacturer_id, name, public, approved, created_by) VALUES (?, ?, 0, 1, ?)");
+    $stmtM->execute([$manLogicalId, $manufacturer, $userId]);
+
     $stmt = $pdo->prepare("
         INSERT INTO filaments (
-            inventory_id, user_display_id, material, manufacturer, color_name, color_hex,
+            inventory_id, user_display_id, material, manufacturer_id, color_name, color_hex,
             initial_weight_grams, location, price, seller, purchase_date, spool_type_id
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
     
     $material = 'PETG';
-    $manufacturer = 'Test Manufacturer';
     $colorName = 'Černá';
     $colorHex = '#000000';
     $weight = 850;
@@ -43,7 +50,7 @@ try {
         $inventory['id'],
         1,
         $material,
-        $manufacturer,
+        $manLogicalId,
         $colorName,
         $colorHex,
         $weight,
@@ -64,9 +71,9 @@ try {
     $_SESSION['inventory_id'] = $inventory['id'];
     $_SESSION['role'] = 'owner';
     
-    // Simulate API call to list.php
+    // Simulate API call to list.php (dev/tests -> ../../api)
     ob_start();
-    include __DIR__ . '/../api/filaments/list.php';
+    include __DIR__ . '/../../api/filaments/list.php';
     $response = ob_get_clean();
     
     $filaments = json_decode($response, true);
@@ -114,10 +121,14 @@ try {
     
     echo "[PASS] All fields validated successfully\n";
 
-    // 5. Test: Create another filament and verify data is still accessible
+    // 5. Test: Create another manufacturer and filament
+    $manLogicalId2 = getNextManufacturerId($pdo);
+    $stmtM2 = $pdo->prepare("INSERT INTO manufacturers (manufacturer_id, name, public, approved, created_by) VALUES (?, 'Another Manufacturer', 0, 1, ?)");
+    $stmtM2->execute([$manLogicalId2, $userId]);
+
     $stmt2 = $pdo->prepare("
         INSERT INTO filaments (
-            inventory_id, user_display_id, material, manufacturer, color_name, color_hex,
+            inventory_id, user_display_id, material, manufacturer_id, color_name, color_hex,
             initial_weight_grams, location, price, seller, purchase_date, spool_type_id
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
@@ -126,7 +137,7 @@ try {
         $inventory['id'],
         2,
         'PLA',
-        'Another Manufacturer',
+        $manLogicalId2,
         'Bílá',
         '#FFFFFF',
         500,
@@ -142,7 +153,7 @@ try {
     
     // Reload data
     ob_start();
-    include __DIR__ . '/../api/filaments/list.php';
+    include __DIR__ . '/../../api/filaments/list.php';
     $response2 = ob_get_clean();
     $filaments2 = json_decode($response2, true);
     
@@ -169,9 +180,11 @@ try {
     
     echo "[PASS] Multiple filaments can be loaded correctly\n";
 
-    // Cleanup
+    // Cleanup (manufacturers.created_by -> users: smazat výrobce před uživatelem)
     session_destroy();
     $pdo->exec("DELETE FROM filaments WHERE inventory_id = {$inventory['id']}");
+    $stmt = $pdo->prepare("DELETE FROM manufacturers WHERE created_by = ?");
+    $stmt->execute([$userId]);
     $pdo->exec("DELETE FROM inventories WHERE id = {$inventory['id']}");
     $pdo->exec("DELETE FROM users WHERE id = {$user['id']}");
     

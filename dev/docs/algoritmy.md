@@ -193,6 +193,46 @@ Value = 500 * 0.8 = 400 Kč
 
 ---
 
+## 📈 Průměrná cena za kg (Kč/kg) ve wizardu
+
+### Účel
+
+Na kartách MAT, BAR a VÝR se zobrazuje průměrná cena za kilogram (Kč/kg) – buď pro skupinu (materiál, barva, výrobce), nebo pro jednotlivý filament. Umožňuje rychle porovnat ceny bez otevírání detailu.
+
+### Vzorec
+
+- Do výpočtu se započítávají **pouze filamenty s vyplněnou cenou** (`price > 0`).
+- Základ pro přepočet je **původní hmotnost** (`initial_weight_grams`), ne aktuální zůstatek.
+- Průměr: `(součet cen) / (součet původních hmotností v kg)` zaokrouhleno na celé Kč.
+
+```
+avg_czk_per_kg = ROUND( SUM(price) / (SUM(initial_weight_grams) / 1000) )
+```
+
+### Jedna funkce (DRY)
+
+Výpočet je centralizovaný v jedné funkci **`getAvgCzkPerKg(items)`** v `assets/js/utils.js`. Volá se na všech místech:
+
+- **MAT** – `getAvgCzkPerKg(stats[m].items)` pro kartu materiálu
+- **BAR** – `getAvgCzkPerKg(info.items)` pro kartu barvy
+- **VÝR skupina** – `getAvgCzkPerKg(items)` pro skupinu filamentů
+- **VÝR jednotlivý** – `getAvgCzkPerKg([item])` pro jeden filament
+
+Pravidla (jen položky s cenou, použití původní hmotnosti) se tedy mění na jednom místě.
+
+### Příklad
+
+```
+Filament A: price = 500 Kč, initial_weight_grams = 1000
+Filament B: price = 300 Kč, initial_weight_grams = 500
+Filament C: price = 0 (nevyplněno) – nezapočítá se
+
+Součet cen = 800 Kč, součet původních = 1,5 kg
+Průměr = 800 / 1,5 = 533,33 → zobrazeno 533 Kč/kg
+```
+
+---
+
 ## 🔢 Automatické číslování (user_display_id)
 
 ### Logika při vytváření

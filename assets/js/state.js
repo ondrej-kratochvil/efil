@@ -7,7 +7,7 @@ export let stats = null;
 export let user = null;
 
 export const state = {
-    view: 'loading', // loading, auth, wizard, form, consume, stats, help, account, users, spools, adminStats, inventorySwitch
+    view: 'loading', // loading, auth, wizard, form, consume, stats, help, account, users, spools, manufacturers, adminStats, inventorySwitch
     authView: 'login', // login, register, forgotPassword, resetPassword
     currentStep: 1,
     filters: { mat: null, color: null },

@@ -2,6 +2,10 @@
 
 ## Verze 2.0 - Multiuser a rozšířené funkce
 
+### 📐 DRY a centralizace výpočtů (leden 2026)
+- **Průměrná cena za kg** – jeden výpočet v pomocné funkci `getAvgCzkPerKg()` v `assets/js/utils.js`; volá se na kartách MAT, BAR a VÝR (skupiny i jednotlivé položky). Žádný duplicitní kód.
+- **Pravidlo v `.cursorrules`** – znovupoužitelnost a DRY: vytvářet funkce, které se volají na všech místech, ne kopírovat logiku.
+
 ### ✅ Implementované funkce
 
 #### 🔐 Správa uživatelů a účtů
@@ -34,6 +38,13 @@
 - **Demo režim read-only** - demo evidence nelze editovat (kromě admin_efil)
 - **Materiály a výrobci pouze z DB** - odstraněny hardcoded seznamy
 - **Jednotná barevná paleta** - demo i uživatelské rozhraní používají stejné barvy
+
+#### 🏭 Verzování výrobců (manufacturers)
+- **Verzovaná tabulka výrobců** – soft delete, `invalidated_at` / `invalidated_by` (kdo smazal)
+- **API výrobců** – list, create, update, delete; admin: pending, approve, reject
+- **Filamenty a typy cívek** – reference na logické `manufacturer_id`; formuláře posílají `man_id` nebo `man` (nový název)
+- **Migrace** – `dev/sql/migrate_manufacturers_versioned.php` pro existující DB; podpora resume po částečném selhání
+- Dokumentace: [SOFT_DELETE_AND_VERSIONING.md](SOFT_DELETE_AND_VERSIONING.md), [MANUFACTURERS.md](MANUFACTURERS.md)
 
 ### 📋 Zbývající úkoly (plánováno)
 
@@ -70,12 +81,18 @@ SMTP_FROM_NAME=eFil - Evidence Filamentů
 
 ### 🗄️ Databázové změny
 
-Spusťte migrační skript pro existující databáze:
+- **Výrobci (verzování):** Pro existující DB se starým schématem výrobců spusťte jednou:
+  ```bash
+  php dev/sql/migrate_manufacturers_versioned.php
+  ```
+  Před spuštěním záloha DB. Při předchozím selhání migrace lze skript spustit znovu (resume).
+
+Ostatní migrace pro existující databáze:
 ```bash
 php dev/sql/update_consumption_schema.php
 ```
 
-Nebo pro nové instalace:
+Nové instalace:
 ```bash
 php dev/sql/init_db.php
 ```

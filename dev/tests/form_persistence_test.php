@@ -6,6 +6,7 @@
 
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/../../api/helpers/manufacturers.php';
 
 echo "Running Form Persistence Tests...\n";
 echo "---------------------------------\n";
@@ -41,24 +42,29 @@ try {
         'spool_id' => null
     ];
 
-    // Ensure manufacturer exists (as done in save.php)
+    // Ensure manufacturer exists (versioned schema: manufacturer_id, created_by)
+    $manLogicalId = null;
     if (!empty($formData['man'])) {
-        $stmt = $pdo->prepare("SELECT id FROM manufacturers WHERE name = ?");
-        $stmt->execute([$formData['man']]);
-        $existingMan = $stmt->fetch();
-
-        if (!$existingMan) {
-            $stmt = $pdo->prepare("INSERT INTO manufacturers (name) VALUES (?)");
-            $stmt->execute([$formData['man']]);
+        $opts = getManufacturersForOptions($pdo, (int) $userId);
+        foreach ($opts as $o) {
+            if ($o['name'] === $formData['man']) {
+                $manLogicalId = (int) $o['id'];
+                break;
+            }
+        }
+        if ($manLogicalId === null) {
+            $manLogicalId = getNextManufacturerId($pdo);
+            $stmt = $pdo->prepare("INSERT INTO manufacturers (manufacturer_id, name, public, approved, created_by) VALUES (?, ?, 0, 1, ?)");
+            $stmt->execute([$manLogicalId, $formData['man'], $userId]);
         }
     }
 
-    // Create filament
-    $stmt = $pdo->prepare("INSERT INTO filaments (inventory_id, user_display_id, material, manufacturer, color_name, color_hex, initial_weight_grams, location, price, seller, purchase_date, spool_type_id) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+    // Create filament (manufacturer_id, not manufacturer)
+    $stmt = $pdo->prepare("INSERT INTO filaments (inventory_id, user_display_id, material, manufacturer_id, color_name, color_hex, initial_weight_grams, location, price, seller, purchase_date, spool_type_id) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     $stmt->execute([
         $invId,
         $formData['mat'],
-        $formData['man'],
+        $manLogicalId,
         $formData['color'],
         $formData['hex'],
         $formData['g'],
@@ -70,13 +76,14 @@ try {
     ]);
     $filId = $pdo->lastInsertId();
 
-    // Verify all fields were saved
-    $stmt = $pdo->prepare("SELECT material, manufacturer, color_name, color_hex, initial_weight_grams, location, price, seller, purchase_date FROM filaments WHERE id = ?");
+    // Verify all fields were saved (manufacturer name via helper)
+    $stmt = $pdo->prepare("SELECT material, manufacturer_id, color_name, color_hex, initial_weight_grams, location, price, seller, purchase_date FROM filaments WHERE id = ?");
     $stmt->execute([$filId]);
     $filament = $stmt->fetch();
+    $savedManName = $filament['manufacturer_id'] !== null ? getManufacturerName($pdo, (int) $filament['manufacturer_id'], $userId) : null;
 
     assertResult("Material saved", $formData['mat'], $filament['material']);
-    assertResult("Manufacturer saved", $formData['man'], $filament['manufacturer']);
+    assertResult("Manufacturer saved", $formData['man'], $savedManName ?? '');
     assertResult("Color saved", $formData['color'], $filament['color_name']);
     assertResult("Hex saved", $formData['hex'], $filament['color_hex']);
     assertResult("Weight saved", $formData['g'], (int)$filament['initial_weight_grams']);
@@ -95,23 +102,28 @@ try {
         'loc' => 'Regál B'
     ];
 
-    // Ensure updated manufacturer exists
+    // Ensure updated manufacturer exists (versioned schema)
+    $updatedManLogicalId = null;
     if (!empty($updatedData['man'])) {
-        $stmt = $pdo->prepare("SELECT id FROM manufacturers WHERE name = ?");
-        $stmt->execute([$updatedData['man']]);
-        $existingMan = $stmt->fetch();
-
-        if (!$existingMan) {
-            $stmt = $pdo->prepare("INSERT INTO manufacturers (name) VALUES (?)");
-            $stmt->execute([$updatedData['man']]);
+        $opts = getManufacturersForOptions($pdo, (int) $userId);
+        foreach ($opts as $o) {
+            if ($o['name'] === $updatedData['man']) {
+                $updatedManLogicalId = (int) $o['id'];
+                break;
+            }
+        }
+        if ($updatedManLogicalId === null) {
+            $updatedManLogicalId = getNextManufacturerId($pdo);
+            $stmt = $pdo->prepare("INSERT INTO manufacturers (manufacturer_id, name, public, approved, created_by) VALUES (?, ?, 0, 1, ?)");
+            $stmt->execute([$updatedManLogicalId, $updatedData['man'], $userId]);
         }
     }
 
-    // Update filament
-    $stmt = $pdo->prepare("UPDATE filaments SET material = ?, manufacturer = ?, color_name = ?, color_hex = ?, initial_weight_grams = ?, location = ? WHERE id = ?");
+    // Update filament (manufacturer_id)
+    $stmt = $pdo->prepare("UPDATE filaments SET material = ?, manufacturer_id = ?, color_name = ?, color_hex = ?, initial_weight_grams = ?, location = ? WHERE id = ?");
     $stmt->execute([
         $updatedData['mat'],
-        $updatedData['man'],
+        $updatedManLogicalId,
         $updatedData['color'],
         $updatedData['hex'],
         $updatedData['g'],
@@ -119,13 +131,14 @@ try {
         $filId
     ]);
 
-    // Verify update
-    $stmt = $pdo->prepare("SELECT material, manufacturer, color_name, color_hex, initial_weight_grams, location FROM filaments WHERE id = ?");
+    // Verify update (manufacturer name via helper)
+    $stmt = $pdo->prepare("SELECT material, manufacturer_id, color_name, color_hex, initial_weight_grams, location FROM filaments WHERE id = ?");
     $stmt->execute([$filId]);
     $updated = $stmt->fetch();
+    $updatedManName = $updated['manufacturer_id'] !== null ? getManufacturerName($pdo, (int) $updated['manufacturer_id'], $userId) : null;
 
     assertResult("Material updated", $updatedData['mat'], $updated['material']);
-    assertResult("Manufacturer updated", $updatedData['man'], $updated['manufacturer']);
+    assertResult("Manufacturer updated", $updatedData['man'], $updatedManName ?? '');
     assertResult("Color updated", $updatedData['color'], $updated['color_name']);
     assertResult("Hex updated", $updatedData['hex'], $updated['color_hex']);
     assertResult("Weight updated", $updatedData['g'], (int)$updated['initial_weight_grams']);
@@ -144,21 +157,20 @@ try {
         exit(1);
     }
 
-    $sql = "SELECT DISTINCT name FROM manufacturers ORDER BY name";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute();
-    $manufacturers = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    $opts = getManufacturersForOptions($pdo, (int) $userId);
+    $manufacturerNames = array_column($opts, 'name');
 
-    if (in_array($updatedData['man'], $manufacturers)) {
+    if (in_array($updatedData['man'], $manufacturerNames)) {
         echo "[PASS] Updated manufacturer appears in options\n";
     } else {
         echo "[FAIL] Updated manufacturer should appear in options\n";
         exit(1);
     }
 
-    // Cleanup
+    // Cleanup (manufacturers.created_by -> users: smazat výrobce před uživatelem)
     $pdo->exec("DELETE FROM filaments WHERE id = $filId");
-    $pdo->exec("DELETE FROM manufacturers WHERE name IN ('TestManufacturer', 'UpdatedManufacturer')");
+    $stmt = $pdo->prepare("DELETE FROM manufacturers WHERE created_by = ?");
+    $stmt->execute([$userId]);
     $pdo->exec("DELETE FROM inventories WHERE id = $invId");
     $pdo->exec("DELETE FROM users WHERE id = $userId");
 

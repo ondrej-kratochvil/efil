@@ -191,7 +191,9 @@ if ($isBrowser) {
 
 $tests = [
     'balance_test.php' => 'Balance Calculation Tests',
+    'price_per_kg_test.php' => 'Price per kg (getAvgCzkPerKg) Tests',
     'manufacturer_auto_create_test.php' => 'Manufacturer Auto-Create Tests',
+    'manufacturers_versioning_test.php' => 'Manufacturers Versioning Tests',
     'options_optgroups_test.php' => 'Options Optgroups Tests',
     'spool_management_test.php' => 'Spool Management Tests',
     'form_persistence_test.php' => 'Form Persistence Tests',

@@ -1,5 +1,5 @@
 // Form helpers, field toggles, submission a logika vážení
-import { state, spoolTemplates, setSpoolTemplates } from '../state.js';
+import { state, spoolTemplates, setSpoolTemplates, options } from '../state.js';
 import { API_BASE, BASE_PATH } from '../config.js';
 import { showToast, getClosestColorName } from '../utils.js';
 import { loadData, saveFilament } from '../api.js';
@@ -11,25 +11,36 @@ export function renderFieldInput(key, list, value) {
     const hasGroups = list && typeof list === 'object' && !Array.isArray(list) && list.top && list.others;
     const listArray = hasGroups ? [...(list.top || []), ...(list.others || [])] : (Array.isArray(list) ? list : []);
     const isSelect = state.formFieldsStatus[key] === 'select';
+    // Výrobci jsou objekty { id, name }; ostatní pole jsou řetězce
+    const isManufacturerList = key === 'man' && listArray.length > 0 && typeof listArray[0] === 'object' && listArray[0] != null && 'id' in listArray[0] && 'name' in listArray[0];
 
-    // If list is empty and in select mode, show input instead (user can add new value)
     if (isSelect && listArray.length > 0) {
-        let optionsHtml = `<option value="" disabled ${!value ? 'selected' : ''}>Vybrat...</option>`;
+        let optionsHtml = `<option value="" disabled ${!value && value !== 0 ? 'selected' : ''}>Vybrat...</option>`;
 
-        if (hasGroups && list.top && list.top.length > 0) {
-            // Render with optgroups
+        if (isManufacturerList) {
+            if (hasGroups && list.top && list.top.length > 0) {
+                optionsHtml += `<optgroup label="Nejčastější">`;
+                optionsHtml += list.top.map(i => `<option value="${i.id}" ${(value == i.id || value === i.name) ? 'selected' : ''}>${escapeHtml(i.name)}</option>`).join('');
+                optionsHtml += `</optgroup>`;
+                if (list.others && list.others.length > 0) {
+                    optionsHtml += `<optgroup label="Ostatní">`;
+                    optionsHtml += list.others.map(i => `<option value="${i.id}" ${(value == i.id || value === i.name) ? 'selected' : ''}>${escapeHtml(i.name)}</option>`).join('');
+                    optionsHtml += `</optgroup>`;
+                }
+            } else {
+                optionsHtml += listArray.map(i => `<option value="${i.id}" ${(value == i.id || value === i.name) ? 'selected' : ''}>${escapeHtml(i.name)}</option>`).join('');
+            }
+        } else if (hasGroups && list.top && list.top.length > 0) {
             optionsHtml += `<optgroup label="Nejčastější">`;
-            optionsHtml += list.top.map(i => `<option value="${i}" ${i === value ? 'selected' : ''}>${i}</option>`).join('');
+            optionsHtml += list.top.map(i => `<option value="${i}" ${i === value ? 'selected' : ''}>${escapeHtml(String(i))}</option>`).join('');
             optionsHtml += `</optgroup>`;
-
             if (list.others && list.others.length > 0) {
                 optionsHtml += `<optgroup label="Ostatní">`;
-                optionsHtml += list.others.map(i => `<option value="${i}" ${i === value ? 'selected' : ''}>${i}</option>`).join('');
+                optionsHtml += list.others.map(i => `<option value="${i}" ${i === value ? 'selected' : ''}>${escapeHtml(String(i))}</option>`).join('');
                 optionsHtml += `</optgroup>`;
             }
         } else {
-            // Render as plain list
-            optionsHtml += listArray.map(i => `<option value="${i}" ${i === value ? 'selected' : ''}>${i}</option>`).join('');
+            optionsHtml += listArray.map(i => `<option value="${i}" ${i === value ? 'selected' : ''}>${escapeHtml(String(i))}</option>`).join('');
         }
 
         return `
@@ -39,11 +50,16 @@ export function renderFieldInput(key, list, value) {
             <button type="button" onclick="toggleField('${key}')" class="bg-indigo-100 text-indigo-600 p-3 rounded-xl font-bold">+</button>
         `;
     }
-    // Show input if list is empty or in input mode
     return `
-        <input id="f-${key}" type="text" value="${value || ''}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="Zadejte novou hodnotu">
+        <input id="f-${key}" type="text" value="${escapeHtml(String(value || ''))}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="Zadejte novou hodnotu">
         ${listArray.length > 0 ? `<button type="button" onclick="toggleField('${key}')" class="bg-slate-200 text-slate-500 p-3 rounded-xl font-bold">zpět</button>` : ''}
     `;
+}
+
+function escapeHtml(s) {
+    const div = document.createElement('div');
+    div.textContent = s;
+    return div.innerHTML;
 }
 
 export function renderSpoolInput(selectedId) {
@@ -61,16 +77,21 @@ export function renderSpoolInput(selectedId) {
             return parts.length > 0 ? parts.join(' • ') : 'Neznámá cívka';
         };
 
-        // Get currently selected manufacturer from the form
-        const currentManufacturer = document.getElementById('f-man')?.value || null;
+        // Get currently selected manufacturer (id or name) and resolve to name for grouping
+        const manVal = document.getElementById('f-man')?.value || null;
+        let currentManufacturerName = manVal;
+        if (options && options.manufacturers) {
+            const mans = Array.isArray(options.manufacturers) ? options.manufacturers : [...(options.manufacturers.top || []), ...(options.manufacturers.others || [])];
+            const found = mans.find(m => m && (m.id == manVal || m.name === manVal));
+            if (found) currentManufacturerName = found.name;
+        }
 
         // Split spools into two groups: matching manufacturer and others
         const matchingSpools = [];
         const otherSpools = [];
 
         spoolTemplates.forEach(s => {
-            // Check if this spool is associated with the current manufacturer
-            const hasMatch = s.manufacturers && s.manufacturers.some(m => m.name === currentManufacturer);
+            const hasMatch = s.manufacturers && s.manufacturers.some(m => m.name === currentManufacturerName);
             if (hasMatch) {
                 matchingSpools.push(s);
             } else {
@@ -92,11 +113,11 @@ export function renderSpoolInput(selectedId) {
 
         // Add other spools
         if (otherSpools.length > 0) {
-            if (matchingSpools.length > 0 && currentManufacturer) {
+            if (matchingSpools.length > 0 && currentManufacturerName) {
                 optionsHtml += `<optgroup label="Ostatní">`;
             }
             optionsHtml += otherSpools.map(s => `<option value="${s.id}" ${s.id == selectedId ? 'selected' : ''}>${formatSpoolLabel(s)}</option>`).join('');
-            if (matchingSpools.length > 0 && currentManufacturer) {
+            if (matchingSpools.length > 0 && currentManufacturerName) {
                 optionsHtml += `</optgroup>`;
             }
         }
@@ -386,6 +407,7 @@ export async function handleFormSubmit(e) {
     }
 
     const userDisplayId = document.getElementById('f-user_display_id')?.value;
+    const manVal = document.getElementById('f-man')?.value ?? '';
 
     const item = {
         id: state.editingId,
@@ -393,7 +415,6 @@ export async function handleFormSubmit(e) {
         mat: document.getElementById('f-mat').value,
         color: document.getElementById('f-color').value,
         hex: document.getElementById('f-hex').value,
-        man: document.getElementById('f-man').value,
         g: weight,
         loc: document.getElementById('f-loc').value,
         price: document.getElementById('f-price').value,
@@ -401,6 +422,13 @@ export async function handleFormSubmit(e) {
         date: document.getElementById('f-date').value,
         spool_id: spoolId
     };
+    if (manVal !== '') {
+        if (/^\d+$/.test(String(manVal))) {
+            item.man_id = parseInt(manVal, 10);
+        } else {
+            item.man = manVal;
+        }
+    }
     saveFilament(item);
 }
 

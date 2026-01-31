@@ -39,8 +39,18 @@ CREATE TABLE IF NOT EXISTS inventory_members (
 
 CREATE TABLE IF NOT EXISTS manufacturers (
     id INT AUTO_INCREMENT PRIMARY KEY,
+    manufacturer_id INT NOT NULL COMMENT 'kořen – společné pro všechny verze',
     name VARCHAR(255) NOT NULL,
-    UNIQUE KEY name_unique (name(191))
+    public TINYINT(1) NOT NULL DEFAULT 0,
+    approved TINYINT(1) NOT NULL DEFAULT 1,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_by INT NOT NULL,
+    invalidated_at DATETIME NULL DEFAULT NULL,
+    invalidated_by INT NULL DEFAULT NULL,
+    FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
+    FOREIGN KEY (invalidated_by) REFERENCES users(id) ON DELETE SET NULL,
+    INDEX idx_manufacturer_id (manufacturer_id),
+    INDEX idx_valid_approved (manufacturer_id, approved, invalidated_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE IF NOT EXISTS spool_library (
@@ -56,15 +66,14 @@ CREATE TABLE IF NOT EXISTS spool_library (
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
 
--- M:N relationship between spool types and manufacturers
+-- M:N relationship between spool types and manufacturers (manufacturer_id = logické id z manufacturers.manufacturer_id)
 CREATE TABLE IF NOT EXISTS spool_manufacturer (
     id INT AUTO_INCREMENT PRIMARY KEY,
     spool_id INT NOT NULL,
-    manufacturer_id INT NOT NULL,
+    manufacturer_id INT NOT NULL COMMENT 'logické id výrobce (manufacturers.manufacturer_id)',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY spool_manufacturer_unique (spool_id, manufacturer_id),
-    FOREIGN KEY (spool_id) REFERENCES spool_library(id) ON DELETE CASCADE,
-    FOREIGN KEY (manufacturer_id) REFERENCES manufacturers(id) ON DELETE CASCADE
+    FOREIGN KEY (spool_id) REFERENCES spool_library(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE IF NOT EXISTS filaments (
@@ -72,7 +81,7 @@ CREATE TABLE IF NOT EXISTS filaments (
     inventory_id INT NOT NULL,
     user_display_id INT NOT NULL,
     material VARCHAR(50) NOT NULL,
-    manufacturer VARCHAR(255),
+    manufacturer_id INT NULL COMMENT 'logické id výrobce (manufacturers.manufacturer_id)',
     color_name VARCHAR(255) NOT NULL,
     color_hex VARCHAR(7) NOT NULL,
     spool_type_id INT,

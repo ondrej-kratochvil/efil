@@ -176,6 +176,30 @@ Tento dokument obsahuje scénáře pro manuální testování funkcí, které ne
 
 ---
 
+### Test: Výrobci (výběr, nový výrobce, typy cívek)
+**Cíl**: Ověřit práci s výrobci ve formuláři filamentu a u typů cívek (verzované schéma).
+
+**Kroky**:
+1. **Výběr ze seznamu**
+   - Otevřete formulář pro nový filament
+   - V poli Výrobce vyberte existujícího výrobce ze seznamu (nejčastější / ostatní)
+   - Uložte a ověřte zobrazení výrobce u filamentu a v editaci
+2. **Nový výrobce**
+   - U pole Výrobce klikněte na **+**, zadejte nový název (např. „Test výrobce“)
+   - Uložte; ověřte, že nový výrobce je v dropdownu a při editaci předvybraný
+3. **Typy cívek**
+   - Menu → Typy cívek, přidejte/upravte typ cívky
+   - V multiselectu Výrobci vyberte jednoho nebo více výrobců, uložte
+   - Ověřte zobrazení přiřazených výrobců u typu cívky
+4. **Přehled a statistiky**
+   - V wizardu (MAT/BAR/VÝR) a v čerpání ověřte, že název výrobce odpovídá
+
+**Očekávaný výsledek**: Výrobce lze vybírat, přidávat (+), zobrazují se správně u filamentů i u typů cívek.
+
+**Poznámky**: Vyžaduje DB po migraci výrobců (`migrate_manufacturers_versioned.php`). Smazat lze jen výrobce nepoužívaného u filamentu/typu cívky.
+
+---
+
 ## 4. 🔄 Groupování a zobrazení
 
 ### Test: Intuitivnost groupování

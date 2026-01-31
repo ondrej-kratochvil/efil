@@ -30,6 +30,8 @@ export function renderHelp(v) {
                 <li><strong>VÝR (Výrobce/Detail)</strong> - Zobrazí se konkrétní filamenty</li>
             </ol>
             <p class="text-slate-500 text-sm mt-3">💡 Filtry můžete kombinovat nebo resetovat tlačítkem <em>Vymazat filtry</em></p>
+            <p class="text-slate-600 mt-4 mb-2 font-bold">Cena a průměr za kg</p>
+            <p class="text-slate-600 text-sm">Na kartách MAT, BAR a VÝR se zobrazuje <strong>průměrná cena za kilogram</strong> (Kč/kg). Do výpočtu se započítávají jen filamenty, u kterých máte vyplněnou cenu; používá se původní hmotnost cívky. U skupin se zobrazuje symbol <strong>x̄</strong> (průměr), u jednotlivého filamentu jen hodnota v Kč/kg.</p>
             <p class="text-slate-600 mt-4 mb-2 font-bold">Přidání filamentu z wizardu</p>
             <p class="text-slate-600 text-sm">Na každé obrazovce (MAT, BAR, VÝR) je za kartami položka <strong>+</strong>. Kliknutím otevřete formulář pro nový filament:</p>
             <ul class="list-disc list-inside space-y-1 text-slate-700 text-sm mt-2 ml-2">
@@ -64,6 +66,18 @@ export function renderHelp(v) {
                 </div>
             </div>
             <p class="text-slate-500 text-sm mt-3">💡 Pro přesné vážení nastavte typ cívky při přidávání filamentu</p>
+        </div>
+
+        <!-- Výrobci -->
+        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
+            <h2 class="text-xl font-black text-indigo-600 mb-3">🏭 Výrobci filamentů</h2>
+            <p class="text-slate-600 mb-3">Při přidávání nebo úpravě filamentu můžete výrobce vybrat ze seznamu nebo zadat nového.</p>
+            <ol class="list-decimal list-inside space-y-2 text-slate-700">
+                <li><strong>Výběr ze seznamu</strong> – v poli Výrobce zvolte existujícího výrobce (řazení: nejčastější v evidenci, ostatní abecedně)</li>
+                <li><strong>Nový výrobce</strong> – klikněte na <strong>+</strong> vedle pole a zadejte název; nový výrobce se vytvoří jako váš soukromý a bude dostupný v dalších formulářích</li>
+                <li>U <strong>typů cívek</strong> můžete přiřadit více výrobců k jednomu typu (multiselect)</li>
+            </ol>
+            <p class="text-slate-500 text-sm mt-3">💡 Veřejní výrobci jsou sdílení; vlastní výrobce vidíte jen vy. Smazat lze pouze výrobce, který není použit u žádného filamentu ani typu cívky.</p>
         </div>
 
         <!-- Správa cívek -->

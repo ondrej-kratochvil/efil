@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../helpers/manufacturers.php';
 
 session_start();
 header('Content-Type: application/json');
@@ -12,9 +13,10 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 try {
-    $userId = $_SESSION['user_id'];
+    $userId = (int) $_SESSION['user_id'];
+    $isAdmin = ($_SESSION['role'] ?? '') === 'admin_efil';
 
-    // Get active inventory: owned or shared
+    // Aktivní evidence: vlastní nebo sdílená
     $sql = "
         SELECT i.id
         FROM inventories i
@@ -30,97 +32,93 @@ try {
     $stmtInv->execute([$userId, $userId]);
     $inv = $stmtInv->fetch();
 
-    // Initialize empty arrays - will be populated from DB only
     $materials = [];
     $manufacturers = [];
     $locations = [];
     $sellers = [];
 
     if ($inv) {
-        // Get material frequencies (count occurrences in inventory)
+        $invId = (int) $inv['id'];
+
+        // Materiály: z filamentů v evidenci (beze změny)
         $sql = "SELECT material, COUNT(*) as count FROM filaments WHERE inventory_id = ? AND material IS NOT NULL AND material != '' GROUP BY material ORDER BY count DESC, material ASC LIMIT 5";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$inv['id']]);
+        $stmt->execute([$invId]);
         $topMaterials = $stmt->fetchAll(PDO::FETCH_COLUMN);
-        
-        // Get manufacturer frequencies: from filaments only (no join to manufacturers lookup)
-        // so all values are visible even if some are missing from the lookup table
-        $sql = "
-            SELECT manufacturer, COUNT(*) as count
-            FROM filaments
-            WHERE inventory_id = ? AND manufacturer IS NOT NULL AND manufacturer != ''
-            GROUP BY manufacturer
-            ORDER BY count DESC, manufacturer ASC
-            LIMIT 5
-        ";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$inv['id']]);
-        $topManufacturers = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
-        // Get all unique values from database
         $sql = "SELECT DISTINCT material FROM filaments WHERE inventory_id = ? AND material IS NOT NULL AND material != '' ORDER BY material";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$inv['id']]);
+        $stmt->execute([$invId]);
         $dbMaterials = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
-        // Get manufacturers that appear in this inventory (from filaments only)
-        $sql = "
-            SELECT DISTINCT manufacturer
-            FROM filaments
-            WHERE inventory_id = ? AND manufacturer IS NOT NULL AND manufacturer != ''
-            ORDER BY manufacturer
-        ";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$inv['id']]);
-        $dbManufacturers = $stmt->fetchAll(PDO::FETCH_COLUMN);
-        
-        // Use only database values (no defaults)
         $allMaterials = $dbMaterials;
-        $allManufacturers = $dbManufacturers;
-        
-        // Split into top and others for materials
+
         if (!empty($topMaterials)) {
             $othersMaterials = array_values(array_diff($allMaterials, $topMaterials));
             sort($othersMaterials);
-            $materials = [
-                'top' => $topMaterials,
-                'others' => $othersMaterials
-            ];
+            $materials = ['top' => $topMaterials, 'others' => $othersMaterials];
         } else {
             $materials = $allMaterials;
         }
-        
-        // Split into top and others for manufacturers
+
+        // Výrobci: z tabulky manufacturers (veřejní + vlastní), název = aktuální verze / návrh pro autora
+        $manList = getManufacturersForOptions($pdo, $userId, $isAdmin);
+
+        // Frekvence manufacturer_id v této evidenci (pro top/others)
+        $sql = "
+            SELECT manufacturer_id, COUNT(*) as cnt
+            FROM filaments
+            WHERE inventory_id = ? AND manufacturer_id IS NOT NULL
+            GROUP BY manufacturer_id
+            ORDER BY cnt DESC, manufacturer_id ASC
+            LIMIT 5
+        ";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$invId]);
+        $topManIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+
+        $manById = [];
+        foreach ($manList as $m) {
+            $manById[$m['id']] = $m;
+        }
+        $topManufacturers = [];
+        $othersManufacturers = [];
+        foreach ($topManIds as $mid) {
+            if (isset($manById[$mid])) {
+                $topManufacturers[] = $manById[$mid];
+            }
+        }
+        foreach ($manList as $m) {
+            if (!in_array($m['id'], $topManIds, true)) {
+                $othersManufacturers[] = $m;
+            }
+        }
+        usort($othersManufacturers, static fn ($a, $b) => strcasecmp($a['name'], $b['name']));
+
         if (!empty($topManufacturers)) {
-            $othersManufacturers = array_values(array_diff($allManufacturers, $topManufacturers));
-            sort($othersManufacturers);
-            $manufacturers = [
-                'top' => $topManufacturers,
-                'others' => $othersManufacturers
-            ];
+            $manufacturers = ['top' => $topManufacturers, 'others' => $othersManufacturers];
         } else {
-            $manufacturers = $allManufacturers;
+            $manufacturers = $manList;
         }
 
+        // Lokace a prodejci: z filamentů (beze změny)
         $sql = "SELECT DISTINCT location FROM filaments WHERE inventory_id = ? AND location IS NOT NULL AND location != '' ORDER BY location";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$inv['id']]);
+        $stmt->execute([$invId]);
         $locations = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
         $sql = "SELECT DISTINCT seller FROM filaments WHERE inventory_id = ? AND seller IS NOT NULL AND seller != '' ORDER BY seller";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$inv['id']]);
+        $stmt->execute([$invId]);
         $sellers = $stmt->fetchAll(PDO::FETCH_COLUMN);
     }
 
-    // Ensure all arrays are properly indexed (not associative)
     $result = [
         'materials' => is_array($materials) && isset($materials['top']) ? $materials : array_values($materials),
         'manufacturers' => is_array($manufacturers) && isset($manufacturers['top']) ? $manufacturers : array_values($manufacturers),
         'locations' => array_values($locations),
-        'sellers' => array_values($sellers)
+        'sellers' => array_values($sellers),
     ];
-    
+
     echo json_encode($result, JSON_NUMERIC_CHECK);
 
 } catch (Exception $e) {

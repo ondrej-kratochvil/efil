@@ -4,7 +4,7 @@ declare(strict_types=1);
 /**
  * Remove user from inventory
  * POST /api/users/remove.php
- * 
+ *
  * Body: { user_id }
  */
 
@@ -53,39 +53,39 @@ try {
         echo json_encode(['error' => 'Nelze odebrat vlastníka evidence']);
         exit;
     }
-    
+
     // Cannot remove yourself (unless admin)
     if ($targetUserId === $userId && !$inventory['is_admin']) {
         http_response_code(400);
         echo json_encode(['error' => 'Nelze odebrat sám sebe']);
         exit;
     }
-    
+
     // Get target user email for notification
     $stmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
     $stmt->execute([$targetUserId]);
     $targetUser = $stmt->fetch();
-    
+
     // Remove from inventory
     $stmt = $pdo->prepare("DELETE FROM inventory_members WHERE inventory_id = ? AND user_id = ?");
     $stmt->execute([$inventoryId, $targetUserId]);
-    
+
     if ($stmt->rowCount() === 0) {
         http_response_code(404);
         echo json_encode(['error' => 'Uživatel nenalezen v evidenci']);
         exit;
     }
-    
+
     // Send notification email
     if ($targetUser) {
         sendRemovalEmail($targetUser['email'], $inventory['name'], $smtpConfig);
     }
-    
+
     echo json_encode([
         'success' => true,
         'message' => 'Uživatel odebrán'
     ]);
-    
+
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(['error' => 'Chyba databáze']);

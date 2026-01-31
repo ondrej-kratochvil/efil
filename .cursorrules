@@ -204,6 +204,14 @@ Každá aplikace musí mít definovanou faviconu.
   - U PHP se vyhni **„God Objects“** – třídám nebo souborům, které „vědí všechno“ a řeší více domén najednou
   - Pokud třída/soubor obsahuje logiku pro více oblastí (např. auth + reporting + e‑mail), rozděl ji na menší specializované části
 
+### Znovupoužitelnost a DRY (Don't Repeat Yourself)
+
+**Vytvářej funkce, které budeme na všech místech volat – ne duplicitní kód.**
+
+- **Jedna logika = jedna funkce**: Pokud se stejný výpočet, formátování nebo obchodní pravidlo opakuje na více místech, vyextrahuj ho do **pomocné funkce** (např. v `utils.js`, `api/helpers/`, nebo příslušném modulu) a na všech místech ji pouze volej.
+- **Výhody**: Změna pravidel na jednom místě, méně chyb, konzistentní chování v celé aplikaci.
+- **Příklady**: průměrná cena za kg, formátování hmotnosti, ověření oprávnění, normalizace vstupů – vždy jedna funkce, volaná všude tam, kde je potřeba.
+
 ---
 
 ## Dokumentace (`/dev/docs/`)
@@ -321,7 +329,7 @@ Navrhni 2-3 body pro člověka, které nelze automatizovat:
 
 ### Git příkazy (PowerShell / Windows)
 
-Shel **PowerShell** nepoužívá `&&` pro řetězení. Používej **středník** `;`.
+**Důležité:** Shell je **PowerShell** (Windows). Nepoužívej `&&` pro řetězení příkazů – v PowerShellu to není platný oddělovač. Vždy používej **středník** `;`.
 
 **Řetězení příkazů:**
 ```powershell

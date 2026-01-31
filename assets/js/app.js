@@ -13,6 +13,7 @@ import { renderHelp } from './views/help.js';
 import { renderAccount, handleChangePassword, handleChangeEmail, showDeleteAccountForm, hideDeleteAccountForm, handleDeleteAccount } from './views/account.js';
 import { renderUsers, handleAddUser, handleChangeRole, handleRemoveUser } from './views/users.js';
 import { renderSpools, handleSpoolSubmit, editSpool, cancelSpoolEdit, deleteSpool } from './views/spools.js';
+import { renderManufacturers, handleManufacturerSubmit, editManufacturer, cancelManufacturerEdit, deleteManufacturer, approveManufacturer, rejectManufacturer } from './views/manufacturers.js';
 import { renderAdminStats } from './views/admin-stats.js';
 import { renderInventorySwitch, handleSwitchInventory } from './views/inventory-switch.js';
 import { renderFormAsync, renderForm, openForm } from './views/form-view.js';
@@ -55,6 +56,12 @@ window.handleSpoolSubmit = handleSpoolSubmit;
 window.editSpool = editSpool;
 window.cancelSpoolEdit = cancelSpoolEdit;
 window.deleteSpool = deleteSpool;
+window.handleManufacturerSubmit = handleManufacturerSubmit;
+window.editManufacturer = editManufacturer;
+window.cancelManufacturerEdit = cancelManufacturerEdit;
+window.deleteManufacturer = deleteManufacturer;
+window.approveManufacturer = approveManufacturer;
+window.rejectManufacturer = rejectManufacturer;
 window.handleSwitchInventory = handleSwitchInventory;
 window.editConsumption = editConsumption;
 window.saveConsumptionEdit = saveConsumptionEdit;
@@ -132,6 +139,8 @@ function render() {
         renderUsers(appView);
     } else if (state.view === 'spools') {
         renderSpools(appView);
+    } else if (state.view === 'manufacturers') {
+        renderManufacturers(appView);
     } else if (state.view === 'adminStats') {
         renderAdminStats(appView);
     } else if (state.view === 'inventorySwitch') {
@@ -162,7 +171,7 @@ function updateHeader() {
     menuTrigger.classList.remove('hidden');
     updateThemeToggleLabel();
 
-    if (['form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'adminStats', 'inventorySwitch'].includes(state.view)) {
+    if (['form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'manufacturers', 'adminStats', 'inventorySwitch'].includes(state.view)) {
         nav.classList.add('hidden');
         fTitle.classList.remove('hidden');
         if (state.view === 'form') fTitle.innerText = 'Editor';
@@ -172,6 +181,7 @@ function updateHeader() {
         else if (state.view === 'account') fTitle.innerText = 'Můj účet';
         else if (state.view === 'users') fTitle.innerText = 'Správa uživatelů';
         else if (state.view === 'spools') fTitle.innerText = 'Správa typů cívek';
+        else if (state.view === 'manufacturers') fTitle.innerText = 'Správa výrobců';
         else if (state.view === 'adminStats') fTitle.innerText = 'Statistiky eFil';
         else if (state.view === 'inventorySwitch') fTitle.innerText = 'Přepnout evidenci';
     } else {
@@ -244,6 +254,11 @@ window.openUsers = () => {
 window.openSpools = () => {
     document.getElementById('action-menu').classList.add('hidden');
     router.push(BASE_PATH + '/spools');
+};
+
+window.openManufacturers = () => {
+    document.getElementById('action-menu').classList.add('hidden');
+    router.push(BASE_PATH + '/manufacturers');
 };
 
 window.openHelp = () => {

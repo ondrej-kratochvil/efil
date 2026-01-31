@@ -2,6 +2,7 @@
 // tests/options_optgroups_test.php
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/helpers.php';
+require_once __DIR__ . '/../../api/helpers/manufacturers.php';
 
 echo "Running Options Optgroups Tests...\n";
 echo "----------------------------------\n";
@@ -77,31 +78,24 @@ try {
         exit(1);
     }
 
-    // 5. Test: Manufacturers with frequencies
-    $manufacturers = ['ManufacturerA', 'ManufacturerB', 'ManufacturerA', 'ManufacturerA'];
-    
-    foreach ($manufacturers as $index => $manufacturer) {
-        // Create manufacturer if not exists
-        $stmt = $pdo->prepare("SELECT id FROM manufacturers WHERE name = ?");
-        $stmt->execute([$manufacturer]);
-        $man = $stmt->fetch();
-        
-        if (!$man) {
-            $stmt = $pdo->prepare("INSERT INTO manufacturers (name) VALUES (?)");
-            $stmt->execute([$manufacturer]);
-        }
-        
-        // Update filament with manufacturer
-        $stmt = $pdo->prepare("UPDATE filaments SET manufacturer = ? WHERE id = ?");
-        $stmt->execute([$manufacturer, $filamentIds[$index]]);
+    // 5. Test: Manufacturers with frequencies (versioned schema: manufacturer_id, created_by)
+    $manufacturerNames = ['ManufacturerA', 'ManufacturerB', 'ManufacturerA', 'ManufacturerA'];
+    $nameToLogicalId = [];
+    foreach (array_unique($manufacturerNames) as $name) {
+        $manLogicalId = getNextManufacturerId($pdo);
+        $stmt = $pdo->prepare("INSERT INTO manufacturers (manufacturer_id, name, public, approved, created_by) VALUES (?, ?, 0, 1, ?)");
+        $stmt->execute([$manLogicalId, $name, $userId]);
+        $nameToLogicalId[$name] = $manLogicalId;
     }
-    
-    // Get manufacturer frequencies
-    $sql = "SELECT f.manufacturer, COUNT(*) as count FROM filaments f WHERE f.inventory_id = ? AND f.manufacturer IS NOT NULL AND f.manufacturer != '' GROUP BY f.manufacturer ORDER BY count DESC, f.manufacturer ASC LIMIT 5";
+    foreach ($manufacturerNames as $index => $name) {
+        $stmt = $pdo->prepare("UPDATE filaments SET manufacturer_id = ? WHERE id = ?");
+        $stmt->execute([$nameToLogicalId[$name], $filamentIds[$index]]);
+    }
+    // Get manufacturer frequencies (join manufacturers for name)
+    $sql = "SELECT m.name, COUNT(*) as cnt FROM filaments f JOIN manufacturers m ON m.manufacturer_id = f.manufacturer_id AND m.approved = 1 AND m.invalidated_at IS NULL WHERE f.inventory_id = ? AND f.manufacturer_id IS NOT NULL GROUP BY m.manufacturer_id, m.name ORDER BY cnt DESC, m.name ASC LIMIT 5";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$invId]);
     $topManufacturers = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    
     assertResult("Top manufacturer (should be ManufacturerA)", 'ManufacturerA', $topManufacturers[0]);
     assertResult("Second manufacturer (should be ManufacturerB)", 'ManufacturerB', $topManufacturers[1]);
 
@@ -122,13 +116,15 @@ try {
         exit(1);
     }
 
-    // Cleanup
+    // Cleanup (manufacturers.created_by -> users: smazat výrobce před uživatelem)
     foreach ($filamentIds as $filId) {
         $pdo->exec("DELETE FROM filaments WHERE id = $filId");
     }
     $pdo->exec("DELETE FROM inventories WHERE id = $invId");
     $pdo->exec("DELETE FROM inventories WHERE id = $emptyInvId");
-    $pdo->exec("DELETE FROM manufacturers WHERE name IN ('ManufacturerA', 'ManufacturerB')");
+    foreach ($nameToLogicalId as $logicalId) {
+        $pdo->exec("DELETE FROM manufacturers WHERE manufacturer_id = " . (int) $logicalId);
+    }
     $pdo->exec("DELETE FROM users WHERE id = $userId");
 
     echo "\nAll Tests Passed!\n";

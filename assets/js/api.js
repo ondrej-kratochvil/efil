@@ -19,7 +19,7 @@ export async function checkAuth() {
             const path = window.location.pathname;
             // Check if path is root (empty, /, or ends with / and has no known routes)
             const segments = path.split('/').filter(s => s);
-            const appRoutes = ['wizard', 'form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'admin-stats', 'inventory-switch', 'forgot-password', 'reset-password'];
+            const appRoutes = ['wizard', 'form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'manufacturers', 'admin-stats', 'inventory-switch', 'forgot-password', 'reset-password'];
             const hasAppRoute = segments.some(seg => appRoutes.includes(seg));
 
             if (!hasAppRoute) {

@@ -23,7 +23,7 @@ export const router = {
 
         // Remove base path if present (e.g., 'a', 'efil-github')
         // We only care about routes that start with our app routes
-        const appRoutes = ['wizard', 'form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'admin-stats', 'inventory-switch', 'forgot-password', 'reset-password'];
+        const appRoutes = ['wizard', 'form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'manufacturers', 'admin-stats', 'inventory-switch', 'forgot-password', 'reset-password'];
         let routeStartIndex = 0;
         for (let i = 0; i < segments.length; i++) {
             if (appRoutes.includes(segments[i])) {
@@ -65,6 +65,8 @@ export const router = {
             state.view = 'users';
         } else if (appSegments[0] === 'spools') {
             state.view = 'spools';
+        } else if (appSegments[0] === 'manufacturers') {
+            state.view = 'manufacturers';
         } else if (appSegments[0] === 'admin-stats') {
             state.view = 'adminStats';
         } else if (appSegments[0] === 'inventory-switch') {
@@ -125,6 +127,8 @@ export const router = {
             path = '/users';
         } else if (state.view === 'spools') {
             path = '/spools';
+        } else if (state.view === 'manufacturers') {
+            path = '/manufacturers';
         } else if (state.view === 'adminStats') {
             path = '/admin-stats';
         } else if (state.view === 'inventorySwitch') {

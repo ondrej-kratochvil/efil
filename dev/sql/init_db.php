@@ -27,7 +27,7 @@ try {
     $pdoTemp = new PDO($dsnNoDb, $user, $pass, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     ]);
-    
+
     // Check if database exists and create it if not
     $stmt = $pdoTemp->prepare("SHOW DATABASES LIKE ?");
     $stmt->execute([$db]);
@@ -38,7 +38,7 @@ try {
     } else {
         echo "Database '$db' already exists.\n";
     }
-    
+
     // 2. Now connect to the database
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $pdo = new PDO($dsn, $user, $pass, [
@@ -49,17 +49,17 @@ try {
 
     // 3. Drop existing tables if they exist (in correct order due to foreign keys)
     echo "Dropping existing tables if any...\n";
-    $tables = ['consumption_log', 'filaments', 'spool_library', 'inventory_members', 'inventory_access', 'inventories', 'manufacturers', 'users'];
+    $tables = ['consumption_log', 'filaments', 'spool_manufacturer', 'spool_library', 'inventory_members', 'inventory_access', 'inventories', 'manufacturers', 'users'];
     $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
     foreach ($tables as $table) {
         $pdo->exec("DROP TABLE IF EXISTS `$table`");
     }
     $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
-    
+
     // 4. Read schema and create tables
     $schema = file_get_contents(__DIR__ . '/schema.sql');
     $queries = explode(';', $schema);
-    
+
     echo "Creating tables...\n";
     foreach ($queries as $query) {
         $query = trim($query);
@@ -90,23 +90,34 @@ try {
     $stmt->execute([$userId]);
     $invId = $pdo->lastInsertId();
 
-    // 8. Seed data - Create Manufacturers
-    $manufacturers = [
+    // 8. Seed data - Create Manufacturers (verzovaná tabulka: manufacturer_id = kořen, public=1, approved=1)
+    $manufacturerNames = [
         'Prusament (Prusa Research)', 'Fillamentum', 'Plasty Mladeč (PM)', 'Aurapol', 'Devil Design',
         'Sunlu', 'eSUN', 'Polymaker', 'ColorFabb', 'FormFutura', 'Extrudr', 'Fiberlogy',
         'Spectrum Filaments', 'Creality', 'Bambu Lab', 'Elegoo', 'Overture', 'Hatchbox',
         'Anycubic', '3DXTECH', 'BASF Forward AM', 'Kimya', 'Verbatim', 'Gembird',
         'C-TECH', 'AzureFilm', 'Eryone', 'Geeetech', 'Jayo', 'Nebula', '3DPower',
-        'Kexcelled', 'Ziro'
+        'Kexcelled', 'Ziro', 'Prusa Polymers'
     ];
-    
-    $stmtMan = $pdo->prepare("INSERT IGNORE INTO manufacturers (name) VALUES (?)");
-    foreach ($manufacturers as $man) {
-        $stmtMan->execute([$man]);
+
+    $stmtMax = $pdo->query("SELECT COALESCE(MAX(manufacturer_id), 0) + 1 AS next_id FROM manufacturers");
+    $nextManId = (int) $stmtMax->fetchColumn();
+    $stmtMan = $pdo->prepare("INSERT INTO manufacturers (manufacturer_id, name, public, approved, created_at, created_by) VALUES (?, ?, 1, 1, NOW(), ?)");
+    foreach ($manufacturerNames as $name) {
+        $stmtMan->execute([$nextManId, $name, $userId]);
+        $nextManId++;
     }
     echo "Manufacturers seeded.\n";
 
-    // 9. Seed data - Create Filaments
+    // Map názvů na manufacturer_id pro filamenty
+    $stmtMap = $pdo->prepare("SELECT manufacturer_id FROM manufacturers WHERE name = ? AND approved = 1 AND invalidated_at IS NULL LIMIT 1");
+    $getManId = function ($name) use ($pdo, $stmtMap) {
+        $stmtMap->execute([$name]);
+        $id = $stmtMap->fetchColumn();
+        return $id ? (int) $id : null;
+    };
+
+    // 9. Seed data - Create Filaments (manufacturer_id místo manufacturer)
     $filaments = [
         ['PLA (Standard)', 'Prusa Polymers', 'Galaxy černá', '#333333', 850, 'Hlavní regál'],
         ['PLA (Standard)', 'Prusa Polymers', 'Prusa Oranžová', '#FF6A13', 400, 'Hlavní regál'],
@@ -117,10 +128,10 @@ try {
         ['TPU 95A (Flexibilní)', 'Fiberlogy', 'Černá', '#000000', 450, 'Box 2'],
     ];
 
-    $stmt = $pdo->prepare("INSERT INTO filaments (inventory_id, user_display_id, material, manufacturer, color_name, color_hex, initial_weight_grams, location, purchase_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
-    
+    $stmt = $pdo->prepare("INSERT INTO filaments (inventory_id, user_display_id, material, manufacturer_id, color_name, color_hex, initial_weight_grams, location, purchase_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
     foreach ($filaments as $idx => $f) {
-        $stmt->execute([$invId, $idx + 1, $f[0], $f[1], $f[2], $f[3], $f[4], $f[5]]);
+        $manId = $getManId($f[1]);
+        $stmt->execute([$invId, $idx + 1, $f[0], $manId, $f[2], $f[3], $f[4], $f[5]]);
     }
 
     echo "Database initialized with demo data.\n";

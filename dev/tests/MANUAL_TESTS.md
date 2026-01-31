@@ -125,6 +125,53 @@ Tento dokument obsahuje manuální testovací scénáře pro ověření funkcion
 
 ---
 
+## 📋 Test: Výrobci (manufacturers)
+
+**Cíl:** Ověřit výběr výrobce ze seznamu, přidání nového výrobce a zobrazení u filamentu i u typů cívek.
+
+### Postup:
+
+1. **Přihlášení**
+   - Přihlaste se do aplikace
+
+2. **Výběr výrobce při přidání filamentu**
+   - Klikněte na „Přidat nový filament“
+   - V poli **Výrobce** vyberte ze seznamu existujícího výrobce (např. Prusament)
+   - Vyplňte materiál, barvu, hmotnost a uložte
+   - Ověřte, že filament se zobrazí s vybraným výrobcem
+
+3. **Nový výrobce (+)**  
+   - Otevřete znovu formulář pro nový filament
+   - U pole Výrobce klikněte na **+**
+   - Zadejte nový název (např. „Můj výrobce test“) a uložte
+   - Ověřte, že filament byl uložen s tímto výrobcem
+   - Otevřete úpravy filamentu – v poli Výrobce by měl být „Můj výrobce test“ (ze seznamu)
+
+4. **Typy cívek a výrobci**
+   - Menu → **Typy cívek**
+   - Přidejte nebo upravte typ cívky
+   - V multiselectu **Výrobci** vyberte jednoho nebo více výrobců
+   - Uložte a ověřte, že u typu cívky se zobrazí přiřazení výrobci
+
+5. **Ověření v přehledu**
+   - V přehledu filamentů (wizard MAT/BAR/VÝR) ověřte, že u položek je zobrazen správný výrobce
+   - U čerpání a statistik ověřte, že název výrobce odpovídá
+
+### Očekávané chování:
+
+- ✅ Výrobce lze vybrat ze seznamu (nejčastější nahoře, ostatní abecedně)
+- ✅ Nový výrobce lze přidat přes + a zadaný název
+- ✅ Po uložení je nový výrobce dostupný v dropdownu
+- ✅ U typů cívek lze přiřadit více výrobců
+- ✅ Při editaci filamentu se zobrazí správný výrobce (podle manufacturer_id)
+
+### Poznámky:
+
+- Test vyžaduje DB po migraci výrobců (verzované schéma).
+- Smazat lze pouze výrobce, který není použit u žádného filamentu ani typu cívky.
+
+---
+
 ## 📝 Poznámky k testování
 
 - Před testováním se ujistěte, že máte čistou databázi nebo testovací data
