@@ -22,7 +22,7 @@ try {
         exit;
     }
 
-    // Název výrobce: schválená verze, nebo návrh pro autora (COALESCE proposal, approved)
+    // Název výrobce: schválená verze, nebo návrh pro autora (COALESCE proposal, approved). Odvozené tabulky zaručí jeden záznam výrobce na manufacturer_id.
     $sqlFil = "
         SELECT
             f.id, f.user_display_id, f.material as mat,
@@ -35,8 +35,10 @@ try {
             (f.initial_weight_grams + COALESCE(SUM(cl.amount_grams), 0)) AS g
         FROM filaments f
         LEFT JOIN consumption_log cl ON f.id = cl.filament_id
-        LEFT JOIN manufacturers m_approved ON f.manufacturer_id = m_approved.manufacturer_id AND m_approved.approved = 1 AND m_approved.invalidated_at IS NULL
-        LEFT JOIN manufacturers m_proposal ON f.manufacturer_id = m_proposal.manufacturer_id AND m_proposal.approved = 0 AND m_proposal.invalidated_at IS NULL AND m_proposal.created_by = ?
+        LEFT JOIN (SELECT manufacturer_id, MAX(id) AS mid FROM manufacturers WHERE approved = 1 AND invalidated_at IS NULL GROUP BY manufacturer_id) m_approved_ids ON f.manufacturer_id = m_approved_ids.manufacturer_id
+        LEFT JOIN manufacturers m_approved ON m_approved.id = m_approved_ids.mid
+        LEFT JOIN (SELECT manufacturer_id, created_by, MAX(id) AS mid FROM manufacturers WHERE approved = 0 AND invalidated_at IS NULL GROUP BY manufacturer_id, created_by) m_proposal_ids ON f.manufacturer_id = m_proposal_ids.manufacturer_id AND m_proposal_ids.created_by = ?
+        LEFT JOIN manufacturers m_proposal ON m_proposal.id = m_proposal_ids.mid
         WHERE f.inventory_id = ?
         GROUP BY f.id
         ORDER BY g DESC

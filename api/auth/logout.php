@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 session_start();
 
+header('Content-Type: application/json');
+
 // Get session name and cookie params BEFORE any changes
 $sessionName = session_name();
 $cookieParams = session_get_cookie_params();
