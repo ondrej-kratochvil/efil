@@ -17,7 +17,7 @@ declare(strict_types=1);
 function requireInventoryManageAccess(PDO $pdo, int $inventoryId, int $userId): array
 {
     $stmt = $pdo->prepare("
-        SELECT i.id, i.owner_id, i.name, im.role AS member_role
+        SELECT i.id, i.owner_id, i.name, i.is_demo, im.role AS member_role
         FROM inventories i
         LEFT JOIN inventory_members im ON im.inventory_id = i.id AND im.user_id = ?
         WHERE i.id = ?
@@ -48,6 +48,7 @@ function requireInventoryManageAccess(PDO $pdo, int $inventoryId, int $userId): 
         'id' => (int) $row['id'],
         'owner_id' => (int) $row['owner_id'],
         'name' => $row['name'],
+        'is_demo' => $row['is_demo'] ?? null,
         'is_admin' => $isAdmin,
     ];
 }

@@ -14,6 +14,7 @@ declare(strict_types=1);
 session_start();
 require_once '../../config.php';
 require_once '../helpers/inventory.php';
+require_once '../helpers/demo.php';
 require_once '../helpers/jwt.php';
 require_once '../helpers/email.php';
 
@@ -55,6 +56,7 @@ if (!in_array($role, ['read', 'write', 'manage'])) {
 
 try {
     $inventory = requireInventoryManageAccess($pdo, (int) $inventoryId, (int) $userId);
+    checkDemoModeAccess($pdo, (int) $userId, $inventory['is_demo'] ?? null, 'V demo režimu nelze upravovat přístupy uživatelů.');
 
     // Check if user exists
     $stmt = $pdo->prepare("SELECT id, email, password_hash FROM users WHERE email = ?");

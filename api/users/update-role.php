@@ -11,6 +11,7 @@ declare(strict_types=1);
 session_start();
 require_once '../../config.php';
 require_once '../helpers/inventory.php';
+require_once '../helpers/demo.php';
 require_once '../helpers/email.php';
 
 header('Content-Type: application/json');
@@ -51,6 +52,7 @@ if (!in_array($newRole, ['read', 'write', 'manage'])) {
 
 try {
     $inventory = requireInventoryManageAccess($pdo, (int) $inventoryId, $userId);
+    checkDemoModeAccess($pdo, $userId, $inventory['is_demo'] ?? null, 'V demo režimu nelze upravovat přístupy uživatelů.');
 
     // Cannot change owner's role
     if ($targetUserId === (int) $inventory['owner_id']) {
