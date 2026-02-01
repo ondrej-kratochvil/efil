@@ -30,7 +30,7 @@ try {
             f.manufacturer_id AS man_id,
             f.color_name as color, f.color_hex as hex, f.location as loc, f.price, f.seller, f.purchase_date as date,
             f.spool_type_id as spool_id,
-            (SELECT COALESCE(sl2.weight_grams, 0) FROM spool_library sl2 WHERE sl2.id = f.spool_type_id LIMIT 1) AS spool_weight,
+            (SELECT COALESCE(st2.weight_grams, 0) FROM spool_types st2 WHERE st2.spool_type_id = f.spool_type_id AND st2.approved = 1 AND st2.invalidated_at IS NULL LIMIT 1) AS spool_weight,
             f.initial_weight_grams,
             (f.initial_weight_grams + COALESCE(SUM(cl.amount_grams), 0)) AS g
         FROM filaments f
@@ -48,7 +48,19 @@ try {
     $stmt->execute([$userId, $invId]);
     echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
 
+} catch (PDOException $e) {
+    $msg = $e->getMessage();
+    if (stripos($msg, 'spool_types') !== false && (stripos($msg, "doesn't exist") !== false || stripos($msg, 'exist') !== false)) {
+        http_response_code(503);
+        echo json_encode([
+            'error' => 'Databázové schéma vyžaduje migraci.',
+            'migration' => 'Spusťte dev/sql/migrate_spool_types_versioned.php',
+        ]);
+        exit;
+    }
+    http_response_code(500);
+    echo json_encode(['error' => 'Chyba databáze']);
 } catch (Exception $e) {
     http_response_code(500);
-    echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'Server error']);
 }

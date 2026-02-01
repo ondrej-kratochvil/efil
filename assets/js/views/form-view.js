@@ -8,9 +8,7 @@ import { renderFieldInput, renderSpoolInput, updateWeightInfo, restoreFormValues
 
 // Asynchronní vstupní bod pro zobrazení formuláře (nový i editace)
 export async function renderFormAsync(v) {
-    // Clear formValues when opening form (both for new and edit)
-    state.formValues = null;
-    
+    // formValues se maže jen v openForm() při otevření formuláře; při přepnutí pole (např. + u typu cívky) nerušit uložené hodnoty
     // If editing and item not found in filaments array, reload data first
     if (state.editingId) {
         const foundItem = filaments.find(i => i.id === state.editingId);

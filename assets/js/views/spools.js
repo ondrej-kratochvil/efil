@@ -96,20 +96,20 @@ export async function renderSpools(v) {
             <h2 class="text-xl font-black text-slate-800 mb-4">Existující typy</h2>
             <div class="space-y-2" id="spools-list">
                 ${spools.length === 0 ? '<p class="text-slate-400 text-center py-4">Žádné typy cívek</p>' : spools.map(s => {
-                    const isStandard = s.created_by === null;
-                    const manufNames = s.manufacturers.map(m => m.name).join(', ') || 'Žádný výrobce';
-                    const label = `${s.color || '?'} ${s.material || '?'} • Ø${s.outer_diameter_mm || '?'}mm × ${s.width_mm || '?'}mm • ${s.weight_grams || '?'}g`;
+                    const isPublic = s.public === 1;
+                    const manufNames = (s.manufacturers || []).map(m => m.name).join(', ') || 'Žádný výrobce';
+                    const displayLabel = s.label || `${s.color || '?'} ${s.material || '?'} • Ø${s.outer_diameter_mm || '?'}mm × ${s.width_mm || '?'}mm • ${s.weight_grams || '?'}g`;
                     return `
                     <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                         <div>
-                            <div class="font-bold text-slate-800">${label}</div>
-                            <div class="text-xs text-slate-500 mt-1">Výrobci: ${manufNames}</div>
-                            ${s.visual_description ? `<div class="text-xs text-slate-400 mt-1">${s.visual_description}</div>` : ''}
-                            ${isStandard ? '<div class="text-xs text-indigo-600 font-bold mt-1">STANDARDNÍ TYP</div>' : ''}
+                            <div class="font-bold text-slate-800">${escapeHtml(displayLabel)}</div>
+                            <div class="text-xs text-slate-500 mt-1">Výrobci: ${escapeHtml(manufNames)}</div>
+                            ${s.visual_description ? `<div class="text-xs text-slate-400 mt-1">${escapeHtml(s.visual_description)}</div>` : ''}
+                            ${isPublic ? '<div class="text-xs text-indigo-600 font-bold mt-1">VEŘEJNÝ TYP</div>' : ''}
                         </div>
                         <div class="flex gap-2">
                             <button onclick="editSpool(${s.id})" class="px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg font-bold text-sm hover:bg-indigo-100">Upravit</button>
-                            ${!isStandard ? `<button onclick="deleteSpool(${s.id})" class="px-3 py-2 bg-red-50 text-red-600 rounded-lg font-bold text-sm hover:bg-red-100">Smazat</button>` : ''}
+                            <button onclick="deleteSpool(${s.id})" class="px-3 py-2 bg-red-50 text-red-600 rounded-lg font-bold text-sm hover:bg-red-100">Smazat</button>
                         </div>
                     </div>
                 `}).join('')}
@@ -130,12 +130,12 @@ export async function handleSpoolSubmit(e) {
     e.preventDefault();
 
     const spoolId = document.getElementById('spool-id').value;
-    const color = document.getElementById('spool-color').value;
-    const material = document.getElementById('spool-material').value;
-    const diameter = parseInt(document.getElementById('spool-diameter').value) || null;
-    const width = parseInt(document.getElementById('spool-width').value) || null;
-    const weight = parseInt(document.getElementById('spool-weight').value) || null;
-    const description = document.getElementById('spool-description').value;
+    const color = (document.getElementById('spool-color').value || '').trim();
+    const material = (document.getElementById('spool-material').value || '').trim();
+    const diameter = parseInt(document.getElementById('spool-diameter').value, 10);
+    const width = parseInt(document.getElementById('spool-width').value, 10);
+    const weight = parseInt(document.getElementById('spool-weight').value, 10);
+    const description = (document.getElementById('spool-description').value || '').trim();
 
     // Get selected manufacturers
     const manufSelect = document.getElementById('spool-manufacturers');
@@ -145,13 +145,22 @@ export async function handleSpoolSubmit(e) {
     const manufacturerIds = manufIds.filter(v => typeof v === 'number');
     const manufacturerNames = manufIds.filter(v => typeof v === 'string');
 
+    if (color === '') {
+        showToast('Barva je povinná.');
+        return;
+    }
+    if (material === '') {
+        showToast('Materiál je povinný.');
+        return;
+    }
+
     const payload = {
-        color,
-        material,
-        outer_diameter_mm: diameter,
-        width_mm: width,
-        weight_grams: weight,
-        visual_description: description
+        color: color || undefined,
+        material: material || undefined,
+        outer_diameter_mm: diameter > 0 ? diameter : undefined,
+        width_mm: width > 0 ? width : undefined,
+        weight_grams: weight > 0 ? weight : undefined,
+        visual_description: description || undefined
     };
     if (manufacturerIds.length > 0) payload.manufacturer_ids = manufacturerIds;
     if (manufacturerNames.length > 0) payload.manufacturer_names = manufacturerNames;
@@ -217,8 +226,8 @@ export async function editSpool(spoolId) {
         document.getElementById('spool-form-title').textContent = 'Upravit typ cívky';
         document.getElementById('spool-cancel-btn').classList.remove('hidden');
 
-        // Scroll to form
-        document.getElementById('spool-form').scrollIntoView({ behavior: 'smooth' });
+        // Odrolovat úplně nahoru, aby hlavička nepřekrývala inputy
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
         showToast('Chyba sítě');
     }

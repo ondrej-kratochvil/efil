@@ -1,39 +1,33 @@
 <?php
 declare(strict_types=1);
 
+/**
+ * Seznam typů cívek (veřejné + vlastní), stejný vzor jako výrobci.
+ * GET /api/spools/list.php
+ */
+
 require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../helpers/spool_types.php';
 
 session_start();
 header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
+    echo json_encode(['error' => 'Nepřihlášen']);
     exit;
 }
 
 try {
-    $userId = $_SESSION['user_id'];
+    $userId = (int) $_SESSION['user_id'];
 
-    // Get all spools (standard + user's custom ones)
-    $sql = "
-        SELECT s.id, s.weight_grams, s.color, s.material, s.outer_diameter_mm, s.width_mm, s.visual_description, s.created_by
-        FROM spool_library s
-        WHERE s.created_by IS NULL OR s.created_by = ?
-        ORDER BY s.color, s.material, s.outer_diameter_mm, s.weight_grams
-    ";
-
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([$userId]);
-    $spools = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    if (empty($spools)) {
+    $options = getSpoolTypesForOptions($pdo, $userId);
+    if (empty($options)) {
         echo json_encode([]);
         exit;
     }
 
-    // Avoid N+1: load all manufacturers for all spools in a single query
-    $spoolIds = array_column($spools, 'id');
-
+    $spoolIds = array_column($options, 'id');
     $placeholders = implode(',', array_fill(0, count($spoolIds), '?'));
     $sqlManuf = "
         SELECT sm.spool_id, m.manufacturer_id AS id, m.name
@@ -49,25 +43,46 @@ try {
 
     $manBySpool = [];
     foreach ($rows as $row) {
-        $spoolId = (int)$row['spool_id'];
+        $spoolId = (int) $row['spool_id'];
         if (!isset($manBySpool[$spoolId])) {
             $manBySpool[$spoolId] = [];
         }
         $manBySpool[$spoolId][] = [
-            'id' => (int)$row['id'],
+            'id' => (int) $row['id'],
             'name' => $row['name'],
         ];
     }
 
-    foreach ($spools as &$spool) {
-        $id = (int)$spool['id'];
-        $spool['manufacturers'] = $manBySpool[$id] ?? [];
+    $spools = [];
+    foreach ($options as $opt) {
+        $id = (int) $opt['id'];
+        $spools[] = [
+            'id' => $id,
+            'weight_grams' => $opt['weight_grams'],
+            'color' => $opt['color'],
+            'material' => $opt['material'],
+            'outer_diameter_mm' => $opt['outer_diameter_mm'],
+            'width_mm' => $opt['width_mm'],
+            'visual_description' => $opt['visual_description'],
+            'label' => $opt['label'],
+            'public' => (int) ($opt['public'] ?? 0),
+            'created_by' => $opt['created_by'] ?? null,
+            'manufacturers' => $manBySpool[$id] ?? [],
+        ];
     }
-    unset($spool);
 
     echo json_encode($spools);
 
-} catch (Exception $e) {
+} catch (PDOException $e) {
+    $msg = $e->getMessage();
+    if (stripos($msg, 'spool_types') !== false && (stripos($msg, "doesn't exist") !== false || stripos($msg, 'exist') !== false)) {
+        http_response_code(503);
+        echo json_encode([
+            'error' => 'Databázové schéma vyžaduje migraci.',
+            'migration' => 'Spusťte dev/sql/migrate_spool_types_versioned.php',
+        ]);
+        exit;
+    }
     http_response_code(500);
-    echo json_encode(['error' => $e->getMessage()]);
+    echo json_encode(['error' => 'Chyba databáze']);
 }

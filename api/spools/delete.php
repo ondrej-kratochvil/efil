@@ -1,14 +1,22 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../config.php';
+/**
+ * Soft delete typu cívky: není-li použit u filamentu ani u spool_manufacturer,
+ * aktuální platné verze dostanou invalidated_at = NOW(), invalidated_by = userId.
+ * POST /api/spools/delete.php
+ * Body: { "id": spool_type_id (logické) }
+ */
 
-header('Content-Type: application/json');
+require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../helpers/spool_types.php';
+
 session_start();
+header('Content-Type: application/json');
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
+    echo json_encode(['error' => 'Nepřihlášen']);
     exit;
 }
 
@@ -18,47 +26,53 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $data = json_decode(file_get_contents('php://input'), true);
+$spoolTypeId = isset($data['id']) ? (int) $data['id'] : 0;
 
-if (!isset($data['id'])) {
+if ($spoolTypeId <= 0) {
     http_response_code(400);
-    echo json_encode(['error' => 'Missing spool ID']);
+    echo json_encode(['error' => 'ID typu cívky je povinné']);
     exit;
 }
 
+$userId = (int) $_SESSION['user_id'];
+
 try {
-    $userId = $_SESSION['user_id'];
-    $spoolId = $data['id'];
-    
-    // Verify user can delete this spool (must be creator)
-    $stmt = $pdo->prepare("SELECT created_by FROM spool_library WHERE id = ?");
-    $stmt->execute([$spoolId]);
-    $spool = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$spool) {
+    if (isSpoolTypeInUse($pdo, $spoolTypeId)) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Typ cívky je použit u filamentu nebo vazby na výrobce. Nelze smazat.']);
+        exit;
+    }
+
+    $current = getSpoolTypeCurrentRow($pdo, $spoolTypeId);
+    if ($current === null) {
         http_response_code(404);
         echo json_encode(['error' => 'Typ cívky nenalezen']);
         exit;
     }
-    
-    if ($spool['created_by'] === null) {
-        http_response_code(403);
-        echo json_encode(['error' => 'Nelze smazat standardní typ cívky']);
-        exit;
-    }
-    
-    if ((int) $spool['created_by'] !== (int) $userId) {
+
+    $isAdmin = ($_SESSION['role'] ?? '') === 'admin_efil';
+    $isPublic = (int) ($current['public'] ?? 0) === 1;
+    $createdBy = (int) ($current['created_by'] ?? 0);
+
+    if (!$isAdmin && ($isPublic || $createdBy !== $userId)) {
         http_response_code(403);
         echo json_encode(['error' => 'Nemáte oprávnění smazat tento typ cívky']);
         exit;
     }
-    
-    // Delete spool (cascade will handle spool_manufacturer)
-    $stmt = $pdo->prepare("DELETE FROM spool_library WHERE id = ?");
-    $stmt->execute([$spoolId]);
-    
-    echo json_encode(['success' => true]);
-    
-} catch (Exception $e) {
+
+    $stmtUpdate = $pdo->prepare("
+        UPDATE spool_types
+        SET invalidated_at = NOW(), invalidated_by = ?
+        WHERE spool_type_id = ? AND invalidated_at IS NULL
+    ");
+    $stmtUpdate->execute([$userId, $spoolTypeId]);
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Typ cívky byl smazán',
+        'id' => $spoolTypeId,
+    ]);
+} catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'Chyba databáze']);
 }

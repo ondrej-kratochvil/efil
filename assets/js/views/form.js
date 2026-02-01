@@ -167,7 +167,14 @@ export function toggleSpoolField() {
         };
     }
 
-    state.formFieldsStatus.spool = state.formFieldsStatus.spool === 'select' ? 'input' : 'select';
+    const switchingToInput = state.formFieldsStatus.spool === 'select';
+    state.formFieldsStatus.spool = switchingToInput ? 'input' : 'select';
+    // Při rozbalení pole typu cívky předvyplnit barvu a materiál z filamentu
+    if (switchingToInput) {
+        if (!state.spoolInputValues) state.spoolInputValues = {};
+        state.spoolInputValues.color = state.spoolInputValues.color || document.getElementById('f-color')?.value || '';
+        state.spoolInputValues.material = state.spoolInputValues.material || document.getElementById('f-mat')?.value || '';
+    }
     if (window.render) window.render();
 
     // Restore all form values after render
@@ -359,20 +366,30 @@ export async function handleFormSubmit(e) {
         const spoolWeightInput = document.getElementById('f-spool-weight')?.value ? parseInt(document.getElementById('f-spool-weight').value) : null;
         const spoolDesc = document.getElementById('f-spool-desc')?.value || '';
 
-        // Create spool if at least one identifying field is provided
+        // Create spool if at least one identifying field is provided (barva a materiál jsou povinné na API)
         if (spoolColor || spoolMaterial || spoolDiameter || spoolWidth || spoolDesc) {
             try {
+                // Výrobce filamentu propsat do typu cívky
+                let manufacturerForSpool = null;
+                const manVal = document.getElementById('f-man')?.value;
+                if (manVal) {
+                    const mans = Array.isArray(options.manufacturers) ? options.manufacturers : [...(options.manufacturers?.top || []), ...(options.manufacturers?.others || [])];
+                    const found = mans.find(m => m && (m.id == manVal || String(m.id) === String(manVal) || m.name === manVal));
+                    manufacturerForSpool = found ? found.name : (typeof manVal === 'string' ? manVal : null);
+                }
+                const payload = {
+                    color: spoolColor,
+                    material: spoolMaterial,
+                    outer_diameter_mm: spoolDiameter,
+                    width_mm: spoolWidth,
+                    weight_grams: spoolWeightInput,
+                    visual_description: spoolDesc
+                };
+                if (manufacturerForSpool) payload.manufacturer = manufacturerForSpool;
                 const res = await fetch(`${API_BASE}/spools/save.php`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        color: spoolColor,
-                        material: spoolMaterial,
-                        outer_diameter_mm: spoolDiameter,
-                        width_mm: spoolWidth,
-                        weight_grams: spoolWeightInput,
-                        visual_description: spoolDesc
-                    })
+                    body: JSON.stringify(payload)
                 });
                 const newSpool = await res.json();
                 if (res.ok && newSpool.id) {

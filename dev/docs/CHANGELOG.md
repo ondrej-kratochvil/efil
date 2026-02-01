@@ -52,6 +52,12 @@
 - **Migrace** – `dev/sql/migrate_manufacturers_versioned.php` pro existující DB; podpora resume po částečném selhání
 - Dokumentace: [SOFT_DELETE_AND_VERSIONING.md](SOFT_DELETE_AND_VERSIONING.md), [MANUFACTURERS.md](MANUFACTURERS.md)
 
+#### 🎯 Typy cívek – validace a UX (leden 2026)
+- **Barva a materiál povinné** – u vytvoření i úpravy typu cívky (API + formulář Správa typů cívek)
+- **Klik na + u typu cívky** – jen rozbalí pole pro nový typ, hodnoty formuláře (materiál, barva, výrobce…) se nevymažou; barva a materiál typu cívky se předvyplní z filamentu
+- **Výrobce filamentu → typ cívky** – při vytvoření nového typu cívky z formuláře filamentu se výrobce filamentu propisuje do typu cívky (`spools/save.php`, parametr `manufacturer`)
+- **Testy** – Spool Management Tests přepsány na tabulku `spool_types` a logické `spool_type_id`
+
 ### 📋 Zbývající úkoly (plánováno)
 
 #### Vysoká priorita

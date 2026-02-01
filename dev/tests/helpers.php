@@ -65,6 +65,16 @@ if (!function_exists('createTestInventory')) {
 // Cleanup test data for a user
 if (!function_exists('cleanupTestData')) {
     function cleanupTestData($db, $userId) {
+        // Reassign manufacturers and spool_types created by this user (FK RESTRICT)
+        $stmt = $db->query("SELECT id FROM users WHERE id != " . (int) $userId . " ORDER BY id ASC LIMIT 1");
+        $otherId = $stmt->fetchColumn();
+        if ($otherId !== false) {
+            $stmt = $db->prepare("UPDATE manufacturers SET created_by = ? WHERE created_by = ?");
+            $stmt->execute([$otherId, $userId]);
+            $stmt = $db->prepare("UPDATE spool_types SET created_by = ? WHERE created_by = ?");
+            $stmt->execute([$otherId, $userId]);
+        }
+
         // Delete filaments (which will cascade delete consumption_log)
         $stmt = $db->prepare("DELETE FROM filaments WHERE inventory_id IN (SELECT id FROM inventories WHERE owner_id = ?)");
         $stmt->execute([$userId]);

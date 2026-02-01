@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../helpers/inventory.php';
 
 session_start();
 header('Content-Type: application/json');
@@ -11,27 +12,21 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$userId = $_SESSION['user_id'];
+$userId = (int) $_SESSION['user_id'];
 
 try {
-    // 1. Get Inventory ID (owned or shared)
-    $sql = "
-        SELECT i.id
-        FROM inventories i
-        WHERE i.owner_id = ?
-        UNION
-        SELECT i.id
-        FROM inventories i
-        JOIN inventory_members im ON i.id = im.inventory_id
-        WHERE im.user_id = ?
-        LIMIT 1
-    ";
-    $stmtInv = $pdo->prepare($sql);
-    $stmtInv->execute([$userId, $userId]);
-    $inv = $stmtInv->fetch();
-
-    if (!$inv) { echo json_encode([]); exit; }
-    $invId = $inv['id'];
+    $inventoryId = getInventoryIdForUser($pdo, $userId, true);
+    if ($inventoryId === null) {
+        echo json_encode([
+            'total_weight_grams' => 0,
+            'total_value_czk' => 0,
+            'total_count' => 0,
+            'consumed_30_days_grams' => 0,
+            'material_distribution' => [],
+            'consumption_by_day' => [],
+        ]);
+        exit;
+    }
 
     // 2. Total Weight & Value Calculation
     // We need to fetch individual filaments to calculate value proportional to remaining weight
@@ -46,7 +41,7 @@ try {
         GROUP BY f.id
     ";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([$invId]);
+    $stmt->execute([$inventoryId]);
     $rows = $stmt->fetchAll();
 
     $totalWeight = 0;
@@ -80,14 +75,47 @@ try {
           AND cl.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
     ";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([$invId]);
+    $stmt->execute([$inventoryId]);
     $consumed30 = abs((int)$stmt->fetchColumn());
+
+    // 4. Material distribution (zbývající hmotnost) – pro koláčový graf
+    $stmt = $pdo->prepare("
+        SELECT f.material,
+               COALESCE(SUM(f.initial_weight_grams + COALESCE(consumption_sum.total_consumed, 0)), 0) AS remaining_weight
+        FROM filaments f
+        LEFT JOIN (
+            SELECT filament_id, SUM(amount_grams) AS total_consumed
+            FROM consumption_log
+            GROUP BY filament_id
+        ) consumption_sum ON f.id = consumption_sum.filament_id
+        WHERE f.inventory_id = ?
+        GROUP BY f.material
+        HAVING remaining_weight > 0
+        ORDER BY remaining_weight DESC
+    ");
+    $stmt->execute([$inventoryId]);
+    $materialDistribution = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // 5. Spotřeba po dnech (posledních 30 dní) – pro sloupcový graf
+    $stmt = $pdo->prepare("
+        SELECT cl.consumption_date AS date, COALESCE(SUM(ABS(cl.amount_grams)), 0) AS total_grams
+        FROM consumption_log cl
+        JOIN filaments f ON cl.filament_id = f.id
+        WHERE f.inventory_id = ? AND cl.amount_grams < 0
+          AND cl.consumption_date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+        GROUP BY cl.consumption_date
+        ORDER BY cl.consumption_date ASC
+    ");
+    $stmt->execute([$inventoryId]);
+    $consumptionByDay = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     echo json_encode([
         'total_weight_grams' => $totalWeight,
         'total_value_czk' => round($totalValue),
         'total_count' => $totalCount,
-        'consumed_30_days_grams' => $consumed30
+        'consumed_30_days_grams' => $consumed30,
+        'material_distribution' => $materialDistribution,
+        'consumption_by_day' => $consumptionByDay,
     ]);
 
 } catch (Exception $e) {

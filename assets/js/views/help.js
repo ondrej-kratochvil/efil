@@ -101,9 +101,10 @@ export function renderHelp(v) {
             <h2 class="text-xl font-black text-indigo-600 mb-3">🎯 Typy cívek (Tára)</h2>
             <ol class="list-decimal list-inside space-y-2 text-slate-700">
                 <li>Při přidávání filamentu vyberte typ cívky ze seznamu</li>
-                <li>Pokud váš typ není v seznamu, klikněte na <strong>+</strong></li>
-                <li>Zadejte charakteristiky (barva, materiál, průměr, šířka)</li>
-                <li><strong>Důležité:</strong> Hmotnost prázdné cívky zadejte až když ji máte prázdnou</li>
+                <li>Pokud váš typ není v seznamu, klikněte na <strong>+</strong> – rozbalí se pole pro nový typ, ostatní údaje formuláře (materiál, barva, výrobce…) zůstanou</li>
+                <li>Barva a materiál typu cívky jsou <strong>povinné</strong>; při rozbalení se předvyplní z už zadané barvy a materiálu filamentu</li>
+                <li>Zadejte další charakteristiky (průměr, šířka). <strong>Hmotnost</strong> prázdné cívky zadejte až když ji máte prázdnou</li>
+                <li>Při uložení filamentu se výrobce filamentu automaticky propisuje i do nového typu cívky</li>
                 <li>Typ cívky se uloží a bude dostupný pro další filamenty</li>
             </ol>
         </div>

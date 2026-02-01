@@ -66,21 +66,18 @@ Záznamy spotřeby.
 - `consumption_date` - Datum spotřeby
 - `created_by` - FK → users (kdo vytvořil záznam)
 
-#### `spool_library`
-Knihovna typů cívek.
-- `id` - Primární klíč
-- `weight_grams` - Hmotnost cívky (tára)
-- `color` - Barva cívky
-- `material` - Materiál cívky
-- `outer_diameter_mm` - Vnější průměr
-- `width_mm` - Šířka
-- `visual_description` - Popis
-- `created_by` - FK → users (NULL = standardní cívka)
+#### `spool_types` (verzování, soft delete, public, schvalování – viz SPOOL_TYPES.md)
+Knihovna typů cívek. Stejný vzor jako manufacturers.
+- `id` - PK řádku (jedna verze)
+- `spool_type_id` - logické ID (kořen pro všechny verze)
+- `weight_grams`, `color`, `material`, `outer_diameter_mm`, `width_mm`, `visual_description`
+- `public` (0 = soukromý, 1 = veřejný), `approved` (0 = návrh, 1 = schváleno)
+- `created_at`, `created_by`, `invalidated_at`, `invalidated_by`
 
 #### `spool_manufacturer`
 Vazební tabulka M:N mezi cívkami a výrobci.
-- `spool_id` - FK → spool_library
-- `manufacturer_id` - FK → manufacturers
+- `spool_id` - logické ID → spool_types.spool_type_id
+- `manufacturer_id` - logické ID → manufacturers.manufacturer_id
 - UNIQUE(spool_id, manufacturer_id)
 
 #### `manufacturers`
@@ -95,8 +92,8 @@ users (1) ──< inventories (owner_id)
 inventories (1) ──< inventory_members (M:N)
 inventories (1) ──< filaments
 filaments (1) ──< consumption_log
-filaments (N) ──> spool_library (spool_type_id)
-spool_library (M) ──< spool_manufacturer (M:N) ──> manufacturers
+filaments (N) ──> spool_types (spool_type_id, logické ID)
+spool_types (M) ──< spool_manufacturer (M:N) ──> manufacturers
 ```
 
 ### Indexy a optimalizace

@@ -49,7 +49,7 @@ try {
 
     // 3. Drop existing tables if they exist (in correct order due to foreign keys)
     echo "Dropping existing tables if any...\n";
-    $tables = ['consumption_log', 'filaments', 'spool_manufacturer', 'spool_library', 'inventory_members', 'inventory_access', 'inventories', 'manufacturers', 'users'];
+    $tables = ['consumption_log', 'filaments', 'spool_manufacturer', 'spool_types', 'inventory_members', 'inventory_access', 'inventories', 'manufacturers', 'users'];
     $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
     foreach ($tables as $table) {
         $pdo->exec("DROP TABLE IF EXISTS `$table`");

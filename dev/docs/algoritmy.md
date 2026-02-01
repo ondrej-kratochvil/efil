@@ -305,10 +305,12 @@ brutto = current_weight + spool_weight
 
 ```sql
 SELECT
-    (f.initial_weight_grams + COALESCE(SUM(cl.amount_grams), 0) + COALESCE(sl.weight_grams, 0)) as brutto
+    (f.initial_weight_grams + COALESCE(SUM(cl.amount_grams), 0)
+     + COALESCE((SELECT st.weight_grams FROM spool_types st
+                 WHERE st.spool_type_id = f.spool_type_id AND st.approved = 1 AND st.invalidated_at IS NULL
+                 LIMIT 1), 0)) AS brutto
 FROM filaments f
 LEFT JOIN consumption_log cl ON f.id = cl.filament_id
-LEFT JOIN spool_library sl ON f.spool_type_id = sl.id
 WHERE f.id = ?
 GROUP BY f.id
 ```

@@ -87,73 +87,80 @@ window.updateWeightInfo = updateWeightInfo;
 // Note: showToast and getClosestColorName are imported from utils.js
 
 // --- RENDER ---
-function render() {
-    const appView = document.getElementById('app-view');
-    const loadingScreen = document.getElementById('loading-screen');
+let renderInProgress = null;
 
-    if (!appView || !loadingScreen) {
-        return;
-    }
+async function render() {
+    if (renderInProgress) await renderInProgress;
 
-    if (state.view === 'loading') {
-        loadingScreen.classList.remove('hidden');
-        appView.classList.add('hidden');
-        return;
-    } else {
-        loadingScreen.classList.add('hidden');
-        appView.classList.remove('hidden');
-    }
+    renderInProgress = (async () => {
+        const appView = document.getElementById('app-view');
+        const loadingScreen = document.getElementById('loading-screen');
 
-    updateHeader();
-
-    // Pokud nejsme v režimu vážení, odstraň případné bloky historie čerpání
-    if (state.view !== 'consume') {
-        const strayHistoryBlocks = document.querySelectorAll('[data-consumption-history]');
-        if (strayHistoryBlocks.length > 0) {
-            strayHistoryBlocks.forEach(el => el.remove());
+        if (!appView || !loadingScreen) {
+            return;
         }
-    }
 
-    appView.innerHTML = '';
+        if (state.view === 'loading') {
+            loadingScreen.classList.remove('hidden');
+            appView.classList.add('hidden');
+            return;
+        } else {
+            loadingScreen.classList.add('hidden');
+            appView.classList.remove('hidden');
+        }
 
-    if (state.view === 'auth') {
-        renderAuth(appView);
-    } else if (state.view === 'form') {
-        renderFormAsync(appView);
-    } else if (state.view === 'consume') {
-        renderConsume(appView);
-    } else if (state.view === 'stats') {
-        renderStats(appView);
-    } else if (state.view === 'help') {
-        renderHelp(appView);
-        if (state.scrollToAccessibility) {
-            state.scrollToAccessibility = false;
-            requestAnimationFrame(() => {
-                const section = document.querySelector('[data-section="accessibility"]');
-                if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            });
+        updateHeader();
+
+        // Pokud nejsme v režimu vážení, odstraň případné bloky historie čerpání
+        if (state.view !== 'consume') {
+            const strayHistoryBlocks = document.querySelectorAll('[data-consumption-history]');
+            if (strayHistoryBlocks.length > 0) {
+                strayHistoryBlocks.forEach(el => el.remove());
+            }
         }
-    } else if (state.view === 'account') {
-        renderAccount(appView);
-    } else if (state.view === 'users') {
-        renderUsers(appView);
-    } else if (state.view === 'spools') {
-        renderSpools(appView);
-    } else if (state.view === 'manufacturers') {
-        renderManufacturers(appView);
-    } else if (state.view === 'adminStats') {
-        renderAdminStats(appView);
-    } else if (state.view === 'inventorySwitch') {
-        renderInventorySwitch(appView);
-    } else {
-        if (state.currentStep === 1) {
-            renderMaterials(appView);
-        } else if (state.currentStep === 2) {
-            renderColors(appView);
-        } else if (state.currentStep === 3) {
-            renderDetails(appView);
+
+        appView.innerHTML = '';
+
+        if (state.view === 'auth') {
+            renderAuth(appView);
+        } else if (state.view === 'form') {
+            await renderFormAsync(appView);
+        } else if (state.view === 'consume') {
+            await renderConsume(appView);
+        } else if (state.view === 'stats') {
+            await renderStats(appView);
+        } else if (state.view === 'help') {
+            renderHelp(appView);
+            if (state.scrollToAccessibility) {
+                state.scrollToAccessibility = false;
+                requestAnimationFrame(() => {
+                    const section = document.querySelector('[data-section="accessibility"]');
+                    if (section) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                });
+            }
+        } else if (state.view === 'account') {
+            renderAccount(appView);
+        } else if (state.view === 'users') {
+            await renderUsers(appView);
+        } else if (state.view === 'spools') {
+            await renderSpools(appView);
+        } else if (state.view === 'manufacturers') {
+            await renderManufacturers(appView);
+        } else if (state.view === 'adminStats') {
+            await renderAdminStats(appView);
+        } else if (state.view === 'inventorySwitch') {
+            await renderInventorySwitch(appView);
+        } else {
+            if (state.currentStep === 1) {
+                renderMaterials(appView);
+            } else if (state.currentStep === 2) {
+                renderColors(appView);
+            } else if (state.currentStep === 3) {
+                renderDetails(appView);
+            }
         }
-    }
+    })().finally(() => { renderInProgress = null; });
+    await renderInProgress;
 }
 
 function updateHeader() {

@@ -171,6 +171,25 @@ Tento dokument obsahuje scénáře pro manuální testování funkcí, které ne
 
 ---
 
+### Test: Přidání filamentu s novým typem cívky
+**Cíl**: Ověřit, že při rozbalení pole „Typ cívky“ (tlačítko +) se hodnoty formuláře nevymažou a že výrobce filamentu se propisuje do nového typu cívky.
+
+**Kroky**:
+1. Otevřete formulář pro přidání filamentu
+2. Vyplňte Materiál (např. PLA), Barvu, Výrobce (např. Prusa Polymers)
+3. U pole **Typ cívky** klikněte na **+**
+4. Zkontrolujte:
+   - Materiál, barva a výrobce ve formuláři **zůstaly vyplněné**
+   - Pole pro nový typ cívky (barva, materiál, průměr, šířka…) jsou předvyplněná barvou a materiálem z filamentu
+5. Doplňte barvu a materiál typu cívky (povinné), případně průměr/šířku, a uložte filament
+6. V menu → **Správa typů cívek** ověřte, že nový typ cívky má přiřazeného výrobce odpovídajícího výrobci filamentu
+
+**Očekávaný výsledek**: Klik na + jen rozbalí pole; hodnoty formuláře se nemění; výrobce filamentu se při uložení propisuje do nového typu cívky.
+
+**Poznámky**: Barva a materiál typu cívky jsou povinné (validace na API i ve formuláři).
+
+---
+
 ### Test: Validace formulářů
 **Cíl**: Ověřit, že validace funguje správně a zobrazuje užitečné chybové zprávy.
 

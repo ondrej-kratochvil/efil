@@ -3,12 +3,33 @@
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/../../api/helpers/manufacturers.php';
+require_once __DIR__ . '/../../api/helpers/spool_types.php';
 
 echo "Running Balance Calculation Tests...\n";
 echo "------------------------------------\n";
 
-// Setup Test Data (FK manufacturers.created_by -> users: nejdřív výrobce, pak uživatele)
+// Setup Test Data – před mazáním starých testovacích uživatelů přeřadit spool_types/manufacturers (FK created_by)
 $testEmail = 'test_calc_' . time() . '@example.com';
+$cleanupUserIds = [];
+$stmt = $pdo->query("SELECT id FROM users WHERE email LIKE 'test_calc_%'");
+while ($row = $stmt->fetch(PDO::FETCH_COLUMN)) {
+    $cleanupUserIds[] = (int) $row;
+}
+if (count($cleanupUserIds) > 0) {
+    $other = $pdo->query("SELECT id FROM users WHERE email = 'balance_test_cleanup@example.com' LIMIT 1")->fetchColumn();
+    if ($other === false) {
+        $stmt = $pdo->query("SELECT id FROM users WHERE email NOT LIKE 'test_calc_%' ORDER BY id LIMIT 1");
+        $other = $stmt ? $stmt->fetchColumn() : false;
+    }
+    if ($other !== false) {
+        $other = (int) $other;
+        $placeholders = implode(',', array_fill(0, count($cleanupUserIds), '?'));
+        $stmt = $pdo->prepare("UPDATE spool_types SET created_by = ? WHERE created_by IN ($placeholders)");
+        $stmt->execute(array_merge([$other], $cleanupUserIds));
+        $stmt = $pdo->prepare("UPDATE manufacturers SET created_by = ? WHERE created_by IN ($placeholders)");
+        $stmt->execute(array_merge([$other], $cleanupUserIds));
+    }
+}
 $pdo->exec("DELETE FROM manufacturers WHERE created_by IN (SELECT id FROM users WHERE email LIKE 'test_calc_%')");
 $pdo->exec("DELETE FROM users WHERE email LIKE 'test_calc_%'");
 
@@ -50,26 +71,44 @@ try {
     $stmt->execute([$manLogicalId, $userId]);
     $manRowId = $pdo->lastInsertId();
 
-    $stmt = $pdo->prepare("INSERT INTO spool_library (weight_grams) VALUES (200)");
-    $stmt->execute();
-    $spoolId = $pdo->lastInsertId();
+    $spoolTypeId = getNextSpoolTypeId($pdo);
+    $stmt = $pdo->prepare("INSERT INTO spool_types (spool_type_id, weight_grams, public, approved, created_by) VALUES (?, 200, 0, 1, ?)");
+    $stmt->execute([$spoolTypeId, $userId]);
     $stmt = $pdo->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
-    $stmt->execute([$spoolId, $manLogicalId]);
+    $stmt->execute([$spoolTypeId, $manLogicalId]);
 
     // Assign spool to filament
     $stmt = $pdo->prepare("UPDATE filaments SET spool_type_id = ? WHERE id = ?");
-    $stmt->execute([$spoolId, $filId]);
+    $stmt->execute([$spoolTypeId, $filId]);
 
     // Current Netto is 850g. Tare is 200g. Brutto should be 1050g.
     $brutto = getBrutto($pdo, $filId);
     assertResult("Brutto Weight (Netto 850 + Tare 200)", 1050, $brutto);
 
-    // Cleanup (manufacturers.created_by -> users.id: smazat výrobce před uživatelem)
-    $pdo->exec("DELETE FROM spool_manufacturer WHERE spool_id = $spoolId");
-    $pdo->exec("DELETE FROM spool_library WHERE id = $spoolId");
-    $stmt = $pdo->prepare("DELETE FROM manufacturers WHERE created_by = ?");
+    // Cleanup: přeřadit naše řádky podle spool_type_id / created_by, pak smazat uživatele (FK RESTRICT)
+    $userId = (int) $userId;
+    $stmt = $pdo->prepare("DELETE FROM spool_manufacturer WHERE spool_id = ?");
+    $stmt->execute([$spoolTypeId]);
+    $other = $pdo->query("SELECT id FROM users WHERE id != " . $userId . " ORDER BY id LIMIT 1")->fetchColumn();
+    if ($other === false) {
+        $stmt = $pdo->query("SELECT id FROM users WHERE email = 'balance_test_cleanup@example.com' LIMIT 1");
+        $other = $stmt ? $stmt->fetchColumn() : false;
+        if ($other === false) {
+            $pdo->exec("INSERT INTO users (email, password_hash) VALUES ('balance_test_cleanup@example.com', 'x')");
+            $other = $pdo->lastInsertId();
+        }
+    }
+    $other = (int) $other;
+    // Přesně náš řádek: podle spool_type_id (náš záznam)
+    $stmt = $pdo->prepare("UPDATE spool_types SET created_by = ?, invalidated_at = NOW(), invalidated_by = ? WHERE spool_type_id = ?");
+    $stmt->execute([$other, $other, $spoolTypeId]);
+    $stmt = $pdo->prepare("UPDATE manufacturers SET created_by = ? WHERE created_by = ?");
+    $stmt->execute([$other, $userId]);
+    // Všechny zbylé spool_types od našeho uživatele (pro jistotu)
+    $stmt = $pdo->prepare("UPDATE spool_types SET created_by = ? WHERE created_by = ?");
+    $stmt->execute([$other, $userId]);
+    $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
     $stmt->execute([$userId]);
-    $pdo->exec("DELETE FROM users WHERE id = $userId"); // Cascade: inventory & filaments
 
     echo "\nAll Tests Passed!\n";
 
@@ -93,10 +132,10 @@ function getBalance($pdo, $fid) {
 function getBrutto($pdo, $fid) {
     $stmt = $pdo->prepare("
         SELECT
-            (f.initial_weight_grams + COALESCE(SUM(cl.amount_grams), 0) + COALESCE(sl.weight_grams, 0)) as brutto
+            (f.initial_weight_grams + COALESCE(SUM(cl.amount_grams), 0) + COALESCE(st.weight_grams, 0)) as brutto
         FROM filaments f
         LEFT JOIN consumption_log cl ON f.id = cl.filament_id
-        LEFT JOIN spool_library sl ON f.spool_type_id = sl.id
+        LEFT JOIN spool_types st ON st.spool_type_id = f.spool_type_id AND st.approved = 1 AND st.invalidated_at IS NULL
         WHERE f.id = ?
         GROUP BY f.id
     ");

@@ -118,6 +118,15 @@ try {
     $wi = $useWidth ? $width : ($current['width_mm'] ?? null);
     $v = $useDesc ? $visualDescription : ($current['visual_description'] ?? null);
 
+    // Barva a materiál musí být vždy vyplněny
+    $cTrim = $c !== null ? trim((string) $c) : '';
+    $mTrim = $m !== null ? trim((string) $m) : '';
+    if ($cTrim === '' || $mTrim === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'Barva a materiál jsou povinné.']);
+        exit;
+    }
+
     if ($isPublic) {
         if ($isAdmin) {
             $pdo->beginTransaction();
