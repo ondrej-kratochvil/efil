@@ -105,6 +105,19 @@ Každá aplikace musí mít definovanou faviconu.
 - **Mapa webu:**
   - U **rozsáhlejšího webu** (více sekcí, podstránek) vytvořit **mapu webu** (sitemap) – buď statickou stránku s odkazy, nebo `sitemap.xml` pro vyhledávače, podle potřeby.
 
+### Multijazyčnost (i18n)
+
+Aplikace musí podporovat více jazyků; minimálně **češtinu a angličtinu** jako výchozí pár.
+
+- **Překlady**: Uložené v oddělených souborech (např. `assets/i18n/cs.json`, `assets/i18n/en.json`). Struktura dle klíčů (např. `nav.home`, `aria.menu`). Snadné přidání dalšího jazyka = nový JSON soubor.
+- **Žádné natvrdo v kódu**: Uživatelsky viditelné texty (tlačítka, popisky, nadpisy, aria-label) nejsou přímo v HTML/JS – používají se klíče a funkce typu `t(key)` resp. `t(key, { var: value })` pro interpolaci.
+- **Výběr jazyka v UI**: Viditelný přepínač jazyka (např. vlajky nebo zkratky v menu). Po změně jazyka se texty aktualizují **bez nutnosti obnovit stránku** (volání překladu a překreslení dynamického obsahu).
+- **Uložení volby**: Zvolený jazyk se ukládá (např. `localStorage`) a při dalším načtení se aplikuje.
+- **Dynamický obsah**: Všechny texty včetně nadpisů stránek, souhrnů a dynamicky generovaných bloků (např. výsledky testů) se při změně jazyka aktualizují – buď přes atributy (`data-i18n`, `data-i18n-html`, `data-i18n-aria-label`) a `applyTranslations()`, nebo překreslením komponenty, která texty vykresluje.
+- **HTML v překladech**: Pokud překlad obsahuje HTML (tučné, odkazy), používej oddělený atribut/klíč (např. `data-i18n-html`) a nastavuj `innerHTML` jen z důvěryhodného zdroje (vlastní JSON).
+
+*Poznámka: Konkrétní implementace (vlastní modul vs. knihovna) závisí na projektu; výše uvedené chování je závazné.*
+
 ### Responzivita
 
 - **Fluidní design**: Preferuj relativní jednotky (rem, em, %, vw/vh)
