@@ -21,8 +21,13 @@ if (!isset($data['inventory_id'])) {
 }
 
 try {
-    $inventoryId = $data['inventory_id'];
-    $userId = $_SESSION['user_id'];
+    $inventoryId = (int) $data['inventory_id'];
+    if ($inventoryId <= 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid inventory_id']);
+        exit;
+    }
+    $userId = (int) $_SESSION['user_id'];
 
     // Check if user has access to this inventory (owner or member)
     // First check if user is owner (owners may not be in inventory_members)

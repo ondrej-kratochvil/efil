@@ -20,7 +20,12 @@ if (!isset($_GET['id'])) {
 }
 
 try {
-    $consumptionId = $_GET['id'];
+    $consumptionId = isset($_GET['id']) ? (int) $_GET['id'] : 0;
+    if ($consumptionId <= 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid consumption ID']);
+        exit;
+    }
     $userId = (int) $_SESSION['user_id'];
     $inventoryId = getInventoryIdForUser($pdo, $userId);
     if ($inventoryId === null) {
