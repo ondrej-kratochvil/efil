@@ -56,7 +56,7 @@ try {
     echo "   Čerpání vytvořeno s ID: $consumptionId\n";
     
     // Verify
-    $stmt = $db->prepare("SELECT * FROM consumption_log WHERE id = ?");
+    $stmt = $db->prepare("SELECT id, filament_id, amount_grams, description, consumption_date, created_by, created_at FROM consumption_log WHERE id = ?");
     $stmt->execute([$consumptionId]);
     $consumption = $stmt->fetch(PDO::FETCH_ASSOC);
     
@@ -109,8 +109,9 @@ try {
     
     // Fetch history
     $stmt = $db->prepare("
-        SELECT * FROM consumption_log 
-        WHERE filament_id = ? 
+        SELECT id, filament_id, amount_grams, description, consumption_date, created_by, created_at
+        FROM consumption_log
+        WHERE filament_id = ?
         ORDER BY consumption_date DESC
     ");
     $stmt->execute([$filamentId]);

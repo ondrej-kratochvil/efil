@@ -137,7 +137,8 @@ function getSpoolTypesForOptions(PDO $pdo, int $userId, bool $includePendingProp
  */
 function getNextSpoolTypeId(PDO $pdo): int
 {
-    $stmt = $pdo->query("SELECT COALESCE(MAX(spool_type_id), 0) + 1 FROM spool_types");
+    $stmt = $pdo->prepare("SELECT COALESCE(MAX(spool_type_id), 0) + 1 FROM spool_types");
+    $stmt->execute();
     return (int) $stmt->fetchColumn();
 }
 

@@ -122,13 +122,13 @@ $jsVersion  = is_file($jsFile) ? (string)filemtime($jsFile) : '1';
                 <details class="group menu-expandable" data-menu-section="evidence">
                     <summary class="list-none flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target cursor-pointer text-slate-700">
                         <div class="bg-indigo-100 text-indigo-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg></div>
-                        <span class="flex-1">Evidence</span>
+                        <span class="flex-1" data-i18n="nav.evidence">Evidence</span>
                         <span class="menu-chevron flex-shrink-0 text-slate-400" aria-hidden="true"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg></span>
                     </summary>
                     <div class="pl-4 pb-2 space-y-1">
                         <button onclick="openForm()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left">
                             <div class="bg-indigo-600 text-white p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></div>
-                            Přidat nový filament
+                            <span data-i18n="nav.addFilament">Přidat nový filament</span>
                         </button>
                         <button onclick="openStats()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left">
                             <div class="bg-indigo-100 text-indigo-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg></div>
@@ -140,7 +140,7 @@ $jsVersion  = is_file($jsFile) ? (string)filemtime($jsFile) : '1';
                 <details class="group menu-expandable" data-menu-section="settings">
                     <summary class="list-none flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target cursor-pointer text-slate-700">
                         <div class="bg-slate-100 text-slate-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg></div>
-                        <span class="flex-1">Nastavení</span>
+                        <span class="flex-1" data-i18n="nav.settings">Nastavení</span>
                         <span class="menu-chevron flex-shrink-0 text-slate-400" aria-hidden="true"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg></span>
                     </summary>
                     <div class="pl-4 pb-2 space-y-1">
@@ -150,7 +150,7 @@ $jsVersion  = is_file($jsFile) ? (string)filemtime($jsFile) : '1';
                         </button>
                         <button onclick="openUsers()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left">
                             <div class="bg-purple-100 text-purple-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div>
-                            Správa uživatelů
+                            <span data-i18n="nav.users">Správa uživatelů</span>
                         </button>
                         <button onclick="openSpools()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left">
                             <div class="bg-teal-100 text-teal-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg></div>
@@ -158,22 +158,27 @@ $jsVersion  = is_file($jsFile) ? (string)filemtime($jsFile) : '1';
                         </button>
                         <button onclick="openManufacturers()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left">
                             <div class="bg-sky-100 text-sky-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5m-4 0h4"></path></svg></div>
-                            Správa výrobců
+                            <span data-i18n="nav.manufacturers">Správa výrobců</span>
                         </button>
                         <button onclick="openHelp()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left">
                             <div class="bg-amber-100 text-amber-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div>
-                            Nápověda
+                            <span data-i18n="nav.help">Nápověda</span>
                         </button>
                         <div id="menu-slot-admin-stats"></div>
                     </div>
                 </details>
-                <button type="button" onclick="window.toggleTheme()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left" aria-label="Přepnout světlý / tmavý režim">
+                <div class="flex items-center gap-2 px-4 py-2 border-b border-slate-100">
+                    <span class="text-xs font-bold text-slate-400 uppercase">Jazyk</span>
+                    <button type="button" onclick="window.setLang && window.setLang('cs')" class="px-3 py-1.5 rounded-lg text-sm font-bold transition-colors" id="lang-cs" aria-pressed="true">Česky</button>
+                    <button type="button" onclick="window.setLang && window.setLang('en')" class="px-3 py-1.5 rounded-lg text-sm font-bold transition-colors" id="lang-en" aria-pressed="false">English</button>
+                </div>
+                <button type="button" onclick="window.toggleTheme()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left" aria-label="Přepnout světlý / tmavý režim" data-i18n-aria-label="nav.themeToggle">
                     <div class="bg-slate-100 text-slate-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg></div>
                     <span id="theme-toggle-label">Tmavý režim</span>
                 </button>
                 <button onclick="logout()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left text-red-500">
                     <div class="bg-red-100 text-red-500 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg></div>
-                    Odhlásit se
+                    <span data-i18n="nav.logout">Odhlásit se</span>
                 </button>
             </div>
         </div>
@@ -182,7 +187,7 @@ $jsVersion  = is_file($jsFile) ? (string)filemtime($jsFile) : '1';
     <main class="max-w-5xl mx-auto p-4 pb-24">
         <div id="loading-screen" class="py-20 text-center">
             <div class="inline-block w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-            <p class="mt-4 text-slate-400 font-medium">Načítání...</p>
+            <p class="mt-4 text-slate-400 font-medium" data-i18n="common.loading">Načítání...</p>
         </div>
         <div id="app-view" class="hidden"></div>
     </main>
@@ -208,7 +213,7 @@ $jsVersion  = is_file($jsFile) ? (string)filemtime($jsFile) : '1';
     <!-- Footer -->
     <footer class="footer-theme text-center py-8 text-slate-500 border-t border-slate-200 mt-12">
         <p>© <?= (int) date('Y') ?> <a href="https://sensio.cz" target="_blank" rel="noopener noreferrer" class="text-slate-600 hover:text-indigo-600 transition-colors">Sensio.cz s.r.o.</a></p>
-        <p class="mt-1 text-sm"><a href="#" id="footer-accessibility-link" class="text-slate-500 hover:text-indigo-600 transition-colors">Prohlášení o přístupnosti</a></p>
+        <p class="mt-1 text-sm"><a href="#" id="footer-accessibility-link" class="text-slate-500 hover:text-indigo-600 transition-colors" data-i18n="footer.accessibility">Prohlášení o přístupnosti</a></p>
     </footer>
 </body>
 </html>

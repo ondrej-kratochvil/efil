@@ -119,7 +119,8 @@ function manufacturerNameDuplicateExists(PDO $pdo, string $name, int $userId, ?i
  */
 function getNextManufacturerId(PDO $pdo): int
 {
-    $stmt = $pdo->query("SELECT COALESCE(MAX(manufacturer_id), 0) + 1 FROM manufacturers");
+    $stmt = $pdo->prepare("SELECT COALESCE(MAX(manufacturer_id), 0) + 1 FROM manufacturers");
+    $stmt->execute();
     return (int) $stmt->fetchColumn();
 }
 

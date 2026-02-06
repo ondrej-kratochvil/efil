@@ -24,9 +24,9 @@ export function renderMaterials(v) {
         const emptyDiv = document.createElement('div');
         emptyDiv.className = "text-center py-10 space-y-4";
         emptyDiv.innerHTML = `
-            <p class="text-slate-400">Žádná data.</p>
+            <p class="text-slate-400">${t('wizard.noData')}</p>
             <button onclick="openForm()" class="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-colors">
-                Přidat nový filament
+                ${t('wizard.addFilament')}
             </button>
         `;
         v.appendChild(emptyDiv);
@@ -155,7 +155,7 @@ export function renderDetails(v) {
                         <div>
                             <div class="font-bold text-slate-900 flex items-center gap-2">${firstItem.man}</div>
                             <div class="text-xs text-slate-500 font-medium uppercase mt-0.5">${firstItem.mat} • ${firstItem.color}${priceSuffix}</div>
-                            <div class="text-[10px] text-indigo-600 font-bold mt-1 uppercase">${items.length} cívek</div>
+                            <div class="text-[10px] text-indigo-600 font-bold mt-1 uppercase">${items.length} ${t('wizard.spoolsCount')}</div>
                         </div>
                     </div>
                     <div class="text-2xl font-black text-indigo-600 leading-none bg-white px-4 py-3 rounded-lg">${totalWeight}<span class="text-sm ml-1">g</span></div>
@@ -225,7 +225,7 @@ export function renderDetails(v) {
     v.appendChild(container);
     const btn = document.createElement('button');
     btn.className = "mt-6 w-full py-4 text-indigo-600 font-bold text-sm bg-indigo-50 rounded-2xl";
-    btn.innerText = "Vymazat filtry";
+    btn.innerText = t('wizard.clearFilters');
     btn.onclick = () => {
         if (window.resetApp) window.resetApp();
     };

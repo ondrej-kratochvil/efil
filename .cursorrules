@@ -1,5 +1,27 @@
 # Pravidla vývoje - Vanilla Stack
 
+## Umístění pravidel (firemní vs. projekt)
+
+- **Firemní standard (závazný pro všechny projekty)**  
+  - **Team Rules** (doporučeno): Cursor Dashboard → Team/Enterprise → pravidla spravuje admin, platí pro celý tým, lze vynucovat.  
+  - **Alternativa bez Team plánu**: Sdílený repozitář s pravidly (např. `company-cursor-rules`). V každém projektu: **Cursor Settings → Rules → Project Rules → Add Rule → Remote Rule (GitHub)** a odkaz na ten repo. Pravidla se verzují v gitu a synchronizují.  
+  - **User Rules** (Cursor Settings → Rules): platí globálně pro daného uživatele, ale nejsou v souboru – nelze sdílet přes git.
+
+- **Projektová pravidla (zpřesnění pro daný projekt)**  
+  - Tento soubor **`.cursorrules`** v rootu projektu (nebo soubory v **`.cursor/rules/`**).  
+  - Doplnění a **výjimky** k firemnímu standardu (např. „pouze čeština pro interní aplikaci“), detekce typu projektu, specifika stacku a složek.  
+  - **Konflikt vs. výjimka**: Cursor skládá **Team Rules → Project Rules → User Rules**; při přímém konfliktu má přednost dříve uvedený zdroj. Pokud firemní pravidlo výslovně umožňuje výjimku („projekt může uvést …“), pak projektová formulace není konflikt, ale platná výjimka. U pravidel z Remote Rule (GitHub) platí totéž – projekt může zužovat tam, kde je to v textu pravidel dovoleno.
+
+- **`.cursorrules` vs. `.cursor/rules/`**  
+  - **`.cursorrules`** (jeden soubor): Legacy formát. Cursor ho **neaplikuje automaticky v chatu** – Agent/Chat ho nemusí mít v kontextu. Vhodné pro projekty, kde stačí občas přidat pravidla ručně (@).  
+  - **`.cursor/rules/`** (složka, soubory `.md` / `.mdc`): Doporučený formát. Pravidla lze nastavit na **Always Apply** (`alwaysApply: true` v frontmatter), pak se přidávají do kontextu u každého chatu. Lze rozdělit pravidla do více souborů (např. `vanilla-stack.mdc`, `git.mdc`).  
+  - **Pokud chat/agent ignoruje pravidla (např. u git příkazů):**  
+    1. **Rychlé řešení:** V chatu explicitně přidej pravidla do kontextu – napiš **@** a vyber **.cursorrules** nebo konkrétní soubor z `.cursor/rules/`.  
+    2. **Trvalé řešení:** Přesunout klíčová pravidla do **`.cursor/rules/`** a u hlavního souboru nastavit **Always Apply**. V Cursor Settings → Rules ověřit, že „Include .cursorrules“ / Project Rules jsou zapnuté.  
+    3. **První zpráva v novém chatu:** Na začátku vlákna lze napsat např. „Pracuj podle pravidel v .cursorrules (git: PowerShell, středník).“ – připomene to kontext bez nutnosti @.
+
+---
+
 ## Role
 
 Jsi seniorní full-stack vývojář a architekt. Tvým úkolem je vyvíjet, auditovat a udržovat aplikace na "Vanilla" stacku s minimálním technickým dluhem a kvalitní dokumentací.
@@ -50,6 +72,7 @@ Pravidla se aplikují podle typu projektu.
   - Readonly classes
   - Enumerations
   - Null-safe operátory (`?->`)
+- **Autoloading**: Vlastní jednoduchý PSR-4 autoloader mapující jmenné prostory do `/src`
 - **API struktura**: Endpointy organizované v `/api/` podle funkcionalit (auth, filaments, consumption, atd.)
 - **Databáze**:
   - MariaDB/MySQL + PDO
@@ -76,10 +99,11 @@ Pravidla se aplikují podle typu projektu.
 ### Homepage
 
 - **Úvodní text (SEO a první návštěva):**
-  - Na homepage musí být vždy stručný text popisující **hlavní funkce aplikace** – zdroj klíčových slov pro SEO a orientace pro nové uživatele.
-  - Tato sekce musí být **skrývatelná** (např. tlačítko „Skrýt úvod“ / „Zobrazit úvod“) nebo jinak nezavazet při opakovaném použití.
-  - Uživatel, který aplikaci používá opakovaně, nemusí tuto část stále přeskakovat – preference „skrýt úvod“ se ukládá (např. `localStorage`).
-- Obecně: stručné, výstižné informace o účelu aplikace a jejích funkcích.
+  - Na homepage (nebo na přihlašovací obrazovce) musí být stručný text popisující **hlavní funkce aplikace** – zdroj klíčových slov pro SEO a orientace pro nové uživatele.
+  - **Chování dle zařízení (firemní standard):**
+    - **Desktop (monitor):** Úvodní blok zůstává **vždy viditelný**. Není třeba ho skrývat ani automaticky, ani uživatelsky – nebrání zadání přihlašovacích údajů.
+    - **Mobil:** Po **prvním úspěšném přihlášení** se úvod při dalších návštěvách **automaticky skryje** (uživatel hned uvidí přihlašovací formulář bez scrollování). Uživatel si ho může kdykoli **zobrazit nebo skrýt** pomocí odkazu/tlačítka „Zobrazit úvod“ / „Skrýt úvod“. Preference se ukládá do `localStorage`. Breakpoint pro „mobil“ doporučen např. 768px (max-width).
+  - Obecně: stručné, výstižné informace o účelu aplikace a jejích funkcích.
 
 ### Favicon
 
@@ -107,7 +131,7 @@ Každá aplikace musí mít definovanou faviconu.
 
 ### Multijazyčnost (i18n)
 
-Aplikace musí podporovat více jazyků; minimálně **češtinu a angličtinu** jako výchozí pár.
+Aplikace podporují vícejazyčnost; **výchozí** je pár **čeština + angličtina**. Projekt může v `.cursorrules` uvést **výjimku** (např. „pouze čeština, interní aplikace“) – pak stačí jeden jazyk a přepínač jazyka v UI není nutný.
 
 - **Překlady**: Uložené v oddělených souborech (např. `assets/i18n/cs.json`, `assets/i18n/en.json`). Struktura dle klíčů (např. `nav.home`, `aria.menu`). Snadné přidání dalšího jazyka = nový JSON soubor.
 - **Žádné natvrdo v kódu**: Uživatelsky viditelné texty (tlačítka, popisky, nadpisy, aria-label) nejsou přímo v HTML/JS – používají se klíče a funkce typu `t(key)` resp. `t(key, { var: value })` pro interpolaci.
@@ -395,9 +419,9 @@ Spuštění všech testů a multi-resolution prohlídka.
 - @Browser verifikace na různých rozlišeních
 
 **Postup:**
-1. Spustit automatizované testy: Otevřít `http://localhost/a/efil-github/dev/tests/run_all_tests.php` v prohlížeči a ověřit, že všechny testy prošly
-2. Projít @Browser verifikaci podle checklistu: `/dev/docs/VERIFY_CHECKLIST.md`
-3. Vyplnit checklist s výsledky verifikace
+1. Spustit automatizované testy (otevřít stránku s testy v `dev/tests/` podle projektu – např. `run_all_tests.php`, `test.php` – a ověřit, že všechny prošly).
+2. Projít @Browser verifikaci podle checklistu (např. `/dev/docs/VERIFY_CHECKLIST.md`, pokud existuje).
+3. Vyplnit checklist s výsledky verifikace.
 
 **Důležité:** Testy jsou v `dev/tests/`, ne v rootu!
 

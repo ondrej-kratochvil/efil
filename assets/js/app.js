@@ -3,6 +3,7 @@ import { BASE_PATH, API_BASE } from './config.js';
 import { state, filaments, options, spoolTemplates, stats, user, setFilaments, setOptions, setSpoolTemplates, setStats, setUser } from './state.js';
 import { router } from './router.js';
 import { checkAuth, login, register, logout, loadData, saveFilament, consumeFilament, updateAdminMenu } from './api.js';
+import { t, init as i18nInit, applyTranslations, setLang, getCurrentLang } from './i18n.js';
 import { showToast, formatKg, getContrast, getClosestColorName } from './utils.js';
 import { colorNames, colorPalette } from './colors.js';
 import { renderMaterials, renderColors, renderDetails } from './views/wizard.js';
@@ -42,6 +43,9 @@ window.saveFilament = saveFilament;
 window.consumeFilament = consumeFilament;
 window.updateAdminMenu = updateAdminMenu;
 window.render = render;
+window.t = t;
+window.setLang = setLang;
+window.getCurrentLang = getCurrentLang;
 window.handleForgotPassword = handleForgotPassword;
 window.handleResetPassword = handleResetPassword;
 window.handleChangePassword = handleChangePassword;
@@ -448,7 +452,7 @@ document.addEventListener('keydown', (e) => {
         }
         return;
     }
-    if (e.ctrlKey && e.key === 'n') {
+    if (e.altKey && !e.ctrlKey && (e.key === 'n' || e.key === 'N')) {
         e.preventDefault();
         if (user) {
             document.getElementById('action-menu').classList.add('hidden');
@@ -461,6 +465,15 @@ document.addEventListener('keydown', (e) => {
         if (user) {
             document.getElementById('action-menu').classList.add('hidden');
             openStats();
+        }
+        return;
+    }
+    if (e.ctrlKey && e.key === 'e') {
+        e.preventDefault();
+        if (user) {
+            const menu = document.getElementById('action-menu');
+            if (menu) menu.classList.add('hidden');
+            router.push(BASE_PATH + '/inventory-switch');
         }
         return;
     }
@@ -478,4 +491,7 @@ document.addEventListener('keydown', (e) => {
     }
 })();
 
-checkAuth();
+i18nInit().then(() => {
+    applyTranslations();
+    checkAuth();
+});

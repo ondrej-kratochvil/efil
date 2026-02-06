@@ -1,87 +1,37 @@
 # Status oprav z auditu
 
-**Datum**: 2026-01-25  
-**Status**: Částečně dokončeno
+**Poslední audit:** 2026-02-04  
+**Detailní zpráva:** [AUDIT_REPORT.md](./AUDIT_REPORT.md)
 
 ---
 
-## ✅ Dokončené opravy
+## ✅ Dokončené opravy (z předchozích auditů)
 
-### Fáze 1: Kritické opravy ✅
-1. ✅ **Přidáno `declare(strict_types=1);`** do všech PHP souborů v `/api/`
-   - Všechny API endpointy
-   - `config.php`
-   - `init_db.php`
-   - Helper soubory (`email.php`, `jwt.php`)
-
-2. ✅ **Převedeno `pdo->query()` na prepared statements**
-   - `api/admin/stats.php` - všechny dotazy převedeny
-   - `api/inventory/list.php` - opraveno
-   - `init_db.php` - opraveno (SHOW DATABASES)
-
-### Fáze 2: Střední priority ✅
-3. ✅ **Přidána favicon**
-   - Vytvořen `assets/img/favicon.svg`
-   - Přidán do `index.html` s dynamickým BASE_PATH
-
-4. ✅ **Přidán footer s copyrightem**
-   - Footer přidán do `index.html`
-   - Text: "© 2026 eFil - Evidence Filamentů"
-
-5. ⚠️ **Rozdělení `app.js` na ES6 moduly** - **ČÁSTEČNĚ**
-   - ✅ Vytvořeny moduly:
-     - `utils.js` - pomocné funkce (getBasePath, showToast, getClosestColorName, formatKg, getContrast)
-     - `config.js` - konfigurace (BASE_PATH, API_BASE)
-     - `state.js` - state management (filaments, options, spoolTemplates, stats, user, state)
-     - `router.js` - routování (History API)
-     - `api.js` - API komunikace (checkAuth, login, register, logout, loadData, saveFilament, consumeFilament, updateAdminMenu)
-   - ⚠️ `app.js` stále obsahuje:
-     - Render funkce (render, renderAuth, renderForm, atd.) - ~2000 řádků
-     - Window handlers (window.handleFormSubmit, window.deleteFilament, atd.) - ~500 řádků
-     - Color palettes a další pomocné konstanty
-   - **Poznámka**: Úplné rozdělení by vyžadovalo vytvoření `render.js` modulu a přesunutí všech render funkcí, což je rozsáhlý refaktoring (~2000 řádků kódu)
-
-6. ❌ **Dark mode** - **VYNECHÁNO** (uživatel chce vždy tmavé téma)
-
-### Fáze 3: Vylepšení ✅
-7. ⚪ **Přesunout SQL do `/dev/sql/`** - **VYNECHÁNO** (není kritické, SQL je v `/database/`)
-
-8. ✅ **Přidány CSS proměnné pro design systém**
-   - Přidány proměnné pro barvy (primary, secondary, background, text, border)
-   - Přidány proměnné pro spacing, border radius, shadows, transitions
-   - Aktualizovány existující styly, aby používaly proměnné
-
-9. ⚪ **Refaktoring na OOP** - **VYNECHÁNO** (procedurální PHP je pro tento projekt OK)
+1. **declare(strict_types=1)** – všechny API soubory + config.php
+2. **PDO** – prepared statements v API (2× query() v helperech viz AUDIT_REPORT – nízká priorita)
+3. **Favicon** – assets/img/favicon.svg, dynamický base path
+4. **Footer** – © [rok] Sensio.cz s.r.o. s odkazem na https://sensio.cz
+5. **Light/Dark mode** – prefers-color-scheme, přepínač v menu, localStorage (efil-theme)
+6. **Prohlášení o přístupnosti** – sekce v Nápovědě, odkaz v footeru
+7. **Klávesové zkratky** – F1 = Nápověda, Escape = zavření menu; uvedeny v Nápovědě a prohlášení
+8. **Menu** – Evidence / Nastavení ve stromové struktuře (details)
+9. **ES moduly** – app.js, router, api, state, config, utils, views/*
 
 ---
 
-## 📊 Shrnutí
+## ✅ Vyřešené (2026-02-04)
 
-| Kategorie | Status | Dokončeno |
-|-----------|--------|-----------|
-| **Kritické** | ✅ | 2/2 (100%) |
-| **Střední** | ⚠️ | 3/4 (75%) |
-| **Nízká priorita** | ✅ | 1/3 (33%) |
-| **Celkem** | ⚠️ | 6/9 (67%) |
-
----
-
-## 📝 Poznámky
-
-### Rozdělení app.js na moduly
-- **Vytvořeno**: 5 modulů (utils, config, state, router, api)
-- **Zbývá**: Přesunout render funkce do `render.js` modulu (~2000 řádků)
-- **Doporučení**: Tento refaktoring je rozsáhlý a měl by být proveden postupně v samostatné fázi
-
-### Technický dluh
-- **Nízký**: Většina kritických problémů byla opravena
-- **Střední**: `app.js` stále obsahuje ~2500 řádků (render funkce a handlers)
-- **Doporučení**: Postupně přesouvat render funkce do `render.js` modulu
+| Bod | Řešení |
+|-----|--------|
+| Úvod na přihlašovací stránce | Desktop vždy vidět; mobil po 1. přihlášení skrýt + tlačítko Zobrazit/Skrýt úvod, localStorage. Pravidlo zapsáno do .cursorrules. |
+| i18n | Připraveno: assets/i18n/cs.json, en.json, i18n.js (t, setLang, init, applyTranslations), přepínač v menu a na auth, localStorage. |
+| PDO query() | V api/helpers/spool_types.php a manufacturers.php nahrazeno query() za prepare/execute. |
+| Klávesové zkratky | F1, Ctrl+N, Ctrl+S, Ctrl+E (přepnutí evidence), Escape; uvedeny v Nápovědě a prohlášení o přístupnosti. |
+| Mapa webu | Sekce „Mapa webu“ v Nápovědě s odkazy na Evidence, Statistiky, Přepnutí evidence, Účet, Uživatelé, Cívky, Výrobce, Nápověda. |
+| consumption_history_test | SELECT * nahrazen výčtem sloupců. |
 
 ---
 
-## ✅ Závěr
+## Shrnutí
 
-Většina kritických a středně prioritních oprav byla dokončena. Rozdělení `app.js` na moduly je částečně hotové - vytvořeny základní moduly, ale render funkce zůstávají v `app.js` kvůli rozsahu refaktoringu.
-
-**Doporučení**: Pokračovat s postupným přesouváním render funkcí do `render.js` modulu v samostatné fázi.
+Většina požadavků z .cursorrules je splněna. Aktuální audit viz **dev/docs/AUDIT_REPORT.md**.

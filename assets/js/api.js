@@ -50,6 +50,10 @@ export async function login(email, password) {
         if (res.ok) {
             setUser(data.user);
             await loadData();
+            // Na mobilu po prvním přihlášení skrýt úvod při dalších návštěvách (viz .cursorrules)
+            if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) {
+                try { localStorage.setItem('efil-intro-hidden-mobile', '1'); } catch (_) {}
+            }
             router.push(BASE_PATH + '/wizard/mat');
         } else {
             showToast(data.error || 'Chyba přihlášení');
