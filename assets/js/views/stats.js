@@ -2,6 +2,7 @@
 import { stats } from '../state.js';
 import { API_BASE, BASE_PATH } from '../config.js';
 import { formatKg } from '../utils.js';
+import { t, getCurrencyUnit } from '../i18n.js';
 
 const PIE_COLORS = ['#2563eb', '#16a34a', '#dc2626', '#ea580c', '#0891b2', '#7c3aed', '#ca8a04', '#4b5563'];
 
@@ -36,7 +37,7 @@ export async function renderStats(v) {
     const callId = ++statsRenderCounter;
 
     if(!stats) {
-        v.innerHTML = '<p class="text-center p-10">Žádná data</p>';
+        v.innerHTML = `<p class="text-center p-10">${t('stats.noData')}</p>`;
         return;
     }
 
@@ -53,26 +54,26 @@ export async function renderStats(v) {
     container.innerHTML = `
         <div class="grid grid-cols-2 gap-4">
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
-                <div class="text-[10px] font-bold text-slate-400 uppercase">Celkem na skladě</div>
+                <div class="text-[10px] font-bold text-slate-400 uppercase">${t('stats.totalStock')}</div>
                 <div class="text-2xl font-black text-indigo-600 mt-1">${formatKg(stats.total_weight_grams)}</div>
             </div>
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
-                <div class="text-[10px] font-bold text-slate-400 uppercase">Odhad hodnoty</div>
-                <div class="text-2xl font-black text-slate-800 mt-1">${stats.total_value_czk} Kč</div>
+                <div class="text-[10px] font-bold text-slate-400 uppercase">${t('stats.estimatedValue')}</div>
+                <div class="text-2xl font-black text-slate-800 mt-1">${stats.total_value_czk} ${getCurrencyUnit()}</div>
             </div>
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
-                <div class="text-[10px] font-bold text-slate-400 uppercase">Počet cívek</div>
-                <div class="text-2xl font-black text-slate-800 mt-1">${stats.total_count} ks</div>
+                <div class="text-[10px] font-bold text-slate-400 uppercase">${t('stats.spoolCount')}</div>
+                <div class="text-2xl font-black text-slate-800 mt-1">${stats.total_count} ${t('stats.pcs')}</div>
             </div>
             <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 text-center">
-                <div class="text-[10px] font-bold text-slate-400 uppercase">Spotřeba (30 dní)</div>
+                <div class="text-[10px] font-bold text-slate-400 uppercase">${t('stats.consumption30d')}</div>
                 <div class="text-2xl font-black text-slate-800 mt-1">${formatKg(stats.consumed_30_days_grams)}</div>
             </div>
         </div>
 
         ${materialDist.length > 0 ? `
         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-            <h3 class="text-lg font-black text-slate-800 mb-4">Rozložení materiálů (zbývající hmotnost)</h3>
+            <h3 class="text-lg font-black text-slate-800 mb-4">${t('stats.materialDistribution')}</h3>
             <div class="flex flex-wrap items-center gap-6">
                 <div class="w-40 h-40 rounded-full border-4 border-white shadow-inner flex-shrink-0" style="background: ${buildPieGradient(materialDist)}"></div>
                 <ul class="flex-1 min-w-0 space-y-1 text-sm">
@@ -89,11 +90,11 @@ export async function renderStats(v) {
         ` : ''}
 
         <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 text-center space-y-2">
-            <h3 class="font-bold text-indigo-900">Sdílení skladu</h3>
-            <p class="text-xs text-indigo-600">Vygenerujte kód pro kolegy, aby mohli spravovat tento sklad.</p>
-            <button onclick="generateShareCode()" class="bg-white text-indigo-600 px-4 py-2 rounded-xl font-bold text-sm shadow-sm">Vygenerovat kód</button>
+            <h3 class="font-bold text-indigo-900">${t('stats.sharingTitle')}</h3>
+            <p class="text-xs text-indigo-600">${t('stats.sharingDesc')}</p>
+            <button onclick="generateShareCode()" class="bg-white text-indigo-600 px-4 py-2 rounded-xl font-bold text-sm shadow-sm">${t('stats.generateCode')}</button>
             <div id="share-section" class="hidden mt-2 pt-2 border-t border-indigo-200">
-                <div class="text-xs text-slate-400 uppercase font-bold">Váš kód:</div>
+                <div class="text-xs text-slate-400 uppercase font-bold">${t('stats.yourCode')}:</div>
                 <div id="share-code-display" class="text-xl font-black tracking-widest select-all"></div>
             </div>
         </div>
@@ -106,8 +107,8 @@ export async function renderStats(v) {
 
     const barChartHtml = consumptionByDay.length > 0
         ? `
-        <h3 class="text-lg font-black text-slate-800 mb-4">Spotřeba po dnech (30 dní)</h3>
-        <div class="flex items-end gap-1 mb-6" style="height: 8rem;" role="img" aria-label="Sloupcový graf spotřeby po dnech">
+        <h3 class="text-lg font-black text-slate-800 mb-4">${t('stats.consumptionByDay')}</h3>
+        <div class="flex items-end gap-1 mb-6" style="height: 8rem;" role="img" aria-label="${t('stats.consumptionByDay')}">
             ${consumptionByDay.map(d => {
                 const grams = Number(d.total_grams);
                 const heightPct = maxConsumed > 0 ? Math.round((grams / maxConsumed) * 100) : 0;
@@ -122,7 +123,7 @@ export async function renderStats(v) {
             }).join('')}
         </div>
         `
-        : '<h3 class="text-lg font-black text-slate-800 mb-4">Historie čerpání</h3><p class="text-slate-500 text-sm mb-4">Žádná spotřeba v posledních 30 dnech.</p>';
+        : `<h3 class="text-lg font-black text-slate-800 mb-4">${t('stats.consumptionHistory')}</h3><p class="text-slate-500 text-sm mb-4">${t('stats.noConsumptionIn30')}</p>`;
 
     historyContainer.innerHTML = barChartHtml;
 
@@ -135,15 +136,15 @@ export async function renderStats(v) {
             }
             if (Array.isArray(history) && history.length > 0) {
                 const tableHtml = `
-                    <h3 class="text-lg font-black text-slate-800 mb-4">Tabulka čerpání (posledních ${history.length})</h3>
+                    <h3 class="text-lg font-black text-slate-800 mb-4">${t('stats.consumptionTable', { count: history.length })}</h3>
                     <div class="overflow-x-auto">
                         <table class="w-full text-sm">
                             <thead class="text-left border-b border-slate-200">
                                 <tr>
-                                    <th class="pb-2 font-bold text-slate-500 uppercase text-xs">Datum</th>
-                                    <th class="pb-2 font-bold text-slate-500 uppercase text-xs">Filament</th>
-                                    <th class="pb-2 font-bold text-slate-500 uppercase text-xs">Spotřeba</th>
-                                    <th class="pb-2 font-bold text-slate-500 uppercase text-xs">Poznámka</th>
+                                    <th class="pb-2 font-bold text-slate-500 uppercase text-xs">${t('stats.date')}</th>
+                                    <th class="pb-2 font-bold text-slate-500 uppercase text-xs">${t('stats.filament')}</th>
+                                    <th class="pb-2 font-bold text-slate-500 uppercase text-xs">${t('stats.consumption')}</th>
+                                    <th class="pb-2 font-bold text-slate-500 uppercase text-xs">${t('stats.description')}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -176,6 +177,6 @@ export async function renderStats(v) {
         if (window.resetApp) window.resetApp();
     };
     backBtn.className = 'w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm mt-4';
-    backBtn.textContent = 'Zpět na sklad';
+    backBtn.textContent = t('inventorySwitch.backToStock');
     v.appendChild(backBtn);
 }

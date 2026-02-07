@@ -15,7 +15,7 @@ export function renderFieldInput(key, list, value) {
     const isManufacturerList = key === 'man' && listArray.length > 0 && typeof listArray[0] === 'object' && listArray[0] != null && 'id' in listArray[0] && 'name' in listArray[0];
 
     if (isSelect && listArray.length > 0) {
-        let optionsHtml = `<option value="" disabled ${!value && value !== 0 ? 'selected' : ''}>Vybrat...</option>`;
+        let optionsHtml = `<option value="" disabled ${!value && value !== 0 ? 'selected' : ''}>${t('common.selectPlaceholder')}</option>`;
 
         if (isManufacturerList) {
             if (hasGroups && list.top && list.top.length > 0) {
@@ -23,7 +23,7 @@ export function renderFieldInput(key, list, value) {
                 optionsHtml += list.top.map(i => `<option value="${i.id}" ${(value == i.id || value === i.name) ? 'selected' : ''}>${escapeHtml(i.name)}</option>`).join('');
                 optionsHtml += `</optgroup>`;
                 if (list.others && list.others.length > 0) {
-                    optionsHtml += `<optgroup label="Ostatní">`;
+                    optionsHtml += `<optgroup label="${t('form.other')}">`;
                     optionsHtml += list.others.map(i => `<option value="${i.id}" ${(value == i.id || value === i.name) ? 'selected' : ''}>${escapeHtml(i.name)}</option>`).join('');
                     optionsHtml += `</optgroup>`;
                 }
@@ -35,7 +35,7 @@ export function renderFieldInput(key, list, value) {
             optionsHtml += list.top.map(i => `<option value="${i}" ${i === value ? 'selected' : ''}>${escapeHtml(String(i))}</option>`).join('');
             optionsHtml += `</optgroup>`;
             if (list.others && list.others.length > 0) {
-                optionsHtml += `<optgroup label="Ostatní">`;
+                optionsHtml += `<optgroup label="${t('form.other')}">`;
                 optionsHtml += list.others.map(i => `<option value="${i}" ${i === value ? 'selected' : ''}>${escapeHtml(String(i))}</option>`).join('');
                 optionsHtml += `</optgroup>`;
             }
@@ -51,8 +51,8 @@ export function renderFieldInput(key, list, value) {
         `;
     }
     return `
-        <input id="f-${key}" type="text" value="${escapeHtml(String(value || ''))}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="Zadejte novou hodnotu">
-        ${listArray.length > 0 ? `<button type="button" onclick="toggleField('${key}')" class="bg-slate-200 text-slate-500 p-3 rounded-xl font-bold">zpět</button>` : ''}
+        <input id="f-${key}" type="text" value="${escapeHtml(String(value || ''))}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="${t('form.enterNewValue')}">
+        ${listArray.length > 0 ? `<button type="button" onclick="toggleField('${key}')" class="bg-slate-200 text-slate-500 p-3 rounded-xl font-bold">${t('form.back')}</button>` : ''}
     `;
 }
 
@@ -74,7 +74,7 @@ export function renderSpoolInput(selectedId) {
             if (s.width_mm) parts.push(`${s.width_mm}mm`);
             if (s.weight_grams) parts.push(`${s.weight_grams}g`);
             if (s.visual_description) parts.push(`(${s.visual_description})`);
-            return parts.length > 0 ? parts.join(' • ') : 'Neznámá cívka';
+            return parts.length > 0 ? parts.join(' • ') : t('form.unknownSpool');
         };
 
         // Get currently selected manufacturer (id or name) and resolve to name for grouping
@@ -114,7 +114,7 @@ export function renderSpoolInput(selectedId) {
         // Add other spools
         if (otherSpools.length > 0) {
             if (matchingSpools.length > 0 && currentManufacturerName) {
-                optionsHtml += `<optgroup label="Ostatní">`;
+                optionsHtml += `<optgroup label="${t('form.other')}">`;
             }
             optionsHtml += otherSpools.map(s => `<option value="${s.id}" ${s.id == selectedId ? 'selected' : ''}>${formatSpoolLabel(s)}</option>`).join('');
             if (matchingSpools.length > 0 && currentManufacturerName) {
@@ -136,8 +136,8 @@ export function renderSpoolInput(selectedId) {
     return `
         <div class="w-full space-y-2">
             <div class="grid grid-cols-2 gap-2">
-                <input id="f-spool-color" type="text" value="${savedValues.color || ''}" placeholder="Barva (černá, šedá...)" class="bg-slate-50 border-none rounded-xl p-3 font-bold">
-                <input id="f-spool-material" type="text" value="${savedValues.material || ''}" placeholder="Materiál (PC, PS, ABS...)" class="bg-slate-50 border-none rounded-xl p-3 font-bold">
+                <input id="f-spool-color" type="text" value="${savedValues.color || ''}" placeholder="${t('form.colorInputPlaceholder')}" class="bg-slate-50 border-none rounded-xl p-3 font-bold">
+                <input id="f-spool-material" type="text" value="${savedValues.material || ''}" placeholder="${t('form.materialInputPlaceholder')}" class="bg-slate-50 border-none rounded-xl p-3 font-bold">
             </div>
             <div class="grid grid-cols-2 gap-2">
                 <input id="f-spool-diameter" type="number" value="${savedValues.diameter || ''}" placeholder="Vnější průměr (mm)" class="bg-slate-50 border-none rounded-xl p-3 font-bold">
@@ -490,9 +490,9 @@ export function updateWeightInfo() {
     if (mode === 'gross' && spoolSelect && spoolSelect.value) {
         const selectedSpool = spoolTemplates.find(s => s.id == spoolSelect.value);
         if (selectedSpool && selectedSpool.weight_grams) {
-            infoDiv.textContent = `Tára cívky: ${selectedSpool.weight_grams}g - bude odečtena automaticky`;
+            infoDiv.textContent = t('form.spoolTareInfo', { weight: selectedSpool.weight_grams });
         } else {
-            infoDiv.textContent = 'Vyberte cívku pro automatický výpočet';
+            infoDiv.textContent = t('form.selectSpoolForCalc');
         }
     } else {
         infoDiv.textContent = '';

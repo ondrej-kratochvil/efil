@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 
+// Zabránit cache HTML – při každém F5 se načte čerstvá stránka s aktuálním ?v= pro JS/CSS
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+
 $cssFile = __DIR__ . '/assets/css/main.css';
 $jsFile  = __DIR__ . '/assets/js/app.js';
 
@@ -100,13 +104,13 @@ $jsVersion  = is_file($jsFile) ? (string)filemtime($jsFile) : '1';
 
             <nav id="wizard-nav" class="flex h-full hidden">
                 <button onclick="setStep(1)" id="nav-mat" class="flex flex-col items-center justify-center px-3 h-full text-xs font-medium border-b-2 transition-all uppercase tracking-wider">
-                    <span class="text-[13px]">MAT</span>
+                    <span class="text-[13px]" data-i18n="wizard.tabMat">MAT</span>
                 </button>
                 <button onclick="setStep(2)" id="nav-bar" class="flex flex-col items-center justify-center px-3 h-full text-xs font-medium border-b-2 transition-all uppercase tracking-wider">
-                    <span class="text-[13px]">BAR</span>
+                    <span class="text-[13px]" data-i18n="wizard.tabBar">BAR</span>
                 </button>
                 <button onclick="setStep(3)" id="nav-vyr" class="flex flex-col items-center justify-center px-3 h-full text-xs font-medium border-b-2 transition-all uppercase tracking-wider">
-                    <span class="text-[13px]">VÝR</span>
+                    <span class="text-[13px]" data-i18n="wizard.tabVyr">VÝR</span>
                 </button>
             </nav>
 
@@ -132,7 +136,7 @@ $jsVersion  = is_file($jsFile) ? (string)filemtime($jsFile) : '1';
                         </button>
                         <button onclick="openStats()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left">
                             <div class="bg-indigo-100 text-indigo-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20V10"></path><path d="M18 20V4"></path><path d="M6 20v-4"></path></svg></div>
-                            Přehled skladu
+                            <span data-i18n="nav.stats">Přehled skladu</span>
                         </button>
                         <div id="menu-slot-inventory-switch"></div>
                     </div>
@@ -146,7 +150,7 @@ $jsVersion  = is_file($jsFile) ? (string)filemtime($jsFile) : '1';
                     <div class="pl-4 pb-2 space-y-1">
                         <button onclick="openAccount()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left">
                             <div class="bg-slate-100 text-slate-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></div>
-                            Můj účet
+                            <span data-i18n="nav.account">Můj účet</span>
                         </button>
                         <button onclick="openUsers()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left">
                             <div class="bg-purple-100 text-purple-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></div>
@@ -154,7 +158,7 @@ $jsVersion  = is_file($jsFile) ? (string)filemtime($jsFile) : '1';
                         </button>
                         <button onclick="openSpools()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left">
                             <div class="bg-teal-100 text-teal-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg></div>
-                            Správa typů cívek
+                            <span data-i18n="nav.spools">Správa typů cívek</span>
                         </button>
                         <button onclick="openManufacturers()" class="w-full flex items-center gap-4 p-4 hover:bg-slate-50 rounded-xl font-bold touch-target text-left">
                             <div class="bg-sky-100 text-sky-600 p-2 rounded-lg"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21V5a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v5m-4 0h4"></path></svg></div>
@@ -168,7 +172,7 @@ $jsVersion  = is_file($jsFile) ? (string)filemtime($jsFile) : '1';
                     </div>
                 </details>
                 <div class="flex items-center gap-2 px-4 py-2 border-b border-slate-100">
-                    <span class="text-xs font-bold text-slate-400 uppercase">Jazyk</span>
+                    <span class="text-xs font-bold text-slate-400 uppercase" data-i18n="nav.language">Jazyk</span>
                     <button type="button" onclick="window.setLang && window.setLang('cs')" class="px-3 py-1.5 rounded-lg text-sm font-bold transition-colors" id="lang-cs" aria-pressed="true">Česky</button>
                     <button type="button" onclick="window.setLang && window.setLang('en')" class="px-3 py-1.5 rounded-lg text-sm font-bold transition-colors" id="lang-en" aria-pressed="false">English</button>
                 </div>
@@ -212,8 +216,7 @@ $jsVersion  = is_file($jsFile) ? (string)filemtime($jsFile) : '1';
 
     <!-- Footer -->
     <footer class="footer-theme text-center py-8 text-slate-500 border-t border-slate-200 mt-12">
-        <p>© <?= (int) date('Y') ?> <a href="https://sensio.cz" target="_blank" rel="noopener noreferrer" class="text-slate-600 hover:text-indigo-600 transition-colors">Sensio.cz s.r.o.</a></p>
-        <p class="mt-1 text-sm"><a href="#" id="footer-accessibility-link" class="text-slate-500 hover:text-indigo-600 transition-colors" data-i18n="footer.accessibility">Prohlášení o přístupnosti</a></p>
+        <p>© <?= (int) date('Y') ?> <a href="https://sensio.cz" target="_blank" rel="noopener noreferrer" class="text-slate-600 hover:text-indigo-600 transition-colors">Sensio.cz s.r.o.</a> | <a href="#" id="footer-accessibility-link" class="text-slate-500 hover:text-indigo-600 transition-colors" data-i18n="footer.accessibility">Prohlášení o přístupnosti</a></p>
     </footer>
 </body>
 </html>

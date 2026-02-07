@@ -4,6 +4,7 @@ import { router } from '../router.js';
 import { BASE_PATH } from '../config.js';
 import { formatKg, getContrast, getAvgCzkPerKg } from '../utils.js';
 import { colorPalette } from '../colors.js';
+import { t, getCurrencyPerKg } from '../i18n.js';
 
 export function renderMaterials(v) {
     const grid = document.createElement('div'); 
@@ -44,8 +45,8 @@ export function renderMaterials(v) {
         };
         const count = stats[m].count;
         const avgCzkPerKg = getAvgCzkPerKg(stats[m].items);
-        const avgPriceHtml = avgCzkPerKg != null ? `<div class="text-[10px] font-bold text-slate-400 absolute bottom-2 right-2">x̄ ${avgCzkPerKg} Kč/kg</div>` : '';
-        card.innerHTML = `<div class="text-[10px] font-bold text-slate-400 absolute top-2 left-2">${count} ks</div><div class="text-[10px] font-bold text-slate-400 absolute top-2 right-2">${formatKg(stats[m].g)}</div>${avgPriceHtml}<div class="text-base font-black uppercase tracking-tight">${m}</div>`;
+        const avgPriceHtml = avgCzkPerKg != null ? `<div class="text-[10px] font-bold text-slate-400 absolute bottom-2 right-2">x̄ ${avgCzkPerKg} ${getCurrencyPerKg()}</div>` : '';
+        card.innerHTML = `<div class="text-[10px] font-bold text-slate-400 absolute top-2 left-2">${count} ${t('common.pcs')}</div><div class="text-[10px] font-bold text-slate-400 absolute top-2 right-2">${formatKg(stats[m].g)}</div>${avgPriceHtml}<div class="text-base font-black uppercase tracking-tight">${m}</div>`;
         grid.appendChild(card);
     });
     // "+" pro přidání nového filamentu (bez předvyplnění)
@@ -85,8 +86,8 @@ export function renderColors(v) {
             router.push(BASE_PATH + (nextStep === 1 ? '/wizard/mat' : '/wizard/vyr'));
         };
         const avgCzkPerKg = getAvgCzkPerKg(info.items);
-        const avgPriceHtml = avgCzkPerKg != null ? `<div class="text-[10px] font-bold absolute bottom-2 right-2 opacity-70">x̄ ${avgCzkPerKg} Kč/kg</div>` : '';
-        card.innerHTML = `<div class="text-[10px] font-bold absolute top-2 left-2 opacity-70">${info.count} ks</div><div class="text-[10px] font-bold absolute top-2 right-2 opacity-70">${formatKg(info.g)}</div>${avgPriceHtml}<div class="text-[13px] font-black uppercase px-1">${c}</div>`;
+        const avgPriceHtml = avgCzkPerKg != null ? `<div class="text-[10px] font-bold absolute bottom-2 right-2 opacity-70">x̄ ${avgCzkPerKg} ${getCurrencyPerKg()}</div>` : '';
+        card.innerHTML = `<div class="text-[10px] font-bold absolute top-2 left-2 opacity-70">${info.count} ${t('common.pcs')}</div><div class="text-[10px] font-bold absolute top-2 right-2 opacity-70">${formatKg(info.g)}</div>${avgPriceHtml}<div class="text-[13px] font-black uppercase px-1">${c}</div>`;
         grid.appendChild(card);
     });
     // "+" pro přidání nového filamentu (předvyplní se materiál, pokud je vyfiltrovaný)
@@ -140,7 +141,7 @@ export function renderDetails(v) {
                 // Show grouped item – průměr jen z filamentů s vyplněnou cenou
                 const totalWeight = items.reduce((sum, i) => sum + parseInt(i.g), 0);
                 const avgCzkPerKg = getAvgCzkPerKg(items);
-                const priceSuffix = avgCzkPerKg != null ? ` • x̄ ${avgCzkPerKg} Kč/kg` : '';
+                const priceSuffix = avgCzkPerKg != null ? ` • x̄ ${avgCzkPerKg} ${getCurrencyPerKg()}` : '';
                 const firstItem = items[0];
 
                 const groupCard = document.createElement('div');
@@ -165,7 +166,7 @@ export function renderDetails(v) {
                 // Show individual items (or single item, or expanded group)
                 items.sort((a,b)=>parseInt(b.g)-parseInt(a.g)).forEach((item, idx) => {
                     const avgCzkPerKg = getAvgCzkPerKg([item]);
-                    const priceSuffix = avgCzkPerKg != null ? ` • ${avgCzkPerKg} Kč/kg` : ''; // bez x̄ – u jednotlivého filamentu jde o cenu za kg, ne průměr
+                    const priceSuffix = avgCzkPerKg != null ? ` • ${avgCzkPerKg} ${getCurrencyPerKg()}` : '';
                     const card = document.createElement('div');
                     const isInExpandedGroup = isMultiple && isExpanded;
                     const isHighlighted = state.lastUpdatedFilamentId === item.id;
@@ -219,7 +220,7 @@ export function renderDetails(v) {
         }
         if (window.openForm) window.openForm(Object.keys(preset).length ? preset : null);
     };
-    addCard.innerHTML = '<div class="text-2xl font-bold text-indigo-500">+</div><span class="ml-2 font-bold text-indigo-600">Přidat filament</span>';
+    addCard.innerHTML = '<div class="text-2xl font-bold text-indigo-500">+</div><span class="ml-2 font-bold text-indigo-600">' + t('wizard.addFilamentShort') + '</span>';
     container.appendChild(addCard);
 
     v.appendChild(container);

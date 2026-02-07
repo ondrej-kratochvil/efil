@@ -60,6 +60,22 @@ export function getCurrentLang() {
 }
 
 /**
+ * Jednotka měny podle aktuálního jazyka (cs: Kč, en: CZK). Bez konverze, jen překlad labelu.
+ * @returns {string}
+ */
+export function getCurrencyUnit() {
+    return t('common.currencyUnit');
+}
+
+/**
+ * Jednotka ceny za kg podle jazyka (Kč/kg / CZK/kg).
+ * @returns {string}
+ */
+export function getCurrencyPerKg() {
+    return t('common.currencyPerKg');
+}
+
+/**
  * Přepne jazyk, načte překlady, aktualizuje DOM a případně překreslí view.
  * @param {string} lang
  */
@@ -67,7 +83,10 @@ export async function setLang(lang) {
     await loadLang(lang);
     applyTranslations();
     refreshLangSwitcher();
-    if (typeof window !== 'undefined' && window.render) window.render();
+    if (typeof window !== 'undefined' && window.render) await window.render();
+    refreshLangSwitcher();
+    if (typeof window !== 'undefined' && window.updateThemeToggleLabel) window.updateThemeToggleLabel();
+    if (typeof window !== 'undefined' && window.updateHeaderFromLang) window.updateHeaderFromLang();
 }
 
 function refreshLangSwitcher() {
@@ -75,7 +94,8 @@ function refreshLangSwitcher() {
     const themeLabel = document.getElementById('theme-toggle-label');
     if (themeLabel) {
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        themeLabel.textContent = isDark ? t('nav.themeLight') : t('nav.themeDark');
+        const value = isDark ? t('nav.themeLight') : t('nav.themeDark');
+        themeLabel.textContent = value;
     }
     const langCs = document.getElementById('lang-cs');
     const langEn = document.getElementById('lang-en');
@@ -110,4 +130,10 @@ export function applyTranslations() {
         const key = el.getAttribute('data-i18n-aria-label');
         if (key) el.setAttribute('aria-label', t(key));
     });
+    const themeLabel = document.getElementById('theme-toggle-label');
+    if (themeLabel) {
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        const value = isDark ? t('nav.themeLight') : t('nav.themeDark');
+        themeLabel.textContent = value;
+    }
 }

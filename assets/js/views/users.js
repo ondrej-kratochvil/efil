@@ -2,6 +2,7 @@
 import { state } from '../state.js';
 import { API_BASE } from '../config.js';
 import { showToast } from '../utils.js';
+import { t } from '../i18n.js';
 
 export async function renderUsers(v) {
     const container = document.createElement('div');
@@ -18,65 +19,59 @@ export async function renderUsers(v) {
         console.error('Failed to load users:', err);
     }
 
-    const roleNames = {
-        'owner': 'Vlastník',
-        'manage': 'Správa',
-        'write': 'Zápis',
-        'read': 'Jen čtení'
-    };
+    const roleRead = t('inventorySwitch.read');
+    const roleWrite = t('inventorySwitch.write');
+    const roleManage = t('inventorySwitch.manage');
+    const roleOwner = t('inventorySwitch.owner');
 
     container.innerHTML = `
-        <!-- Add User Form -->
         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-            <h2 class="text-xl font-black text-slate-800 mb-4">Přidat uživatele</h2>
+            <h2 class="text-xl font-black text-slate-800 mb-4">${t('users.addUser')}</h2>
             <form onsubmit="handleAddUser(event)" class="space-y-4">
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Email</label>
-                    <input type="email" name="email" autocomplete="email" required class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="uzivatel@example.com">
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">${t('users.emailLabel')}</label>
+                    <input type="email" name="email" autocomplete="email" required class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="${t('users.emailPlaceholder')}">
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Oprávnění</label>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">${t('users.permission')}</label>
                     <select name="role" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold">
-                        <option value="read">Jen čtení</option>
-                        <option value="write" selected>Zápis</option>
-                        <option value="manage">Správa</option>
+                        <option value="read">${roleRead}</option>
+                        <option value="write" selected>${roleWrite}</option>
+                        <option value="manage">${roleManage}</option>
                     </select>
                 </div>
-                <button type="submit" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">
-                    Přidat uživatele
-                </button>
+                <button type="submit" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">${t('users.addUserButton')}</button>
             </form>
         </div>
 
-        <!-- Users List -->
         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-            <h2 class="text-xl font-black text-slate-800 mb-4">Uživatelé v evidenci</h2>
+            <h2 class="text-xl font-black text-slate-800 mb-4">${t('users.usersInInventory')}</h2>
             <div class="space-y-3" id="users-list">
-                ${users.length === 0 ? '<p class="text-slate-400 text-center py-4">Načítání...</p>' : users.map(u => `
+                ${users.length === 0 ? `<p class="text-slate-400 text-center py-4">${t('common.loading')}</p>` : users.map(u => {
+                    const emailEsc = String(u.email || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+                    return `
                     <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                         <div>
                             <div class="font-bold text-slate-900">${u.email}</div>
                             <div class="text-xs text-slate-500 mt-1">
-                                ${u.is_owner ? '<span class="bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded font-bold">VLASTNÍK</span>' : `
-                                    <select onchange="handleChangeRole(${u.id}, this.value)" class="bg-white border border-slate-200 rounded px-2 py-1 text-xs font-bold" ${u.is_owner ? 'disabled' : ''}>
-                                        <option value="read" ${u.inventory_role === 'read' ? 'selected' : ''}>Jen čtení</option>
-                                        <option value="write" ${u.inventory_role === 'write' ? 'selected' : ''}>Zápis</option>
-                                        <option value="manage" ${u.inventory_role === 'manage' ? 'selected' : ''}>Správa</option>
+                                ${u.is_owner ? `<span class="bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded font-bold">${roleOwner}</span>` : `
+                                    <select onchange="handleChangeRole(${u.id}, this.value)" class="bg-white border border-slate-200 rounded px-2 py-1 text-xs font-bold">
+                                        <option value="read" ${u.inventory_role === 'read' ? 'selected' : ''}>${roleRead}</option>
+                                        <option value="write" ${u.inventory_role === 'write' ? 'selected' : ''}>${roleWrite}</option>
+                                        <option value="manage" ${u.inventory_role === 'manage' ? 'selected' : ''}>${roleManage}</option>
                                     </select>
                                 `}
                             </div>
                         </div>
                         ${!u.is_owner ? `
-                            <button onclick="handleRemoveUser(${u.id}, '${u.email}')" class="px-3 py-2 bg-red-50 text-red-600 rounded-lg font-bold text-sm hover:bg-red-100 transition-colors">
-                                Odebrat
-                            </button>
-                        ` : '<div class="text-xs text-slate-400">Nelze odebrat</div>'}
+                            <button onclick="handleRemoveUser(${u.id}, '${emailEsc}')" class="px-3 py-2 bg-red-50 text-red-600 rounded-lg font-bold text-sm hover:bg-red-100 transition-colors">${t('users.remove')}</button>
+                        ` : `<div class="text-xs text-slate-400">${t('users.cannotRemove')}</div>`}
                     </div>
-                `).join('')}
+                `; }).join('')}
             </div>
         </div>
 
-        <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
+        <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">${t('inventorySwitch.backToStock')}</button>
     `;
 
     v.appendChild(container);
@@ -99,16 +94,15 @@ export async function handleAddUser(e) {
         const data = await res.json();
 
         if (res.ok) {
-            showToast(data.message || 'Uživatel přidán');
+            showToast(data.message || t('users.userAdded'));
             e.target.reset();
-            // Refresh users list
             state.view = 'users';
             if (window.render) window.render();
         } else {
-            showToast(data.error || 'Chyba při přidávání uživatele');
+            showToast(data.error || t('users.errorAddUser'));
         }
     } catch (err) {
-        showToast('Chyba sítě');
+        showToast(t('common.errorNetwork'));
     }
 }
 
@@ -138,9 +132,7 @@ export async function handleChangeRole(userId, newRole) {
 }
 
 export async function handleRemoveUser(userId, email) {
-    if (!confirm(`Opravdu chcete odebrat uživatele ${email}?`)) {
-        return;
-    }
+    if (!confirm(t('users.removeConfirm', { email: email || '' }))) return;
 
     try {
         const res = await fetch(`${API_BASE}/users/remove.php`, {
@@ -151,13 +143,12 @@ export async function handleRemoveUser(userId, email) {
         const data = await res.json();
 
         if (res.ok) {
-            showToast('Uživatel odebrán');
-            // Refresh users list
+            showToast(t('users.userRemoved'));
             if (window.render) window.render();
         } else {
-            showToast(data.error || 'Chyba při odebírání uživatele');
+            showToast(data.error || t('users.errorRemoveUser'));
         }
     } catch (err) {
-        showToast('Chyba sítě');
+        showToast(t('common.errorNetwork'));
     }
 }

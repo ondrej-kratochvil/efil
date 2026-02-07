@@ -94,19 +94,19 @@ window.updateWeightInfo = updateWeightInfo;
 let renderInProgress = null;
 
 async function render() {
+    await i18nInit();
     if (renderInProgress) await renderInProgress;
 
     renderInProgress = (async () => {
         const appView = document.getElementById('app-view');
         const loadingScreen = document.getElementById('loading-screen');
 
-        if (!appView || !loadingScreen) {
-            return;
-        }
+        if (!appView || !loadingScreen) return;
 
         if (state.view === 'loading') {
             loadingScreen.classList.remove('hidden');
             appView.classList.add('hidden');
+            updateHeader();
             return;
         } else {
             loadingScreen.classList.add('hidden');
@@ -163,7 +163,9 @@ async function render() {
                 renderDetails(appView);
             }
         }
-    })().finally(() => { renderInProgress = null; });
+    })().finally(() => {
+        renderInProgress = null;
+    });
     await renderInProgress;
 }
 
@@ -185,16 +187,18 @@ function updateHeader() {
     if (['form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'manufacturers', 'adminStats', 'inventorySwitch'].includes(state.view)) {
         nav.classList.add('hidden');
         fTitle.classList.remove('hidden');
-        if (state.view === 'form') fTitle.innerText = 'Editor';
-        else if (state.view === 'consume') fTitle.innerText = 'Vážení';
-        else if (state.view === 'stats') fTitle.innerText = 'Přehled skladu';
-        else if (state.view === 'help') fTitle.innerText = 'Nápověda';
-        else if (state.view === 'account') fTitle.innerText = 'Můj účet';
-        else if (state.view === 'users') fTitle.innerText = 'Správa uživatelů';
-        else if (state.view === 'spools') fTitle.innerText = 'Správa typů cívek';
-        else if (state.view === 'manufacturers') fTitle.innerText = 'Správa výrobců';
-        else if (state.view === 'adminStats') fTitle.innerText = 'Statistiky eFil';
-        else if (state.view === 'inventorySwitch') fTitle.innerText = 'Přepnout evidenci';
+        if (state.view === 'form') fTitle.innerText = t('titles.form');
+        else if (state.view === 'consume') fTitle.innerText = t('titles.consume');
+        else if (state.view === 'stats') {
+            fTitle.innerText = t('nav.stats');
+        }
+        else if (state.view === 'help') fTitle.innerText = t('nav.help');
+        else if (state.view === 'account') fTitle.innerText = t('nav.account');
+        else if (state.view === 'users') fTitle.innerText = t('nav.users');
+        else if (state.view === 'spools') fTitle.innerText = t('nav.spools');
+        else if (state.view === 'manufacturers') fTitle.innerText = t('nav.manufacturers');
+        else if (state.view === 'adminStats') fTitle.innerText = t('map.adminStats');
+        else if (state.view === 'inventorySwitch') fTitle.innerText = t('inventorySwitch.title');
     } else {
         nav.classList.remove('hidden');
         fTitle.classList.add('hidden');
@@ -205,10 +209,45 @@ function updateHeader() {
         });
         const spanMat = document.getElementById('nav-mat').querySelector('span');
         const spanBar = document.getElementById('nav-bar').querySelector('span');
-        if (spanMat) spanMat.innerText = state.filters.mat || 'MAT';
-        if (spanBar) spanBar.innerText = state.filters.color || 'BAR';
+        const spanVyr = document.getElementById('nav-vyr').querySelector('span');
+        const defaultTabLabels = ['MAT', 'BAR', 'VÝR', 'COL', 'MFR'];
+        const matLabel = (state.filters.mat && !defaultTabLabels.includes(state.filters.mat)) ? state.filters.mat : t('wizard.tabMat');
+        const barLabel = (state.filters.color && !defaultTabLabels.includes(state.filters.color)) ? state.filters.color : t('wizard.tabBar');
+        if (spanMat) spanMat.innerText = matLabel;
+        if (spanBar) spanBar.innerText = barLabel;
+        if (spanVyr) spanVyr.innerText = t('wizard.tabVyr');
     }
 }
+
+function updateHeaderFromLang() {
+    const fTitle = document.getElementById('form-title');
+    if (!fTitle) return;
+    if (['form', 'consume', 'stats', 'help', 'account', 'users', 'spools', 'manufacturers', 'adminStats', 'inventorySwitch'].includes(state.view)) {
+        if (state.view === 'form') fTitle.innerText = t('titles.form');
+        else if (state.view === 'consume') fTitle.innerText = t('titles.consume');
+        else if (state.view === 'stats') fTitle.innerText = t('nav.stats');
+        else if (state.view === 'help') fTitle.innerText = t('nav.help');
+        else if (state.view === 'account') fTitle.innerText = t('nav.account');
+        else if (state.view === 'users') fTitle.innerText = t('nav.users');
+        else if (state.view === 'spools') fTitle.innerText = t('nav.spools');
+        else if (state.view === 'manufacturers') fTitle.innerText = t('nav.manufacturers');
+        else if (state.view === 'adminStats') fTitle.innerText = t('map.adminStats');
+        else if (state.view === 'inventorySwitch') fTitle.innerText = t('inventorySwitch.title');
+    }
+    const spanMat = document.getElementById('nav-mat')?.querySelector('span');
+    const spanBar = document.getElementById('nav-bar')?.querySelector('span');
+    const spanVyr = document.getElementById('nav-vyr')?.querySelector('span');
+    if (spanMat || spanBar || spanVyr) {
+        const defaultTabLabels = ['MAT', 'BAR', 'VÝR', 'COL', 'MFR'];
+        const matLabel = (state.filters.mat && !defaultTabLabels.includes(state.filters.mat)) ? state.filters.mat : t('wizard.tabMat');
+        const barLabel = (state.filters.color && !defaultTabLabels.includes(state.filters.color)) ? state.filters.color : t('wizard.tabBar');
+        if (spanMat) spanMat.innerText = matLabel;
+        if (spanBar) spanBar.innerText = barLabel;
+        if (spanVyr) spanVyr.innerText = t('wizard.tabVyr');
+    }
+}
+window.updateHeaderFromLang = updateHeaderFromLang;
+window.updateThemeToggleLabel = updateThemeToggleLabel;
 
 // Auth render function moved to views/auth.js
 
@@ -322,7 +361,7 @@ window.handleConsumeSubmit = (e) => {
     }
 
     if (grams === 0) {
-        showToast('Rozdíl hmotnosti je nulový');
+        showToast(t('consume.weightDiffZero'));
         return;
     }
 
@@ -358,7 +397,7 @@ window.resetApp = () => {
         state.editingId = null;
         state.consumeId = null;
         state.formValues = null;
-        
+
         // Try to go back in history, fallback to wizard/mat if no history
         if (window.history.length > 1) {
             window.history.back();
@@ -388,6 +427,9 @@ window.toggleActionMenu = () => {
     const menu = document.getElementById('action-menu');
     menu.classList.toggle('hidden');
     updateThemeToggleLabel();
+    if (!menu.classList.contains('hidden')) {
+        requestAnimationFrame(() => updateThemeToggleLabel());
+    }
 };
 window.toggleTheme = () => {
     const root = document.documentElement;
@@ -399,9 +441,10 @@ window.toggleTheme = () => {
 };
 function updateThemeToggleLabel() {
     const label = document.getElementById('theme-toggle-label');
-    if (!label) return;
     const current = document.documentElement.getAttribute('data-theme') || 'light';
-    label.textContent = current === 'dark' ? 'Světlý režim' : 'Tmavý režim';
+    const key = current === 'dark' ? 'nav.themeLight' : 'nav.themeDark';
+    const value = t(key);
+    if (label) label.textContent = value;
 }
 // updateWeightInfo and openForm moved to views/form.js
 

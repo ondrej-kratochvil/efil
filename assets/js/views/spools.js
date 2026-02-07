@@ -3,6 +3,7 @@ import { options } from '../state.js';
 import { API_BASE } from '../config.js';
 import { showToast } from '../utils.js';
 import { loadData } from '../api.js';
+import { t } from '../i18n.js';
 
 function escapeHtml(s) {
     const div = document.createElement('div');
@@ -44,79 +45,77 @@ export async function renderSpools(v) {
     }
 
     container.innerHTML = `
-        <!-- Add/Edit Form -->
         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-            <h2 class="text-xl font-black text-slate-800 mb-4" id="spool-form-title">Přidat typ cívky</h2>
+            <h2 class="text-xl font-black text-slate-800 mb-4" id="spool-form-title">${t('spools.addSpool')}</h2>
             <form id="spool-form" class="space-y-4">
                 <input type="hidden" id="spool-id" value="">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Barva</label>
-                        <input type="text" id="spool-color" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="např. Černá">
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">${t('spools.color')}</label>
+                        <input type="text" id="spool-color" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="${t('spools.colorPlaceholder')}">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Materiál</label>
-                        <input type="text" id="spool-material" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="např. Plast">
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">${t('spools.material')}</label>
+                        <input type="text" id="spool-material" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="${t('spools.materialPlaceholder')}">
                     </div>
                 </div>
                 <div class="grid grid-cols-3 gap-4">
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Ø vnější (mm)</label>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">${t('spools.diameterOuter')}</label>
                         <input type="number" id="spool-diameter" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="200">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Šířka (mm)</label>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">${t('spools.width')}</label>
                         <input type="number" id="spool-width" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="70">
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Hmotnost (g)</label>
+                        <label class="block text-xs font-bold text-slate-400 uppercase mb-1">${t('spools.weight')}</label>
                         <input type="number" id="spool-weight" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="240">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Výrobci (multiselect)</label>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">${t('spools.manufacturersSelect')}</label>
                     <select multiple id="spool-manufacturers" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" style="min-height: 100px;">
                         ${manufacturers.map(m => typeof m === 'object' && m && 'id' in m ? `<option value="${m.id}">${escapeHtml(m.name)}</option>` : `<option value="${m}">${escapeHtml(String(m))}</option>`).join('')}
                     </select>
-                    <div class="text-xs text-slate-500 mt-1">Držte Ctrl/Cmd pro výběr více výrobců</div>
+                    <div class="text-xs text-slate-500 mt-1">${t('spools.manufacturersHint')}</div>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Poznámka</label>
-                    <textarea id="spool-description" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" rows="2" placeholder="Doplňující informace..."></textarea>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">${t('spools.note')}</label>
+                    <textarea id="spool-description" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" rows="2" placeholder="${t('spools.notePlaceholder')}"></textarea>
                 </div>
                 <div class="flex gap-3">
-                    <button type="button" onclick="cancelSpoolEdit()" id="spool-cancel-btn" class="hidden flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">Zrušit</button>
-                    <button type="submit" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">Uložit</button>
+                    <button type="button" onclick="cancelSpoolEdit()" id="spool-cancel-btn" class="hidden flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">${t('common.cancel')}</button>
+                    <button type="submit" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">${t('common.save')}</button>
                 </div>
             </form>
         </div>
 
-        <!-- Spools List -->
         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-            <h2 class="text-xl font-black text-slate-800 mb-4">Existující typy</h2>
+            <h2 class="text-xl font-black text-slate-800 mb-4">${t('spools.existingTypes')}</h2>
             <div class="space-y-2" id="spools-list">
-                ${spools.length === 0 ? '<p class="text-slate-400 text-center py-4">Žádné typy cívek</p>' : spools.map(s => {
+                ${spools.length === 0 ? `<p class="text-slate-400 text-center py-4">${t('spools.noSpools')}</p>` : spools.map(s => {
                     const isPublic = s.public === 1;
-                    const manufNames = (s.manufacturers || []).map(m => m.name).join(', ') || 'Žádný výrobce';
+                    const manufNames = (s.manufacturers || []).map(m => m.name).join(', ') || t('spools.noManufacturer');
                     const displayLabel = s.label || `${s.color || '?'} ${s.material || '?'} • Ø${s.outer_diameter_mm || '?'}mm × ${s.width_mm || '?'}mm • ${s.weight_grams || '?'}g`;
                     return `
                     <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                         <div>
                             <div class="font-bold text-slate-800">${escapeHtml(displayLabel)}</div>
-                            <div class="text-xs text-slate-500 mt-1">Výrobci: ${escapeHtml(manufNames)}</div>
+                            <div class="text-xs text-slate-500 mt-1">${t('spools.manufacturersLabel')} ${escapeHtml(manufNames)}</div>
                             ${s.visual_description ? `<div class="text-xs text-slate-400 mt-1">${escapeHtml(s.visual_description)}</div>` : ''}
-                            ${isPublic ? '<div class="text-xs text-indigo-600 font-bold mt-1">VEŘEJNÝ TYP</div>' : ''}
+                            ${isPublic ? `<div class="text-xs text-indigo-600 font-bold mt-1">${t('spools.publicType')}</div>` : ''}
                         </div>
                         <div class="flex gap-2">
-                            <button onclick="editSpool(${s.id})" class="px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg font-bold text-sm hover:bg-indigo-100">Upravit</button>
-                            <button onclick="deleteSpool(${s.id})" class="px-3 py-2 bg-red-50 text-red-600 rounded-lg font-bold text-sm hover:bg-red-100">Smazat</button>
+                            <button onclick="editSpool(${s.id})" class="px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg font-bold text-sm hover:bg-indigo-100">${t('common.edit')}</button>
+                            <button onclick="deleteSpool(${s.id})" class="px-3 py-2 bg-red-50 text-red-600 rounded-lg font-bold text-sm hover:bg-red-100">${t('common.delete')}</button>
                         </div>
                     </div>
                 `}).join('')}
             </div>
         </div>
 
-        <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
+        <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">${t('inventorySwitch.backToStock')}</button>
     `;
 
     v.appendChild(container);
@@ -146,11 +145,11 @@ export async function handleSpoolSubmit(e) {
     const manufacturerNames = manufIds.filter(v => typeof v === 'string');
 
     if (color === '') {
-        showToast('Barva je povinná.');
+        showToast(t('spools.colorRequired'));
         return;
     }
     if (material === '') {
-        showToast('Materiál je povinný.');
+        showToast(t('spools.materialRequired'));
         return;
     }
 
@@ -180,14 +179,14 @@ export async function handleSpoolSubmit(e) {
         const data = await res.json();
 
         if (res.ok) {
-            showToast(spoolId ? 'Typ cívky aktualizován' : 'Typ cívky přidán');
+            showToast(spoolId ? t('spools.spoolUpdated') : t('spools.spoolAdded'));
             await loadData();
             if (window.render) window.render();
         } else {
-            showToast(data.error || 'Chyba při ukládání');
+            showToast(data.error || t('spools.errorSaving'));
         }
     } catch (err) {
-        showToast('Chyba sítě');
+        showToast(t('common.errorNetwork'));
     }
 }
 
@@ -195,14 +194,14 @@ export async function editSpool(spoolId) {
     try {
         const res = await fetch(`${API_BASE}/spools/list.php`);
         if (!res.ok) {
-            showToast('Chyba načítání typů cívek');
+            showToast(t('spools.errorLoadSpools'));
             return;
         }
         const spools = await res.json();
         const spool = spools.find(s => s.id === spoolId);
 
         if (!spool) {
-            showToast('Typ cívky nenalezen');
+            showToast(t('spools.spoolNotFound'));
             return;
         }
 
@@ -222,28 +221,23 @@ export async function editSpool(spoolId) {
             opt.selected = manufIds.some(id => id == opt.value);
         });
 
-        // Update form title and show cancel button
-        document.getElementById('spool-form-title').textContent = 'Upravit typ cívky';
+        document.getElementById('spool-form-title').textContent = t('spools.editSpool');
         document.getElementById('spool-cancel-btn').classList.remove('hidden');
-
-        // Odrolovat úplně nahoru, aby hlavička nepřekrývala inputy
         window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
-        showToast('Chyba sítě');
+        showToast(t('common.errorNetwork'));
     }
 }
 
 export function cancelSpoolEdit() {
     document.getElementById('spool-form').reset();
     document.getElementById('spool-id').value = '';
-    document.getElementById('spool-form-title').textContent = 'Přidat typ cívky';
+    document.getElementById('spool-form-title').textContent = t('spools.addSpool');
     document.getElementById('spool-cancel-btn').classList.add('hidden');
 }
 
 export async function deleteSpool(spoolId) {
-    if (!confirm('Opravdu chcete smazat tento typ cívky?')) {
-        return;
-    }
+    if (!confirm(t('spools.deleteConfirm'))) return;
 
     try {
         const res = await fetch(`${API_BASE}/spools/delete.php`, {
@@ -254,13 +248,13 @@ export async function deleteSpool(spoolId) {
         const data = await res.json();
 
         if (res.ok) {
-            showToast('Typ cívky smazán');
+            showToast(t('spools.spoolDeleted'));
             await loadData();
             if (window.render) window.render();
         } else {
-            showToast(data.error || 'Chyba při mazání');
+            showToast(data.error || t('spools.errorDeleting'));
         }
     } catch (err) {
-        showToast('Chyba sítě');
+        showToast(t('common.errorNetwork'));
     }
 }

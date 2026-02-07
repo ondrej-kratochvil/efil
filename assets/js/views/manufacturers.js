@@ -3,6 +3,7 @@ import { user } from '../state.js';
 import { API_BASE } from '../config.js';
 import { showToast } from '../utils.js';
 import { loadData } from '../api.js';
+import { t } from '../i18n.js';
 
 function escapeHtml(s) {
     const div = document.createElement('div');
@@ -27,40 +28,38 @@ export async function renderManufacturers(container) {
         }
     } catch (err) {
         console.error('Failed to load manufacturers:', err);
-        showToast('Chyba načítání výrobců');
+        showToast(t('manufacturers.errorLoad'));
     }
 
     container.innerHTML = `
-        <!-- Přidat / Upravit -->
         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-            <h2 class="text-xl font-black text-slate-800 mb-4" id="manufacturer-form-title">Přidat výrobce</h2>
+            <h2 class="text-xl font-black text-slate-800 mb-4" id="manufacturer-form-title">${t('manufacturers.addManufacturer')}</h2>
             <form id="manufacturer-form" class="space-y-4">
                 <input type="hidden" id="manufacturer-id" value="">
                 <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Název</label>
-                    <input type="text" id="manufacturer-name" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="např. Prusa Research" required>
+                    <label class="block text-xs font-bold text-slate-400 uppercase mb-1">${t('manufacturers.name')}</label>
+                    <input type="text" id="manufacturer-name" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="${t('manufacturers.namePlaceholder')}" required>
                 </div>
                 <div class="flex gap-3">
-                    <button type="button" onclick="cancelManufacturerEdit()" id="manufacturer-cancel-btn" class="hidden flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">Zrušit</button>
-                    <button type="submit" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">Uložit</button>
+                    <button type="button" onclick="cancelManufacturerEdit()" id="manufacturer-cancel-btn" class="hidden flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">${t('common.cancel')}</button>
+                    <button type="submit" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">${t('common.save')}</button>
                 </div>
             </form>
         </div>
 
-        <!-- Seznam výrobců -->
         <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-200">
-            <h2 class="text-xl font-black text-slate-800 mb-4">Výrobci</h2>
+            <h2 class="text-xl font-black text-slate-800 mb-4">${t('manufacturers.listTitle')}</h2>
             <div class="space-y-2" id="manufacturers-list">
                 ${list.length === 0
-                    ? '<p class="text-slate-400 text-center py-4">Žádní výrobci. Přidejte prvního výše.</p>'
+                    ? `<p class="text-slate-400 text-center py-4">${t('manufacturers.noManufacturers')}</p>`
                     : list.map(m => {
                         const nameAttr = String(m.name).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
                         return `
                     <div class="flex items-center justify-between p-4 bg-slate-50 rounded-xl" data-manufacturer-id="${m.id}" data-manufacturer-name="${nameAttr}">
                         <div class="font-bold text-slate-800">${escapeHtml(m.name)}</div>
                         <div class="flex gap-2">
-                            <button type="button" onclick="editManufacturer(this)" class="px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg font-bold text-sm hover:bg-indigo-100">Upravit</button>
-                            <button type="button" onclick="deleteManufacturer(${m.id})" class="px-3 py-2 bg-red-50 text-red-600 rounded-lg font-bold text-sm hover:bg-red-100">Smazat</button>
+                            <button type="button" onclick="editManufacturer(this)" class="px-3 py-2 bg-indigo-50 text-indigo-600 rounded-lg font-bold text-sm hover:bg-indigo-100">${t('common.edit')}</button>
+                            <button type="button" onclick="deleteManufacturer(${m.id})" class="px-3 py-2 bg-red-50 text-red-600 rounded-lg font-bold text-sm hover:bg-red-100">${t('common.delete')}</button>
                         </div>
                     </div>
                 `;
@@ -69,19 +68,18 @@ export async function renderManufacturers(container) {
         </div>
 
         ${isAdmin && pending.length > 0 ? `
-        <!-- Čekající návrhy (admin) -->
         <div class="bg-white p-6 rounded-3xl shadow-sm border border-amber-200">
-            <h2 class="text-xl font-black text-slate-800 mb-4">Čekající návrhy na změnu</h2>
+            <h2 class="text-xl font-black text-slate-800 mb-4">${t('manufacturers.pendingProposals')}</h2>
             <div class="space-y-2" id="manufacturers-pending">
                 ${pending.map(p => `
                 <div class="flex items-center justify-between p-4 bg-amber-50 rounded-xl">
                     <div>
                         <div class="font-bold text-slate-800">${escapeHtml(p.proposed_name)}</div>
-                        <div class="text-xs text-slate-500 mt-1">Aktuálně: ${escapeHtml(p.current_approved_name || '—')} • Návrh od: ${escapeHtml(p.proposed_by_email || '?')}</div>
+                        <div class="text-xs text-slate-500 mt-1">${t('manufacturers.currentlyLabel')} ${escapeHtml(p.current_approved_name || '—')} • ${t('manufacturers.proposedBy')} ${escapeHtml(p.proposed_by_email || '?')}</div>
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="approveManufacturer(${p.id})" class="px-3 py-2 bg-green-50 text-green-600 rounded-lg font-bold text-sm hover:bg-green-100">Schválit</button>
-                        <button onclick="rejectManufacturer(${p.id})" class="px-3 py-2 bg-red-50 text-red-600 rounded-lg font-bold text-sm hover:bg-red-100">Zamítnout</button>
+                        <button onclick="approveManufacturer(${p.id})" class="px-3 py-2 bg-green-50 text-green-600 rounded-lg font-bold text-sm hover:bg-green-100">${t('manufacturers.approve')}</button>
+                        <button onclick="rejectManufacturer(${p.id})" class="px-3 py-2 bg-red-50 text-red-600 rounded-lg font-bold text-sm hover:bg-red-100">${t('manufacturers.reject')}</button>
                     </div>
                 </div>
                 `).join('')}
@@ -89,7 +87,7 @@ export async function renderManufacturers(container) {
         </div>
         ` : ''}
 
-        <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">Zpět na sklad</button>
+        <button onclick="window.resetApp()" class="w-full py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold shadow-sm">${t('inventorySwitch.backToStock')}</button>
     `;
 
     container.querySelector('#manufacturer-form').onsubmit = (e) => {
@@ -104,7 +102,7 @@ export async function handleManufacturerSubmit(e) {
     const nameEl = document.getElementById('manufacturer-name');
     const name = (nameEl && nameEl.value) ? nameEl.value.trim() : '';
     if (!name) {
-        showToast('Zadejte název výrobce');
+        showToast(t('manufacturers.nameRequired'));
         return;
     }
 
@@ -123,14 +121,14 @@ export async function handleManufacturerSubmit(e) {
         const data = await res.json();
 
         if (res.ok) {
-            showToast(data.message || (isEdit ? 'Výrobce upraven' : 'Výrobce přidán'));
+            showToast(data.message || (isEdit ? t('manufacturers.manufacturerUpdated') : t('manufacturers.manufacturerAdded')));
             await loadData();
             if (window.render) window.render();
         } else {
-            showToast(data.error || 'Chyba při ukládání');
+            showToast(data.error || t('manufacturers.errorSaving'));
         }
     } catch (err) {
-        showToast('Chyba sítě');
+        showToast(t('common.errorNetwork'));
     }
 }
 
@@ -151,7 +149,7 @@ export function editManufacturer(buttonOrId) {
     const cancelBtn = document.getElementById('manufacturer-cancel-btn');
     if (idEl) idEl.value = id;
     if (nameEl) nameEl.value = name;
-    if (titleEl) titleEl.textContent = 'Upravit výrobce';
+    if (titleEl) titleEl.textContent = t('manufacturers.editManufacturer');
     if (cancelBtn) cancelBtn.classList.remove('hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
     setTimeout(() => nameEl?.focus(), 400);
@@ -164,12 +162,12 @@ export function cancelManufacturerEdit() {
     const titleEl = document.getElementById('manufacturer-form-title');
     const cancelBtn = document.getElementById('manufacturer-cancel-btn');
     if (idEl) idEl.value = '';
-    if (titleEl) titleEl.textContent = 'Přidat výrobce';
+    if (titleEl) titleEl.textContent = t('manufacturers.addManufacturer');
     if (cancelBtn) cancelBtn.classList.add('hidden');
 }
 
 export async function deleteManufacturer(id) {
-    if (!confirm('Opravdu chcete smazat tohoto výrobce?')) return;
+    if (!confirm(t('manufacturers.deleteConfirm'))) return;
     try {
         const res = await fetch(`${API_BASE}/manufacturers/delete.php`, {
             method: 'POST',
@@ -178,14 +176,14 @@ export async function deleteManufacturer(id) {
         });
         const data = await res.json();
         if (res.ok) {
-            showToast(data.message || 'Výrobce smazán');
+            showToast(data.message || t('manufacturers.manufacturerDeleted'));
             await loadData();
             if (window.render) window.render();
         } else {
-            showToast(data.error || 'Chyba při mazání');
+            showToast(data.error || t('manufacturers.errorDeleting'));
         }
     } catch (err) {
-        showToast('Chyba sítě');
+        showToast(t('common.errorNetwork'));
     }
 }
 
@@ -198,18 +196,18 @@ export async function approveManufacturer(id) {
         });
         const data = await res.json();
         if (res.ok) {
-            showToast(data.message || 'Návrh schválen');
+            showToast(data.message || t('manufacturers.proposalApproved'));
             if (window.render) window.render();
         } else {
-            showToast(data.error || 'Chyba');
+            showToast(data.error || t('common.errorNetwork'));
         }
     } catch (err) {
-        showToast('Chyba sítě');
+        showToast(t('common.errorNetwork'));
     }
 }
 
 export async function rejectManufacturer(id) {
-    if (!confirm('Zamítnout tento návrh?')) return;
+    if (!confirm(t('manufacturers.rejectConfirm'))) return;
     try {
         const res = await fetch(`${API_BASE}/manufacturers/reject.php`, {
             method: 'POST',
@@ -218,12 +216,12 @@ export async function rejectManufacturer(id) {
         });
         const data = await res.json();
         if (res.ok) {
-            showToast(data.message || 'Návrh zamítnut');
+            showToast(data.message || t('manufacturers.proposalRejected'));
             if (window.render) window.render();
         } else {
-            showToast(data.error || 'Chyba');
+            showToast(data.error || t('common.errorNetwork'));
         }
     } catch (err) {
-        showToast('Chyba sítě');
+        showToast(t('common.errorNetwork'));
     }
 }

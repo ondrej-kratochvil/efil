@@ -4,6 +4,7 @@ import { BASE_PATH } from '../config.js';
 import { colorPalette } from '../colors.js';
 import { loadData } from '../api.js';
 import { router } from '../router.js';
+import { t } from '../i18n.js';
 import { renderFieldInput, renderSpoolInput, updateWeightInfo, restoreFormValues } from './form.js';
 
 // Asynchronní vstupní bod pro zobrazení formuláře (nový i editace)
@@ -119,11 +120,11 @@ export function renderForm(v) {
     form.className = "bg-white p-6 rounded-3xl shadow-sm border border-slate-200 max-w-lg mx-auto space-y-5";
     form.innerHTML = `
         <div class="field-container">
-            <label class="text-[10px] font-bold text-slate-400 uppercase">Materiál <span class="text-red-500">*</span></label>
+            <label class="text-[10px] font-bold text-slate-400 uppercase">${t('form.material')} <span class="text-red-500">*</span></label>
             <div class="input-group">${renderFieldInput('mat', mats, item.mat)}</div>
         </div>
         <div class="field-container">
-            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">Barva (Paleta a Název) <span class="text-red-500">*</span></label>
+            <label class="block text-[10px] font-bold text-slate-400 uppercase mb-2">${t('form.colorLabel')} <span class="text-red-500">*</span></label>
             <div class="grid grid-cols-8 gap-2 mb-2">
                 ${colorPalette.map(c => {
                     const isSelected = item.hex && item.hex.toLowerCase() === c.hex.toLowerCase();
@@ -143,62 +144,62 @@ export function renderForm(v) {
             <div class="flex gap-2">
                 <input id="f-hex" type="hidden" value="${item.hex}">
                 <div class="w-16 h-12 rounded-xl border-2 border-slate-200" style="background-color: ${item.hex}" id="color-preview"></div>
-                <input id="f-color" type="text" value="${item.color}" placeholder="Název barvy" class="flex-1 bg-slate-50 border-none rounded-xl p-3 font-bold">
+                <input id="f-color" type="text" value="${item.color}" placeholder="${t('form.colorNamePlaceholder')}" class="flex-1 bg-slate-50 border-none rounded-xl p-3 font-bold">
             </div>
         </div>
         <div class="field-container">
-            <label class="text-[10px] font-bold text-slate-400 uppercase">Výrobce</label>
+            <label class="text-[10px] font-bold text-slate-400 uppercase">${t('form.manufacturer')}</label>
             <div class="input-group">${renderFieldInput('man', mans, item.man_id != null && item.man_id !== '' ? item.man_id : item.man)}</div>
         </div>
         <div class="field-container">
-            <label class="text-[10px] font-bold text-slate-400 uppercase">Počáteční hmotnost (g) <span class="text-red-500">*</span></label>
+            <label class="text-[10px] font-bold text-slate-400 uppercase">${t('form.initialWeight')} <span class="text-red-500">*</span></label>
             <div class="flex gap-2">
                 <select id="f-weight-mode" onchange="updateWeightInfo()" class="bg-slate-50 border-none rounded-xl p-3 font-bold text-sm">
-                    <option value="netto" ${!state.weightMode || state.weightMode === 'netto' ? 'selected' : ''}>Bez cívky</option>
-                    <option value="gross" ${state.weightMode === 'gross' ? 'selected' : ''}>S cívkou</option>
+                    <option value="netto" ${!state.weightMode || state.weightMode === 'netto' ? 'selected' : ''}>${t('form.withoutSpool')}</option>
+                    <option value="gross" ${state.weightMode === 'gross' ? 'selected' : ''}>${t('form.withSpool')}</option>
                 </select>
-                <input id="f-g" type="number" value="${item.g}" class="flex-1 bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="Hmotnost">
+                <input id="f-g" type="number" value="${item.g}" class="flex-1 bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="${t('form.weightPlaceholder')}">
             </div>
             <div id="f-weight-info" class="text-[9px] text-slate-400 mt-1"></div>
         </div>
         <div class="field-container">
-             <label class="text-[10px] font-bold text-slate-400 uppercase">Typ Cívky (Tára)</label>
+             <label class="text-[10px] font-bold text-slate-400 uppercase">${t('form.spoolType')}</label>
              <div class="input-group">
                  ${renderSpoolInput(item.spool_id)}
              </div>
         </div>
 
         <div class="field-container">
-            <label class="text-[10px] font-bold text-slate-400 uppercase">Umístění</label>
+            <label class="text-[10px] font-bold text-slate-400 uppercase">${t('form.location')}</label>
             <div class="input-group">${renderFieldInput('loc', locs, item.loc)}</div>
         </div>
         <div class="field-container">
-            <label class="text-[10px] font-bold text-slate-400 uppercase">Číslo filamentu</label>
-            <input id="f-user_display_id" type="number" value="${item.user_display_id || ''}" min="1" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="Automaticky navržené">
-            <div class="text-[9px] text-slate-400 mt-1">Číslo pro identifikaci filamentu v evidenci. Musí být jedinečné.</div>
+            <label class="text-[10px] font-bold text-slate-400 uppercase">${t('form.filamentNumber')}</label>
+            <input id="f-user_display_id" type="number" value="${item.user_display_id || ''}" min="1" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold" placeholder="${t('form.filamentNumberPlaceholder')}">
+            <div class="text-[9px] text-slate-400 mt-1">${t('form.filamentNumberHint')}</div>
         </div>
 
         <div class="border-t border-slate-100 pt-4 space-y-4">
-            <h3 class="text-xs font-bold text-slate-400 uppercase">Obchodní údaje</h3>
+            <h3 class="text-xs font-bold text-slate-400 uppercase">${t('form.commercialDetails')}</h3>
             <div class="grid grid-cols-2 gap-4">
                 <div class="field-container">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase">Cena (Kč)</label>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase">${t('form.price')}</label>
                     <input id="f-price" type="number" value="${item.price || ''}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold">
                 </div>
                 <div class="field-container">
-                    <label class="text-[10px] font-bold text-slate-400 uppercase">Datum pořízení</label>
+                    <label class="text-[10px] font-bold text-slate-400 uppercase">${t('form.purchaseDate')}</label>
                     <input id="f-date" type="date" value="${item.date || ''}" class="w-full bg-slate-50 border-none rounded-xl p-3 font-bold">
                 </div>
             </div>
-             <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">Prodejce</label><div class="input-group">${renderFieldInput('seller', sellers, item.seller)}</div></div>
+             <div class="field-container"><label class="text-[10px] font-bold text-slate-400 uppercase">${t('form.seller')}</label><div class="input-group">${renderFieldInput('seller', sellers, item.seller)}</div></div>
         </div>
 
         <div class="flex gap-3 pt-4">
-            <button onclick="window.resetApp()" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">Zrušit</button>
+            <button onclick="window.resetApp()" class="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold">${t('common.cancel')}</button>
             ${state.editingId ? `
-            <button onclick="window.deleteFilament(${state.editingId})" type="button" class="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors">Smazat</button>
+            <button onclick="window.deleteFilament(${state.editingId})" type="button" class="flex-1 py-3 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors">${t('common.delete')}</button>
             ` : ''}
-            <button onclick="window.handleFormSubmit(event)" class="flex-[2] py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">Uložit</button>
+            <button onclick="window.handleFormSubmit(event)" class="flex-[2] py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200">${t('common.save')}</button>
         </div>
     `;
     v.appendChild(form);
