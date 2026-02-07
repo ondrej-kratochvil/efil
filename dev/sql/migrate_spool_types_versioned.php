@@ -59,13 +59,14 @@ try {
     ");
     echo "Created spool_types.\n";
 
-    // 4. Systémový uživatel pro created_by u záznamů bez created_by (standardní typy)
+    // 4. Systémový uživatel a množina platných user ID (created_by musí odkazovat na existujícího uživatele)
     $stmt = $pdo->query("SELECT id FROM users ORDER BY id ASC LIMIT 1");
     $systemUserId = $stmt->fetchColumn();
     if (!$systemUserId) {
         throw new RuntimeException('No users in database. Create at least one user before migration.');
     }
     $systemUserId = (int) $systemUserId;
+    $validUserIds = array_flip($pdo->query("SELECT id FROM users")->fetchAll(PDO::FETCH_COLUMN));
 
     // 5. Přesunout data: každý řádek spool_library -> jeden řádek spool_types, spool_type_id = staré id
     $stmtOld = $pdo->query("SELECT id, weight_grams, color, material, outer_diameter_mm, width_mm, visual_description, created_by, created_at FROM spool_library ORDER BY id");
@@ -75,8 +76,9 @@ try {
     ");
     while ($row = $stmtOld->fetch(PDO::FETCH_ASSOC)) {
         $oldId = (int) $row['id'];
-        $createdBy = $row['created_by'] !== null ? (int) $row['created_by'] : $systemUserId;
-        $public = $row['created_by'] === null ? 1 : 0; // standardní = veřejný, uživatelský = soukromý
+        $oldCreatedBy = $row['created_by'] !== null ? (int) $row['created_by'] : null;
+        $createdBy = ($oldCreatedBy !== null && isset($validUserIds[$oldCreatedBy])) ? $oldCreatedBy : $systemUserId;
+        $public = $oldCreatedBy === null ? 1 : 0; // standardní = veřejný, uživatelský = soukromý
         $createdAt = $row['created_at'] ?? null;
         $stmtIns->execute([
             $oldId,
@@ -107,11 +109,13 @@ try {
         echo "Dropped FK {$constraint} from {$table}.\n";
     }
 
-    // 7. Smazat starou tabulku
+    // 7. Smazat starou tabulku (DDL v MySQL implicitne commitne – pred commit() zkontrolovat inTransaction())
     $pdo->exec("DROP TABLE spool_library");
     echo "Dropped spool_library.\n";
 
-    $pdo->commit();
+    if ($pdo->inTransaction()) {
+        $pdo->commit();
+    }
     echo "Migration completed successfully.\n";
 
 } catch (Exception $e) {

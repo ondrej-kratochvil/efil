@@ -127,16 +127,20 @@ try {
         echo "Dropped FK {$constraint} from {$table}.\n";
     }
 
-    // 8. Smazat starou tabulku, přejmenovat novou
+    // 8. Smazat starou tabulku, přejmenovat novou (DDL v MySQL implicitne commitne)
     $pdo->exec("DROP TABLE manufacturers");
     $pdo->exec("RENAME TABLE manufacturers_new TO manufacturers");
     echo "Replaced manufacturers table.\n";
 
-    $pdo->commit();
+    if ($pdo->inTransaction()) {
+        $pdo->commit();
+    }
     echo "Migration completed successfully.\n";
 
 } catch (Exception $e) {
-    $pdo->rollBack();
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     echo "Error: " . $e->getMessage() . "\n";
     exit(1);
 }
