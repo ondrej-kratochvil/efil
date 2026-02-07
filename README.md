@@ -25,6 +25,9 @@ Aplikace pro komplexní správu 3D tiskových materiálů (filamentů). Poskytuj
 - **Admin účet** - Speciální účet administrátora s přehledem všech evidencí a statistik systému
 
 ### UI/UX vylepšení
+- **Více jazyků (i18n)** – Čeština a angličtina; překlady v `assets/i18n/` (cs.json, en.json); přepínač jazyka v menu
+- **Jednotky podle jazyka** – Zobrazení měny (Kč / CZK) a cen za kg podle zvoleného jazyka (bez konverze)
+- **Tmavý režim** – Přepínač světlý/tmavý v menu, preference v localStorage, respektování `prefers-color-scheme`
 - **Routování** - Podpora tlačítek Zpět/Vpřed v prohlížeči pomocí History API
 - **Chytré rozbalovací seznamy** - Optgroups s nejčastějšími hodnotami (materiály, výrobci)
 - **Automatické vytváření výrobců** - Noví výrobci se automaticky přidají do databáze
@@ -140,6 +143,7 @@ efil-github/
 │   └── users/                   # Správa uživatelů (list, add, update-role, remove)
 ├── assets/
 │   ├── css/                     # Styly (Tailwind CSS)
+│   ├── i18n/                    # Překlady (cs.json, en.json)
 │   └── js/                      # Frontend JavaScript (ES6+, History API)
 ├── dev/                         # Vývojové soubory
 │   ├── docs/                    # Dokumentace

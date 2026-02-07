@@ -2,6 +2,12 @@
 
 ## Verze 2.0 - Multiuser a rozšířené funkce
 
+### 🌐 Více jazyků a jednotky (únor 2026)
+- **i18n (čeština / angličtina)** – Překlady v `assets/i18n/cs.json` a `en.json`; přepínač jazyka v menu; preference v localStorage (`efil-lang`). Všechny views (přihlášení, wizard, formuláře, statistiky, nápověda, účet, uživatelé, typy cívek, výrobci, přepnutí evidence, admin statistiky) používají `t()`.
+- **Jednotky podle jazyka** – Funkce `getCurrencyUnit()` a `getCurrencyPerKg()` v `i18n.js` vracejí Kč/Kč/kg (cs) nebo CZK/CZK/kg (en). Použito ve statistikách a na kartách wizardu. Bez konverze; volba jiných měn/jednotek je v roadmapě.
+- **Cache-busting a no-cache HTML** – `index.php` přidává `?v=filemtime()` k JS/CSS; hlavičky `Cache-Control: no-store` pro HTML, aby při F5 vždy načetl aktuální verzi.
+- **Roadmapa** – Přidán bod „Volba jednotek od začátku (locale)“; aktualizována sekce „Aktuální omezení“.
+
 ### 📐 DRY a centralizace výpočtů (leden 2026)
 - **Průměrná cena za kg** – jeden výpočet v pomocné funkci `getAvgCzkPerKg()` v `assets/js/utils.js`; volá se na kartách MAT, BAR a VÝR (skupiny i jednotlivé položky). Žádný duplicitní kód.
 - **Pravidlo v `.cursorrules`** – znovupoužitelnost a DRY: vytvářet funkce, které se volají na všech místech, ne kopírovat logiku.

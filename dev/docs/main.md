@@ -17,6 +17,8 @@
 - Multiuser funkce (sdílení evidencí, role)
 - Knihovna cívek s vazbou na výrobce
 - Chytré groupování a filtrování
+- **Více jazyků (i18n)** – čeština a angličtina (`assets/i18n/`), přepínač v menu
+- **Tmavý režim** – přepínač v menu, preference v localStorage
 
 ---
 

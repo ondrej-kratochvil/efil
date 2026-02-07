@@ -82,7 +82,15 @@ Aplikace je v **produkční verzi** s plně funkčními základními funkcemi:
   - JSON soubory s překlady
 - **Struktura**: `/assets/i18n/cs.json`, `/assets/i18n/en.json`
 
-#### 9. Pokročilé filtry
+#### 9. Volba jednotek od začátku (locale)
+- **Priorita**: Nízká
+- **Popis**: Uživatel (např. Američan) si při prvním použití nebo v nastavení zvolí preferované jednotky: měna (Kč / USD / EUR / …) a hmotnost (kg / lb). Aplikace pak zobrazuje a případně ukládá hodnoty v zvolených jednotkách.
+- **Možné přístupy**:
+  - Ukládat v jedné základní měně (Kč) a jedné hmotnosti (g), zobrazovat podle preference (pouze překlad labelů, nebo konverze podle kurzu).
+  - Případně ukládat měnu u položky a zobrazovat v ní.
+- **Rozsah**: Nastavení účtu nebo evidence, preference v localStorage, přizpůsobení formulářů a přehledů.
+
+#### 10. Pokročilé filtry
 - **Priorita**: Střední
 - **Popis**: Rozšíření filtrů o více kritérií
 - **Funkce**:
@@ -91,7 +99,7 @@ Aplikace je v **produkční verzi** s plně funkčními základními funkcemi:
   - Filtrování podle data nákupu
   - Kombinace více filtrů
 
-#### 10. Historie změn
+#### 11. Historie změn
 - **Priorita**: Nízká
 - **Popis**: Zobrazení historie změn pro každý filament
 - **Funkce**:
@@ -157,11 +165,10 @@ Aplikace je v **produkční verzi** s plně funkčními základními funkcemi:
 ## 🐛 Známé problémy a omezení
 
 ### Aktuální omezení
-1. **Bez offline podpory** - Aplikace vyžaduje připojení k internetu
-2. **Bez exportu dat** - Data nelze exportovat
-3. **Bez importu dat** - Data nelze importovat
-4. **Pouze čeština** - Aplikace je pouze v češtině
-5. **Bez dark mode** - Pouze světlý režim
+1. **Bez offline podpory** – Aplikace vyžaduje připojení k internetu
+2. **Bez exportu dat** – Data nelze exportovat
+3. **Bez importu dat** – Data nelze importovat
+4. **Jedna měna a jednotky** – Měna (Kč/CZK) a hmotnost (kg, g) jsou pouze překládané podle jazyka; volba jiných jednotek (USD, lb) je v plánu (viz bod 9. Volba jednotek)
 
 ### Známé problémy
 - (Žádné kritické problémy v aktuální verzi)
@@ -210,4 +217,4 @@ Pokud chcete přispět k vývoji:
 
 ---
 
-**Poslední aktualizace**: 2026-01-25
+**Poslední aktualizace**: 2026-02-06
