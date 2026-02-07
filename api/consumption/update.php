@@ -84,7 +84,7 @@ try {
                 echo json_encode(['error' => 'Hmotnost musí být větší než nula. Pro zrušení záznamu použijte smazání.']);
                 exit;
             }
-            if (($originalAmount >= 0 && $amountGrams < 0) || ($originalAmount < 0 && $amountGrams > 0)) {
+            if (($originalAmount > 0 && $amountGrams < 0) || ($originalAmount < 0 && $amountGrams > 0)) {
                 http_response_code(400);
                 echo json_encode(['error' => 'Nelze změnit typ záznamu (čerpání / korekce). Upravte pouze hodnotu.']);
                 exit;
