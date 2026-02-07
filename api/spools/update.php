@@ -162,21 +162,28 @@ try {
             echo json_encode(['error' => 'Pro tento typ cívky již existuje čekající návrh na změnu.']);
             exit;
         }
-        $stmt = $pdo->prepare("
-            INSERT INTO spool_types (spool_type_id, weight_grams, color, material, outer_diameter_mm, width_mm, visual_description, public, approved, created_at, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, NOW(), ?)
-        ");
-        $stmt->execute([$spoolTypeId, $w, $c, $m, $o, $wi, $v, $userId]);
-        if ($validManufIds !== null) {
-            $stmtDel = $pdo->prepare("DELETE FROM spool_manufacturer WHERE spool_id = ?");
-            $stmtDel->execute([$spoolTypeId]);
-            $stmtManuf = $pdo->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
-            foreach ($validManufIds as $manufId) {
-                $stmtManuf->execute([$spoolTypeId, $manufId]);
+        $pdo->beginTransaction();
+        try {
+            $stmt = $pdo->prepare("
+                INSERT INTO spool_types (spool_type_id, weight_grams, color, material, outer_diameter_mm, width_mm, visual_description, public, approved, created_at, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 1, 0, NOW(), ?)
+            ");
+            $stmt->execute([$spoolTypeId, $w, $c, $m, $o, $wi, $v, $userId]);
+            if ($validManufIds !== null) {
+                $stmtDel = $pdo->prepare("DELETE FROM spool_manufacturer WHERE spool_id = ?");
+                $stmtDel->execute([$spoolTypeId]);
+                $stmtManuf = $pdo->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
+                foreach ($validManufIds as $manufId) {
+                    $stmtManuf->execute([$spoolTypeId, $manufId]);
+                }
             }
+            $pdo->commit();
+            echo json_encode(['success' => true, 'id' => $spoolTypeId, 'message' => 'Návrh na změnu byl odeslán. Po schválení administrátorem se typ cívky změní.']);
+            exit;
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            throw $e;
         }
-        echo json_encode(['success' => true, 'id' => $spoolTypeId, 'message' => 'Návrh na změnu byl odeslán. Po schválení administrátorem se typ cívky změní.']);
-        exit;
     }
 
     if ($createdBy !== $userId) {
