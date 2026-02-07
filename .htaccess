@@ -7,15 +7,22 @@
     Deny from all
 </Files>
 
-# Zakázat přístup k dev/ složce na produkci, povolit na localhostu
+# Zakázat přístup k dev/ složce na produkci a SPA routing (jeden blok mod_rewrite)
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    # Povolit dev/ pouze na localhostu
-    # Pokud HTTP_HOST neobsahuje "localhost" ani "127.0.0.1", zakázat přístup
+
+    # Na produkci (ne localhost) zakázat přístup k dev/
     RewriteCond %{HTTP_HOST} !localhost [NC]
     RewriteCond %{HTTP_HOST} !127\.0\.0\.1 [NC]
-    # Pokud není localhost, zakázat přístup k dev/
     RewriteRule ^dev/ - [F,L]
+
+    # SPA Routing - neexistující cesty na index.php (po kontrole dev/ a api)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} !/api/
+    RewriteCond %{REQUEST_URI} !\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ [NC]
+    RewriteCond %{REQUEST_URI} !/dev/
+    RewriteRule ^(.*)$ index.php [L]
 </IfModule>
 
 # Zakázat directory listing
@@ -25,28 +32,6 @@ Options -Indexes
 AddDefaultCharset UTF-8
 
 DirectoryIndex index.php index.html
-
-# SPA Routing - přesměrovat všechny neexistující cesty na index.php
-# Toto umožní obnovení stránky na libovolné client-side route
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-
-    # Pokud požadavek není na existující soubor nebo adresář
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-
-    # A není to API endpoint (podpora i pro podadresář, např. /a/efil-github/api/)
-    RewriteCond %{REQUEST_URI} !/api/
-
-    # A není to fyzický soubor (CSS, JS, obrázky, atd.)
-    RewriteCond %{REQUEST_URI} !\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ [NC]
-
-    # A není to dev/ složka (podpora i pro podadresář)
-    RewriteCond %{REQUEST_URI} !/dev/
-
-    # Přesměruj na index.php
-    RewriteRule ^(.*)$ index.php [L]
-</IfModule>
 
 # POZNÁMKA:
 # - php_value direktivy jsou často zakázané na shared hostingu

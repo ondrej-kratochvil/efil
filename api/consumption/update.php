@@ -33,7 +33,12 @@ if (!isset($data['id'])) {
 }
 
 try {
-    $consumptionId = $data['id'];
+    $consumptionId = isset($data['id']) ? (int) $data['id'] : 0;
+    if ($consumptionId <= 0) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Invalid consumption ID']);
+        exit;
+    }
     $userId = (int) $_SESSION['user_id'];
     $inventoryId = getInventoryIdForUser($pdo, $userId);
     if ($inventoryId === null) {

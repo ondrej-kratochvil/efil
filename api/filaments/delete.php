@@ -23,8 +23,8 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$userId = $_SESSION['user_id'];
-$inventoryId = $_SESSION['inventory_id'] ?? null;
+$userId = (int) $_SESSION['user_id'];
+$inventoryId = isset($_SESSION['inventory_id']) ? (int) $_SESSION['inventory_id'] : null;
 
 if (!$inventoryId) {
     http_response_code(400);
