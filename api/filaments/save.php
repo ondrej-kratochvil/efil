@@ -103,13 +103,22 @@ try {
             if (manufacturerNameDuplicateExists($pdo, $manName, $userId, null)) {
                 jsonResponse(['error' => 'Výrobce s tímto názvem již existuje (veřejný nebo ve vašem seznamu).'], 400);
             }
-            $nextId = getNextManufacturerId($pdo);
-            $stmtInsert = $pdo->prepare("
-                INSERT INTO manufacturers (manufacturer_id, name, public, approved, created_at, created_by)
-                VALUES (?, ?, 0, 1, NOW(), ?)
-            ");
-            $stmtInsert->execute([$nextId, $manName, $userId]);
-            $manufacturerId = $nextId;
+            $pdo->beginTransaction();
+            try {
+                $nextId = getNextManufacturerId($pdo);
+                $stmtInsert = $pdo->prepare("
+                    INSERT INTO manufacturers (manufacturer_id, name, public, approved, created_at, created_by)
+                    VALUES (?, ?, 0, 1, NOW(), ?)
+                ");
+                $stmtInsert->execute([$nextId, $manName, $userId]);
+                $pdo->commit();
+                $manufacturerId = $nextId;
+            } catch (PDOException $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                throw $e;
+            }
         }
     }
 

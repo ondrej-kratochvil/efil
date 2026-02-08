@@ -44,6 +44,8 @@ if (!$color && !$material && !$outerDiameter && !$width && !$description) {
 }
 
 try {
+    $pdo->beginTransaction();
+
     $manufacturerId = null;
     if ($manufacturerName !== null && $manufacturerName !== '') {
         $stmt = $pdo->prepare("
@@ -81,6 +83,7 @@ try {
     $existing = $stmt->fetchColumn();
     if ($existing !== false) {
         $spoolTypeId = (int) $existing;
+        $pdo->commit();
         $row = getSpoolTypeCurrentRow($pdo, $spoolTypeId, $userId);
         $label = $row !== null ? spoolTypeRowToLabel($row) : 'Typ cívky';
         echo json_encode(['id' => $spoolTypeId, 'message' => 'Spool already exists', 'label' => $label]);
@@ -99,6 +102,8 @@ try {
         $stmt->execute([$nextId, $manufacturerId]);
     }
 
+    $pdo->commit();
+
     $row = getSpoolTypeCurrentRow($pdo, $nextId, $userId);
     $label = $row !== null ? spoolTypeRowToLabel($row) : 'Typ cívky';
     echo json_encode([
@@ -112,6 +117,9 @@ try {
         'label' => $label,
     ]);
 } catch (PDOException $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     http_response_code(500);
     echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
 }

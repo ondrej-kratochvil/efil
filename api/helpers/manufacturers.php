@@ -136,12 +136,14 @@ function manufacturerNameDuplicateExists(PDO $pdo, string $name, int $userId, ?i
 
 /**
  * Další volné manufacturer_id (kořen).
+ * Thread-safe: musí být voláno uvnitř transakce; lockuje řádek s aktuálním MAX.
  */
 function getNextManufacturerId(PDO $pdo): int
 {
-    $stmt = $pdo->prepare("SELECT COALESCE(MAX(manufacturer_id), 0) + 1 FROM manufacturers");
+    $stmt = $pdo->prepare("SELECT manufacturer_id FROM manufacturers ORDER BY manufacturer_id DESC LIMIT 1 FOR UPDATE");
     $stmt->execute();
-    return (int) $stmt->fetchColumn();
+    $max = $stmt->fetchColumn();
+    return $max !== false ? (int) $max + 1 : 1;
 }
 
 /**

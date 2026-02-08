@@ -169,12 +169,14 @@ function getSpoolTypesForOptions(PDO $pdo, int $userId, bool $includePendingProp
 
 /**
  * Další volné spool_type_id (kořen).
+ * Thread-safe: musí být voláno uvnitř transakce; lockuje řádek s aktuálním MAX.
  */
 function getNextSpoolTypeId(PDO $pdo): int
 {
-    $stmt = $pdo->prepare("SELECT COALESCE(MAX(spool_type_id), 0) + 1 FROM spool_types");
+    $stmt = $pdo->prepare("SELECT spool_type_id FROM spool_types ORDER BY spool_type_id DESC LIMIT 1 FOR UPDATE");
     $stmt->execute();
-    return (int) $stmt->fetchColumn();
+    $max = $stmt->fetchColumn();
+    return $max !== false ? (int) $max + 1 : 1;
 }
 
 /**

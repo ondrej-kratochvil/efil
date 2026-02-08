@@ -42,12 +42,14 @@ try {
         exit;
     }
 
+    $pdo->beginTransaction();
     $nextId = getNextManufacturerId($pdo);
     $stmt = $pdo->prepare("
         INSERT INTO manufacturers (manufacturer_id, name, public, approved, created_at, created_by)
         VALUES (?, ?, 0, 1, NOW(), ?)
     ");
     $stmt->execute([$nextId, $name, $userId]);
+    $pdo->commit();
 
     echo json_encode([
         'message' => 'Výrobce byl vytvořen',
@@ -55,6 +57,9 @@ try {
         'name' => $name,
     ]);
 } catch (PDOException $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     http_response_code(500);
     echo json_encode(['error' => 'Chyba databáze']);
 }
