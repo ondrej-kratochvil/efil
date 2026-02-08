@@ -109,8 +109,11 @@ try {
     }
 
     if (isset($data['consumption_date'])) {
-        $updates[] = "consumption_date = ?";
-        $params[] = $data['consumption_date'];
+        $v = trim((string) $data['consumption_date']);
+        if ($v !== '') {
+            $updates[] = "consumption_date = ?";
+            $params[] = $v;
+        }
     }
 
     if (isset($data['note'])) {

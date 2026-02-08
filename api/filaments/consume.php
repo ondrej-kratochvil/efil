@@ -27,7 +27,10 @@ $userId = $_SESSION['user_id'];
 $filamentId = $input['filament_id'] ?? null;
 $amount = isset($input['amount_grams']) ? (int)$input['amount_grams'] : ((int)($input['amount'] ?? 0)); // Negative for consumption, positive for correction
 $description = $input['description'] ?? '';
-$consumptionDate = $input['consumption_date'] ?? date('Y-m-d');
+$consumptionDateRaw = $input['consumption_date'] ?? null;
+$consumptionDate = ($consumptionDateRaw !== null && trim((string) $consumptionDateRaw) !== '')
+    ? trim((string) $consumptionDateRaw)
+    : date('Y-m-d');
 
 if (!$filamentId) {
     http_response_code(400);

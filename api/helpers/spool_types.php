@@ -129,6 +129,41 @@ function getSpoolTypesForOptions(PDO $pdo, int $userId, bool $includePendingProp
             ];
         }
     }
+
+    // Admin: přidat i neschválené návrhy (approved=0), každý spool_type_id jen jednou
+    if ($includePendingProposals) {
+        $stmtPending = $pdo->prepare("
+            SELECT st.spool_type_id AS id, st.weight_grams, st.color, st.material, st.outer_diameter_mm, st.width_mm, st.visual_description, st.public, st.created_by
+            FROM spool_types st
+            INNER JOIN (
+                SELECT spool_type_id, MAX(id) AS mid
+                FROM spool_types
+                WHERE approved = 0 AND invalidated_at IS NULL
+                GROUP BY spool_type_id
+            ) t ON st.spool_type_id = t.spool_type_id AND st.id = t.mid
+            ORDER BY st.weight_grams, st.color, st.material
+        ");
+        $stmtPending->execute();
+        while ($row = $stmtPending->fetch(PDO::FETCH_ASSOC)) {
+            $stId = (int) $row['id'];
+            if (!isset($rows[$stId])) {
+                $label = spoolTypeRowToLabel($row);
+                $rows[$stId] = [
+                    'id' => $stId,
+                    'label' => $label,
+                    'weight_grams' => isset($row['weight_grams']) ? (int) $row['weight_grams'] : null,
+                    'color' => $row['color'] ?? null,
+                    'material' => $row['material'] ?? null,
+                    'outer_diameter_mm' => isset($row['outer_diameter_mm']) ? (int) $row['outer_diameter_mm'] : null,
+                    'width_mm' => isset($row['width_mm']) ? (int) $row['width_mm'] : null,
+                    'visual_description' => $row['visual_description'] ?? null,
+                    'public' => (int) ($row['public'] ?? 0),
+                    'created_by' => isset($row['created_by']) ? (int) $row['created_by'] : null,
+                ];
+            }
+        }
+    }
+
     return array_values($rows);
 }
 

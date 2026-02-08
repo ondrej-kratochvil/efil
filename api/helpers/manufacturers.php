@@ -73,10 +73,30 @@ function getManufacturersForOptions(PDO $pdo, int $userId, bool $includePendingP
         }
     }
 
-    // Neschválené návrhy – pro autora už máme název v předchozím kroku (getManufacturerName vrátí návrh).
-    // Pro admina: přidat záznamy s approved=0 jako samostatné položky do seznamu? Podle specifikace
-    // admin vidí „seznam záznamů s approved=0“ zvlášť. Sem dáváme jen to, co jde do dropdownu (options).
-    // Takže options = jen schválené + vlastní, s tím že název u „autor návrhu“ je z návrhu. Hotovo výše.
+    // Admin: přidat i neschválené návrhy (approved=0), každé manufacturer_id jen jednou (nejnovější název)
+    if ($includePendingProposals) {
+        $stmtPending = $pdo->prepare("
+            SELECT m.manufacturer_id AS id, m.name
+            FROM manufacturers m
+            INNER JOIN (
+                SELECT manufacturer_id, MAX(id) AS mid
+                FROM manufacturers
+                WHERE approved = 0 AND invalidated_at IS NULL
+                GROUP BY manufacturer_id
+            ) t ON m.manufacturer_id = t.manufacturer_id AND m.id = t.mid
+            ORDER BY m.name
+        ");
+        $stmtPending->execute();
+        while ($row = $stmtPending->fetch(PDO::FETCH_ASSOC)) {
+            $manId = (int) $row['id'];
+            if (!isset($rows[$manId])) {
+                $name = $row['name'] ?? '';
+                if ($name !== '') {
+                    $rows[$manId] = ['id' => $manId, 'name' => $name];
+                }
+            }
+        }
+    }
 
     return array_values($rows);
 }
