@@ -111,7 +111,7 @@ try {
     $stmt->execute();
     $stats['material_distribution'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // Recent activity (last 20 consumption records) – název výrobce: COALESCE(nejnovější návrh k výrobci, schválený); zobrazují se návrhy od všech uživatelů
+    // Recent activity (last 20 consumption records) – název výrobce: COALESCE(návrh autora záznamu, schválený); návrhy jsou per (manufacturer_id, created_by)
     $stmt = $pdo->prepare("
         SELECT cl.id, ABS(cl.amount_grams) as consumed_weight, cl.consumption_date, cl.description as note,
                COALESCE(m_proposal.name, m_approved.name) AS manufacturer, f.material, f.color_name as color,
@@ -121,8 +121,8 @@ try {
         LEFT JOIN filaments f ON cl.filament_id = f.id
         LEFT JOIN (SELECT manufacturer_id, MAX(id) AS mid FROM manufacturers WHERE approved = 1 AND invalidated_at IS NULL GROUP BY manufacturer_id) m_approved_ids ON f.manufacturer_id = m_approved_ids.manufacturer_id
         LEFT JOIN manufacturers m_approved ON m_approved.id = m_approved_ids.mid AND m_approved.manufacturer_id = m_approved_ids.manufacturer_id
-        LEFT JOIN (SELECT manufacturer_id, MAX(id) AS mid FROM manufacturers WHERE approved = 0 AND invalidated_at IS NULL GROUP BY manufacturer_id) m_proposal_ids ON f.manufacturer_id = m_proposal_ids.manufacturer_id
-        LEFT JOIN manufacturers m_proposal ON m_proposal.id = m_proposal_ids.mid AND m_proposal.manufacturer_id = m_proposal_ids.manufacturer_id
+        LEFT JOIN (SELECT manufacturer_id, created_by, MAX(id) AS mid FROM manufacturers WHERE approved = 0 AND invalidated_at IS NULL GROUP BY manufacturer_id, created_by) m_proposal_ids ON f.manufacturer_id = m_proposal_ids.manufacturer_id AND m_proposal_ids.created_by = cl.created_by
+        LEFT JOIN manufacturers m_proposal ON m_proposal.id = m_proposal_ids.mid AND m_proposal.manufacturer_id = m_proposal_ids.manufacturer_id AND m_proposal.created_by = m_proposal_ids.created_by
         LEFT JOIN users u ON cl.created_by = u.id
         LEFT JOIN inventories i ON f.inventory_id = i.id
         ORDER BY cl.created_at DESC
