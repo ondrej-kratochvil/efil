@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../helpers/inventory.php';
 require_once __DIR__ . '/../helpers/demo.php';
+require_once __DIR__ . '/../helpers/date_validation.php';
 
 header('Content-Type: application/json');
 session_start();
@@ -111,8 +112,14 @@ try {
     if (isset($data['consumption_date'])) {
         $v = trim((string) $data['consumption_date']);
         if ($v !== '') {
+            $validated = validateConsumptionDate($v);
+            if ($validated === null) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Neplatné datum čerpání. Použijte formát RRRR-MM-DD (např. 2026-02-06).']);
+                exit;
+            }
             $updates[] = "consumption_date = ?";
-            $params[] = $v;
+            $params[] = $validated;
         }
     }
 

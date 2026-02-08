@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../helpers/demo.php';
+require_once __DIR__ . '/../helpers/date_validation.php';
 
 session_start();
 header('Content-Type: application/json');
@@ -28,9 +29,16 @@ $filamentId = $input['filament_id'] ?? null;
 $amount = isset($input['amount_grams']) ? (int)$input['amount_grams'] : ((int)($input['amount'] ?? 0)); // Negative for consumption, positive for correction
 $description = $input['description'] ?? '';
 $consumptionDateRaw = $input['consumption_date'] ?? null;
-$consumptionDate = ($consumptionDateRaw !== null && trim((string) $consumptionDateRaw) !== '')
-    ? trim((string) $consumptionDateRaw)
-    : date('Y-m-d');
+if ($consumptionDateRaw !== null && trim((string) $consumptionDateRaw) !== '') {
+    $consumptionDate = validateConsumptionDate(trim((string) $consumptionDateRaw));
+    if ($consumptionDate === null) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Neplatné datum čerpání. Použijte formát RRRR-MM-DD (např. 2026-02-06).']);
+        exit;
+    }
+} else {
+    $consumptionDate = date('Y-m-d');
+}
 
 if (!$filamentId) {
     http_response_code(400);
