@@ -122,7 +122,7 @@ try {
         LEFT JOIN (SELECT manufacturer_id, MAX(id) AS mid FROM manufacturers WHERE approved = 1 AND invalidated_at IS NULL GROUP BY manufacturer_id) m_approved_ids ON f.manufacturer_id = m_approved_ids.manufacturer_id
         LEFT JOIN manufacturers m_approved ON m_approved.id = m_approved_ids.mid AND m_approved.manufacturer_id = m_approved_ids.manufacturer_id
         LEFT JOIN (SELECT manufacturer_id, MAX(id) AS mid FROM manufacturers WHERE approved = 0 AND invalidated_at IS NULL GROUP BY manufacturer_id) m_proposal_ids ON f.manufacturer_id = m_proposal_ids.manufacturer_id
-        LEFT JOIN manufacturers m_proposal ON m_proposal.id = m_proposal_ids.mid
+        LEFT JOIN manufacturers m_proposal ON m_proposal.id = m_proposal_ids.mid AND m_proposal.manufacturer_id = m_proposal_ids.manufacturer_id
         LEFT JOIN users u ON cl.created_by = u.id
         LEFT JOIN inventories i ON f.inventory_id = i.id
         ORDER BY cl.created_at DESC
