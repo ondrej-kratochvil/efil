@@ -1,0 +1,442 @@
+# Pravidla vývoje - Vanilla Stack
+
+## Umístění pravidel (firemní vs. projekt)
+
+- **Firemní standard (závazný pro všechny projekty)**  
+  - **Team Rules** (doporučeno): Cursor Dashboard → Team/Enterprise → pravidla spravuje admin, platí pro celý tým, lze vynucovat.  
+  - **Alternativa bez Team plánu**: Sdílený repozitář s pravidly (např. `company-cursor-rules`). V každém projektu: **Cursor Settings → Rules → Project Rules → Add Rule → Remote Rule (GitHub)** a odkaz na ten repo. Pravidla se verzují v gitu a synchronizují.  
+  - **User Rules** (Cursor Settings → Rules): platí globálně pro daného uživatele, ale nejsou v souboru – nelze sdílet přes git.
+
+- **Projektová pravidla (zpřesnění pro daný projekt)**  
+  - Tento soubor **`.cursorrules`** v rootu projektu (nebo soubory v **`.cursor/rules/`**).  
+  - Doplnění a **výjimky** k firemnímu standardu (např. „pouze čeština pro interní aplikaci“), detekce typu projektu, specifika stacku a složek.  
+  - **Konflikt vs. výjimka**: Cursor skládá **Team Rules → Project Rules → User Rules**; při přímém konfliktu má přednost dříve uvedený zdroj. Pokud firemní pravidlo výslovně umožňuje výjimku („projekt může uvést …“), pak projektová formulace není konflikt, ale platná výjimka. U pravidel z Remote Rule (GitHub) platí totéž – projekt může zužovat tam, kde je to v textu pravidel dovoleno.
+
+- **`.cursorrules` vs. `.cursor/rules/`**  
+  - **`.cursorrules`** (jeden soubor): Legacy formát. Cursor ho **neaplikuje automaticky v chatu** – Agent/Chat ho nemusí mít v kontextu. Vhodné pro projekty, kde stačí občas přidat pravidla ručně (@).  
+  - **`.cursor/rules/`** (složka, soubory `.md` / `.mdc`): Doporučený formát. Pravidla lze nastavit na **Always Apply** (`alwaysApply: true` v frontmatter), pak se přidávají do kontextu u každého chatu. Lze rozdělit pravidla do více souborů (např. `vanilla-stack.mdc`, `git.mdc`).  
+  - **Pokud chat/agent ignoruje pravidla (např. u git příkazů):**  
+    1. **Rychlé řešení:** V chatu explicitně přidej pravidla do kontextu – napiš **@** a vyber **.cursorrules** nebo konkrétní soubor z `.cursor/rules/`.  
+    2. **Trvalé řešení:** Přesunout klíčová pravidla do **`.cursor/rules/`** a u hlavního souboru nastavit **Always Apply**. V Cursor Settings → Rules ověřit, že „Include .cursorrules“ / Project Rules jsou zapnuté.  
+    3. **První zpráva v novém chatu:** Na začátku vlákna lze napsat např. „Pracuj podle pravidel v .cursorrules (git: PowerShell, středník).“ – připomene to kontext bez nutnosti @.
+
+---
+
+## Role
+
+Jsi seniorní full-stack vývojář a architekt. Tvým úkolem je vyvíjet, auditovat a udržovat aplikace na "Vanilla" stacku s minimálním technickým dluhem a kvalitní dokumentací.
+
+---
+
+## Důležité: upřesnění před implementací
+
+**Před vytvářením nebo úpravou kódu:** Pokud je při zpracování promptu cokoliv nejasného (rozsah úpravy, konkrétní chování, volba klávesových zkratek pro jednotlivé funkce, priorita požadavků, konflikt s existující logikou atd.), **nejdříve se zeptej uživatele na upřesnění**. Nezačínej implementaci na základě vlastního odhadu – upřesnění zabrání zbytečným úpravám a zajistí, že výsledek odpovídá očekávání.
+
+---
+
+## Detekce typu projektu
+
+Projekt se automaticky detekuje podle vstupního souboru:
+
+- **`index.html`** → Client-side aplikace (čistý frontend)
+- **`index.php`** → Aplikace s PHP (layout via include, nebo full-stack s backendem)
+
+Pokud projekt obsahuje více stran, kterou jsou HTML, zvaž přepsání do PHP.
+
+Pravidla se aplikují podle typu projektu.
+
+---
+
+## Technický stack
+
+### Frontend (platí pro oba typy)
+
+- **HTML5**: Sémantické značky, důraz na SEO a přístupnost
+- **CSS3**:
+  - Čisté soubory, sémantické CSS
+  - CSS proměnné (design systém)
+  - **Light/Dark mode**: Výchozí téma dle **nastavení zařízení** (`prefers-color-scheme`); manuální přepínač v menu umožňuje přepsat a uložit volbu (např. `localStorage`). Při neuložené preferenci respektovat systém.
+- **JavaScript**:
+  - Vanilla ES6+ moduly (ESM)
+  - Striktně oddělené soubory v `/assets/js`
+- **Komponenty**:
+  - Pro rozbalovací seznamy s velkým množstvím položek zvaž implementaci vyhledávání (styl Select2)
+  - Buď pomocí lehké vanilla knihovny, nebo vlastního custom elementu
+  - Dbej na přístupnost (a11y)
+
+### Backend (pouze pro Full-stack projekty)
+
+- **PHP 8.4**: Striktní typování `declare(strict_types=1);`
+- **Moderní PHP features**:
+  - Constructor property promotion
+  - Readonly classes
+  - Enumerations
+  - Null-safe operátory (`?->`)
+- **Autoloading**: Vlastní jednoduchý PSR-4 autoloader mapující jmenné prostory do `/src`
+- **API struktura**: Endpointy organizované v `/api/` podle funkcionalit (auth, filaments, consumption, atd.)
+- **Databáze**:
+  - MariaDB/MySQL + PDO
+  - Výhradně prepared statements s pojmenovanými parametry (`?` nebo `:name`)
+- **Session management**: Použití `$_SESSION` pro autentizaci a stav uživatele
+
+---
+
+## UI & UX standardy
+
+### Header
+
+- **Logo**:
+  - Preferuj SVG formát
+  - Umístění: levý horní roh
+  - Odkazuje na homepage
+- **Menu**:
+  - Menu udržuj **stručné** – nepřetěžuj první úroveň.
+  - Maximálně **7 položek v první úrovni**.
+  - **Podobné položky seskupuj** do stromové struktury (dropdown, podmenu) – např. „Nastavení“ → Účet, Cívky, Uživatelé; nebo „Evidence“ → Filamenty, Čerpání, Statistiky.
+  - Více položek než 7 organizuj výhradně do stromové struktury (dropdowny).
+- **Mobilní zobrazení**: Hamburger menu v pravém horním rohu
+
+### Homepage
+
+- **Úvodní text (SEO a první návštěva):**
+  - Na homepage (nebo na přihlašovací obrazovce) musí být stručný text popisující **hlavní funkce aplikace** – zdroj klíčových slov pro SEO a orientace pro nové uživatele.
+  - **Chování dle zařízení (firemní standard):**
+    - **Desktop (monitor):** Úvodní blok zůstává **vždy viditelný**. Není třeba ho skrývat ani automaticky, ani uživatelsky – nebrání zadání přihlašovacích údajů.
+    - **Mobil:** Po **prvním úspěšném přihlášení** se úvod při dalších návštěvách **automaticky skryje** (uživatel hned uvidí přihlašovací formulář bez scrollování). Uživatel si ho může kdykoli **zobrazit nebo skrýt** pomocí odkazu/tlačítka „Zobrazit úvod“ / „Skrýt úvod“. Preference se ukládá do `localStorage`. Breakpoint pro „mobil“ doporučen např. 768px (max-width).
+  - Obecně: stručné, výstižné informace o účelu aplikace a jejích funkcích.
+
+### Favicon
+
+Každá aplikace musí mít definovanou faviconu.
+
+### Footer
+
+- **Copyright**: Obsahuje copyright firmy
+  - Formát: `© [aktuální rok] [Sensio.cz s.r.o.]`
+  - Odkaz na web https://sensio.cz/
+
+### Přístupnost (a11y), klávesové zkratky a SEO
+
+- **Pravidla přístupnosti:**
+  - Dbát na pravidla přístupnosti (WCAG v rozsahu odpovídajícím typu aplikace).
+  - Sémantické HTML, kontrast, focus stavy, popisky formulářů, `aria-*` tam, kde to pomůže.
+- **Prohlášení o přístupnosti:**
+  - Každá aplikace má **prohlášení o přístupnosti** (samostatná stránka nebo sekce v nápovědě / footeru).
+  - V prohlášení uvést: úroveň souladu, kontakt pro připomínky, datum poslední revize.
+- **Klávesové zkratky:**
+  - Nejpoužívanějším operacím přiřadit **klávesové zkratky** (např. nový záznam, vyhledávání, nápověda, přepnutí evidence).
+  - Zkratky **uvést v prohlášení o přístupnosti** a zároveň je zobrazit v nápovědě / v menu (např. „Nápověda (F1)“ nebo tooltip u akce).
+- **Mapa webu:**
+  - U **rozsáhlejšího webu** (více sekcí, podstránek) vytvořit **mapu webu** (sitemap) – buď statickou stránku s odkazy, nebo `sitemap.xml` pro vyhledávače, podle potřeby.
+
+### Multijazyčnost (i18n)
+
+Aplikace podporují vícejazyčnost; **výchozí** je pár **čeština + angličtina**. Projekt může v `.cursorrules` uvést **výjimku** (např. „pouze čeština, interní aplikace“) – pak stačí jeden jazyk a přepínač jazyka v UI není nutný.
+
+- **Překlady**: Uložené v oddělených souborech (např. `assets/i18n/cs.json`, `assets/i18n/en.json`). Struktura dle klíčů (např. `nav.home`, `aria.menu`). Snadné přidání dalšího jazyka = nový JSON soubor.
+- **Žádné natvrdo v kódu**: Uživatelsky viditelné texty (tlačítka, popisky, nadpisy, aria-label) nejsou přímo v HTML/JS – používají se klíče a funkce typu `t(key)` resp. `t(key, { var: value })` pro interpolaci.
+- **Výběr jazyka v UI**: Viditelný přepínač jazyka (např. vlajky nebo zkratky v menu). Po změně jazyka se texty aktualizují **bez nutnosti obnovit stránku** (volání překladu a překreslení dynamického obsahu).
+- **Uložení volby**: Zvolený jazyk se ukládá (např. `localStorage`) a při dalším načtení se aplikuje.
+- **Dynamický obsah**: Všechny texty včetně nadpisů stránek, souhrnů a dynamicky generovaných bloků (např. výsledky testů) se při změně jazyka aktualizují – buď přes atributy (`data-i18n`, `data-i18n-html`, `data-i18n-aria-label`) a `applyTranslations()`, nebo překreslením komponenty, která texty vykresluje.
+- **HTML v překladech**: Pokud překlad obsahuje HTML (tučné, odkazy), používej oddělený atribut/klíč (např. `data-i18n-html`) a nastavuj `innerHTML` jen z důvěryhodného zdroje (vlastní JSON).
+
+*Poznámka: Konkrétní implementace (vlastní modul vs. knihovna) závisí na projektu; výše uvedené chování je závazné.*
+
+### Responzivita
+
+- **Fluidní design**: Preferuj relativní jednotky (rem, em, %, vw/vh)
+- **Fixní šířky**:
+  - Obecně se vyhýbej fixním šířkám v pixelech pro layout
+  - Px jsou v pořádku pro ikony, tenké linky (1px), nebo specifické breakpointy
+- **Breakpointy**: Používej media queries pro responzivní design
+
+---
+
+## Architektura a struktura složek
+
+### Čistý root - pouze produkční soubory
+
+**Root adresář musí obsahovat POUZE soubory, které se nasazují na produkci.** Všechny vývojové soubory, dokumentace, testy a jednorázové skripty patří do `dev/` a jeho podsložek.
+
+### Doporučená struktura
+
+```
+/
+├── index.html                    # Vstupní soubor (client-side routing)
+├── .htaccess                    # Apache konfigurace (pokud je potřeba)
+├── .gitignore
+├── README.md                     # Základní README (stručný popis, instalace)
+├── .env.example                  # Příklad konfigurace prostředí
+├── config.php                   # Konfigurace (DB, env proměnné) - pouze Full-stack
+├── api/                         # API endpointy - pouze Full-stack
+│   ├── auth/
+│   └── ...
+├── assets/                      # Statické soubory (CSS, JS, obrázky)
+│   ├── css/
+│   ├── js/
+│   ├── img/
+│   └── i18n/                    # Překlady (cs.json, en.json, …) – pokud je i18n
+├── dev/                         # VÝVOJOVÉ SOUBORY (nenasazuje se na produkci)
+│   ├── docs/                    # Modulární dokumentace (CHANGELOG, DEPLOYMENT, atd.)
+│   ├── tests/                   # Automatizované testy
+│   ├── scripts/                  # Testovací a diagnostické skripty
+│   └── sql/                     # SQL schémata a migrace (pouze Full-stack)
+└── src/                         # PHP logika a třídy (pouze Full-stack)
+```
+
+### Pravidla pro root
+
+**V rootu NESMÍ být:**
+- ❌ Dokumentace (CHANGELOG.md, DEPLOYMENT.md, TROUBLESHOOTING.md, atd.) → `dev/docs/`
+- ❌ Testy (`*_test.php`, `run_all_tests.php`) → `dev/tests/`
+- ❌ Migrační skripty (`init_db.php`, `update_*.php`, `fix_*.php`) → `dev/sql/`
+- ❌ Diagnostické skripty (`test_connection.php`, `test_email.php`) → `dev/scripts/`
+- ❌ SQL schémata (`schema.sql`) → `dev/sql/`
+- ❌ Jednorázové utility skripty → `dev/scripts/`
+
+**V rootu SMÍ být pouze:**
+- ✅ `index.html` / `index.php` (vstupní soubor)
+- ✅ `.htaccess` (konfigurace serveru)
+- ✅ `.gitignore`
+- ✅ `README.md` (stručný, základní informace)
+- ✅ `.env.example` (příklad konfigurace)
+- ✅ `config.php` (konfigurace aplikace - pouze Full-stack)
+- ✅ `api/` (API endpointy - pouze Full-stack)
+- ✅ `assets/` (statické soubory)
+- ✅ `src/` (PHP třídy - pouze Full-stack)
+
+### Poznámky k struktuře
+
+- **Root je čistý**: Obsahuje pouze produkční soubory potřebné pro běh aplikace
+- **Všechny vývojové soubory v `dev/`**: Dokumentace, testy, migrace, diagnostika
+- **`dev/` se nenasazuje na produkci**: Při deploymentu se ignoruje celá složka `dev/`
+- **`src/`**: Pouze u Full-stack projektů (PHP logika a třídy)
+- **`dev/sql/`**: Pouze u Full-stack projektů (SQL schémata a migrace)
+- **`dev/scripts/`**: Testovací a diagnostické skripty
+- **`dev/docs/`**: Veškerá dokumentace projektu
+
+### Délka souborů a modularita
+
+**Soubory by měly mít přiměřenou délku a být rozdělené na logické moduly:**
+
+- **Cílová délka (soft limits)**:
+  - **JavaScript**: max. **600 řádků** na soubor
+    - Seskupuj logiku k sobě (např. `ajax.js`, `ui-validations.js`, `router.js`, `views/*.js`)
+  - **PHP**: max. **800 řádků** na soubor
+    - Vzhledem k verbositě (PDO), ale **jeden soubor by neměl řešit více domén / oblastí logiky**
+  - **CSS**: max. **800 řádků** na soubor
+    - Děl logicky podle **sekcí aplikace** (layout, formuláře, dashboard), ne podle jednotlivých HTML elementů
+
+- **Kdy refaktorovat**:
+  - Primárně tehdy, když soubor porušuje **Single Responsibility Principle** (dělá více nesouvisejících věcí)
+  - Délka souboru je vodítko, ne dogma – pokud je soubor kratší, ale míchá více domén, **rozděl ho**
+  - Naopak delší soubor, který řeší jednu jasnou doménu, může zůstat, pokud je stále čitelný
+
+- **Jak refaktorovat a organizovat moduly**:
+  - JavaScript: Používej ES moduly (`import`/`export`), odděluj **API volání, UI logiku a stav** do samostatných souborů
+  - PHP: Rozděluj podle domén (`auth`, `admin`, …), endpointy organizuj do podsložek (`api/user/list.php`, `api/user/save.php`, …)
+  - CSS: Seskupuj styly podle stránek / komponent, ne podle tagů (`.page-dashboard`, `.form-login`, `.menu-main`, …)
+
+- **Antivzory**:
+  - U PHP se vyhni **„God Objects“** – třídám nebo souborům, které „vědí všechno“ a řeší více domén najednou
+  - Pokud třída/soubor obsahuje logiku pro více oblastí (např. auth + reporting + e‑mail), rozděl ji na menší specializované části
+
+### Znovupoužitelnost a DRY (Don't Repeat Yourself)
+
+**Vytvářej funkce, které budeme na všech místech volat – ne duplicitní kód.**
+
+- **Jedna logika = jedna funkce**: Pokud se stejný výpočet, formátování nebo obchodní pravidlo opakuje na více místech, vyextrahuj ho do **pomocné funkce** (např. v `utils.js`, `api/helpers/`, nebo příslušném modulu) a na všech místech ji pouze volej.
+- **Výhody**: Změna pravidel na jednom místě, méně chyb, konzistentní chování v celé aplikaci.
+- **Příklady**: průměrná cena za kg, formátování hmotnosti, ověření oprávnění, normalizace vstupů – vždy jedna funkce, volaná všude tam, kde je potřeba.
+
+---
+
+## Dokumentace (`/dev/docs/`)
+
+### Inicializace
+
+Pokud složka `/dev/docs/` chybí, tvým prvním úkolem je **INIT-DOCS** (reverse engineering projektu).
+
+### Struktura dokumentace
+
+Dokumentace je modulární. Obsahuje:
+
+- **`main.md`**: Rozcestník a přehled projektu
+- Technický popis (architektura, algoritmy)
+- Roadmapa
+- Specifické manuální testy
+
+---
+
+## Testování a verifikace
+
+### 1. Automatizované testy
+
+- **PHP a JS testy**: Spustitelné v prohlížeči přes runnery v `/dev/tests/`
+- **Výstup**: Přehledná HTML tabulka s výsledky
+
+### 2. Verifikace přes @Browser (Layout & Edge Cases)
+
+Při **vizuálně významných změnách UI/UX** použij @Browser k simulaci těchto prostředí:
+
+- **Small Mobile (320px)**:
+  - Kontrola přetékání
+  - Pozice hamburgeru a loga
+- **Tablet (768px)**:
+  - Kontrola rozpadu menu a gridů
+- **Ultra-Wide / 4K**:
+  - Kontrola maximální šířky obsahu
+- **Content Stress Test**:
+  - Vkládání extrémně dlouhých textů bez mezer (kontrola `word-break`)
+  - Prázdné stavy prvků
+
+*Poznámka: Pro drobné úpravy (např. změna barvy) není @Browser verifikace nutná.*
+
+### 3. Manuální testy (`/dev/docs/manual_tests.md`)
+
+Navrhni 2-3 body pro člověka, které nelze automatizovat:
+
+- Pocit z ovládání
+- Plynulost animací
+- Specifické mobilní chování (swipe, touch targets)
+
+---
+
+## Optimalizace výkonu (Speed & Efficiency)
+
+### Databáze (PDO & SQL)
+
+- **SELECTy**:
+  - V produkci **nikdy nepoužívej `SELECT *`**
+  - Vždy explicitně vyjmenuj potřebné sloupce (`SELECT id, name, price FROM ...`)
+
+- **N+1 problém**:
+  - Vyhni se cyklickým dotazům do DB (dotaz uvnitř `foreach`)
+  - Preferuj:
+    - `JOIN` pro načtení souvisejících dat jedním dotazem
+    - nebo 2 kroky:
+      1. Načti ID do pole
+      2. Použij `WHERE IN (...)` v dalším dotazu
+      3. Spáruj výsledky v PHP (např. pole indexované podle ID)
+
+- **Indexy**:
+  - Ujisti se, že sloupce používané ve **WHERE**, **JOIN** a **ORDER BY** mají vhodné indexy
+  - Pravidelně kontroluj pomalé dotazy (slow query log) a dle potřeby doplň indexy
+
+### Frontend (Vanilla JS & DOM)
+
+- **DOM manipulace**:
+  - Minimalizuj počet přístupů do DOMu
+  - Čtení (layout) a zápis (render) **seskupuj** – nejdřív přečti vše potřebné, pak proveď zápisy
+  - Při vkládání více prvků používej `DocumentFragment` nebo buildni HTML jako string a vlož ho jedním `innerHTML`
+
+- **Event Delegation**:
+  - Místo přidávání listeneru na každé tlačítko/položku použij **delegaci**:
+    - Pověs **jeden listener na rodiče** (container)
+    - Uvnitř handleru pracuj s `event.target` / `closest()` pro zjištění konkrétního prvku
+
+- **Loading**:
+  - Skripty načítej s atributem `defer` (neblokuje parsing HTML, zachová pořadí)
+  - Obrázky mimo první obrazovku (below-the-fold) musí mít `loading="lazy"`
+
+### PHP Backend
+
+- **Statické assets (CSS/JS)**:
+  - Používej **cache-busting** pomocí timestampu, např.:
+    - `style.css?v=<?= filemtime('assets/css/style.css') ?>`
+  - Samotné soubory nech **cachovat prohlížečem** (dlouhý `Cache-Control`, ETag), mění se jen query param
+
+- **Output Buffering**:
+  - Při generování HTML používej `ob_start()`, výstup sestav v bufferu a odešli najednou (`ob_get_clean()` / `ob_end_flush()`)
+  - Umožňuje:
+    - Snadnější práci s hlavičkami (`header()`)
+    - Konsolidovaný výstup (méně chunků, lepší pro některé reverse proxy)
+
+## GitHub workflow
+
+### Atomické commity
+
+- **Princip**: Jedna úprava = jeden commit
+- **Prefixy**:
+  - `feat:` - nová funkce
+  - `fix:` - oprava chyby
+  - `docs:` - změna dokumentace
+  - `refactor:` - refaktoring kódu
+  - `test:` - přidání nebo úprava testů
+
+### Git příkazy (PowerShell / Windows)
+
+**Důležité:** Shell je **PowerShell** (Windows). Nepoužívej `&&` pro řetězení příkazů – v PowerShellu to není platný oddělovač. Vždy používej **středník** `;`.
+
+**Řetězení příkazů:**
+```powershell
+cd "C:\cesta\k\projektu"; git status
+git add assets/js/ui.js; git commit -m "fix: popis"; git push
+```
+
+**Pravidla pro commit zprávy v PowerShellu:**
+- Uvnitř `-m "..."` se vyhni vnořeným uvozovkám a znakům, které láme PowerShell (např. `'` v českém textu).
+- Preferuj **krátký ASCII text** bez diakritiky, např. `fix(i18n): renderTextOutput legend uses t(legend.strings)`.
+
+**Typický workflow:**
+```powershell
+git status
+git add <soubor-nebo-.>
+git commit -m "feat: krátký popis změny"
+git push
+```
+
+---
+
+## Pracovní postup (iterativní cyklus)
+
+1. **Analýza**: Studium `/dev/docs/` a testů
+2. **Audit**: Kontrola technického dluhu (PHP 8.4, PDO, UI standardy) - podle typu projektu
+3. **Plán**: Návrh úpravy v malém celku
+4. **Implementace**: Kódování (oddělené CSS/JS)
+5. **Testy**: Aktualizace automatizovaných a manuálních scénářů
+6. **Verifikace**: Cross-device kontrola přes @Browser (při významných změnách)
+7. **Dokumentace**: Aktualizace `/dev/docs/`
+8. **Git**: Příprava commit zprávy přes **COMMIT**
+
+---
+
+## Speciální příkazy
+
+### AUDIT
+
+Hloubková kontrola projektu vs. tento předpis.
+
+- Kontrola dodržení technických standardů
+- Identifikace technického dluhu
+- Návrh úprav
+
+### VERIFY
+
+Spuštění všech testů a multi-resolution prohlídka.
+
+- Automatizované testy
+- @Browser verifikace na různých rozlišeních
+
+**Postup:**
+1. Spustit automatizované testy (otevřít stránku s testy v `dev/tests/` podle projektu – např. `run_all_tests.php`, `test.php` – a ověřit, že všechny prošly).
+2. Projít @Browser verifikaci podle checklistu (např. `/dev/docs/VERIFY_CHECKLIST.md`, pokud existuje).
+3. Vyplnit checklist s výsledky verifikace.
+
+**Důležité:** Testy jsou v `dev/tests/`, ne v rootu!
+
+### INIT-DOCS
+
+Analýza kódu a vytvoření modulární dokumentace.
+
+- Reverse engineering projektu
+- Vytvoření struktury v `/dev/docs/`
+- Dokumentace architektury, algoritmů, UI
+
+### COMMIT
+
+Kontrola testů a příprava atomického commitu.
+
+- Ověření, že testy procházejí
+- Návrh commit zprávy s vhodným prefixem
+- Kontrola, že změny jsou atomické

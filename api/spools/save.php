@@ -1,5 +1,15 @@
 <?php
+declare(strict_types=1);
+
+/**
+ * Find-or-create typ cívky podle atributů (legacy endpoint).
+ * Hledá schválený typ se stejnými atributy (public=1 nebo created_by=userId); jinak vytvoří nový soukromý.
+ * POST /api/spools/save.php
+ */
+
 require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../helpers/spool_types.php';
+require_once __DIR__ . '/../helpers/manufacturers.php';
 
 session_start();
 header('Content-Type: application/json');
@@ -17,17 +27,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
-$userId = $_SESSION['user_id'];
+$userId = (int) $_SESSION['user_id'];
 
-$manufacturerName = $input['manufacturer'] ?? null;
-$weightGrams = !empty($input['weight_grams']) ? (int)$input['weight_grams'] : null;
-$color = $input['color'] ?? '';
-$material = $input['material'] ?? '';
-$outerDiameter = !empty($input['outer_diameter_mm']) ? (int)$input['outer_diameter_mm'] : null;
-$width = !empty($input['width_mm']) ? (int)$input['width_mm'] : null;
-$description = $input['visual_description'] ?? '';
+$manufacturerName = isset($input['manufacturer']) ? trim((string) $input['manufacturer']) : null;
+$weightGrams = !empty($input['weight_grams']) ? (int) $input['weight_grams'] : null;
+$color = isset($input['color']) ? trim((string) $input['color']) : null;
+$material = isset($input['material']) ? trim((string) $input['material']) : null;
+$outerDiameter = !empty($input['outer_diameter_mm']) ? (int) $input['outer_diameter_mm'] : null;
+$width = !empty($input['width_mm']) ? (int) $input['width_mm'] : null;
+$description = isset($input['visual_description']) ? trim((string) $input['visual_description']) : null;
 
-// At least one identifying field should be provided
 if (!$color && !$material && !$outerDiameter && !$width && !$description) {
     http_response_code(400);
     echo json_encode(['error' => 'At least one identifying field (color, material, diameter, width, description) is required']);
@@ -35,87 +44,82 @@ if (!$color && !$material && !$outerDiameter && !$width && !$description) {
 }
 
 try {
+    $pdo->beginTransaction();
+
     $manufacturerId = null;
-    if ($manufacturerName) {
-        // Find or create manufacturer
-        $stmt = $pdo->prepare("SELECT id FROM manufacturers WHERE name = ?");
-        $stmt->execute([$manufacturerName]);
-        $manufacturer = $stmt->fetch();
-        
-        if (!$manufacturer) {
-            // Create new manufacturer
-            $stmt = $pdo->prepare("INSERT INTO manufacturers (name) VALUES (?)");
-            $stmt->execute([$manufacturerName]);
-            $manufacturerId = $pdo->lastInsertId();
+    if ($manufacturerName !== null && $manufacturerName !== '') {
+        $stmt = $pdo->prepare("
+            SELECT manufacturer_id FROM manufacturers
+            WHERE approved = 1 AND invalidated_at IS NULL AND LOWER(TRIM(name)) = LOWER(?)
+              AND (public = 1 OR (public = 0 AND created_by = ?))
+            LIMIT 1
+        ");
+        $stmt->execute([$manufacturerName, $userId]);
+        $manId = $stmt->fetchColumn();
+        if ($manId !== false) {
+            $manufacturerId = (int) $manId;
         } else {
-            $manufacturerId = $manufacturer['id'];
+            $nextManId = getNextManufacturerId($pdo);
+            $stmt = $pdo->prepare("INSERT INTO manufacturers (manufacturer_id, name, public, approved, created_at, created_by) VALUES (?, ?, 0, 1, NOW(), ?)");
+            $stmt->execute([$nextManId, $manufacturerName, $userId]);
+            $manufacturerId = $nextManId;
         }
     }
-    
-    // Check if spool already exists (match by characteristics)
-    $sql = "
-        SELECT id FROM spool_library 
-        WHERE (manufacturer_id = ? OR (manufacturer_id IS NULL AND ? IS NULL))
-        AND (weight_grams = ? OR (weight_grams IS NULL AND ? IS NULL))
-        AND (color = ? OR (color IS NULL AND ? = ''))
-        AND (material = ? OR (material IS NULL AND ? = ''))
-        AND (outer_diameter_mm = ? OR (outer_diameter_mm IS NULL AND ? IS NULL))
-        AND (width_mm = ? OR (width_mm IS NULL AND ? IS NULL))
-        AND (visual_description = ? OR (visual_description IS NULL AND ? = ''))
-        AND (created_by = ? OR created_by IS NULL)
+
+    $stmt = $pdo->prepare("
+        SELECT st.spool_type_id
+        FROM spool_types st
+        WHERE st.approved = 1 AND st.invalidated_at IS NULL
+          AND (st.public = 1 OR (st.public = 0 AND st.created_by = ?))
+          AND (st.weight_grams <=> ?)
+          AND (COALESCE(st.color, '') <=> ?)
+          AND (COALESCE(st.material, '') <=> ?)
+          AND (st.outer_diameter_mm <=> ?)
+          AND (st.width_mm <=> ?)
+          AND (COALESCE(st.visual_description, '') <=> ?)
         LIMIT 1
-    ";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute([
-        $manufacturerId, $manufacturerId,
-        $weightGrams, $weightGrams,
-        $color, $color,
-        $material, $material,
-        $outerDiameter, $outerDiameter,
-        $width, $width,
-        $description, $description,
-        $userId
-    ]);
-    $existing = $stmt->fetch();
-    
-    if ($existing) {
-        echo json_encode(['id' => $existing['id'], 'message' => 'Spool already exists']);
+    ");
+    $stmt->execute([$userId, $weightGrams, $color ?? '', $material ?? '', $outerDiameter, $width, $description ?? '']);
+    $existing = $stmt->fetchColumn();
+    if ($existing !== false) {
+        $spoolTypeId = (int) $existing;
+        $pdo->commit();
+        $row = getSpoolTypeCurrentRow($pdo, $spoolTypeId, $userId);
+        $label = $row !== null ? spoolTypeRowToLabel($row) : 'Typ cívky';
+        echo json_encode(['id' => $spoolTypeId, 'message' => 'Spool already exists', 'label' => $label]);
         exit;
     }
-    
-    // Create new spool
+
+    $nextId = getNextSpoolTypeId($pdo);
     $stmt = $pdo->prepare("
-        INSERT INTO spool_library (manufacturer_id, weight_grams, color, material, outer_diameter_mm, width_mm, visual_description, created_by) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO spool_types (spool_type_id, weight_grams, color, material, outer_diameter_mm, width_mm, visual_description, public, approved, created_at, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 0, 1, NOW(), ?)
     ");
-    $stmt->execute([
-        $manufacturerId,
-        $weightGrams,
-        $color ?: null,
-        $material ?: null,
-        $outerDiameter,
-        $width,
-        $description ?: null,
-        $userId
+    $stmt->execute([$nextId, $weightGrams, $color, $material, $outerDiameter, $width, $description, $userId]);
+
+    if ($manufacturerId !== null) {
+        $stmt = $pdo->prepare("INSERT INTO spool_manufacturer (spool_id, manufacturer_id) VALUES (?, ?)");
+        $stmt->execute([$nextId, $manufacturerId]);
+    }
+
+    $pdo->commit();
+
+    $row = getSpoolTypeCurrentRow($pdo, $nextId, $userId);
+    $label = $row !== null ? spoolTypeRowToLabel($row) : 'Typ cívky';
+    echo json_encode([
+        'id' => $nextId,
+        'weight_grams' => $weightGrams,
+        'color' => $color,
+        'material' => $material,
+        'outer_diameter_mm' => $outerDiameter,
+        'width_mm' => $width,
+        'visual_description' => $description,
+        'label' => $label,
     ]);
-    
-    $spoolId = $pdo->lastInsertId();
-    
-    // Return spool
-    $stmt = $pdo->prepare("
-        SELECT s.id, s.weight_grams, s.color, s.material, s.outer_diameter_mm, s.width_mm, s.visual_description, 
-               COALESCE(m.name, 'Neznámý') as manufacturer 
-        FROM spool_library s
-        LEFT JOIN manufacturers m ON s.manufacturer_id = m.id
-        WHERE s.id = ?
-    ");
-    $stmt->execute([$spoolId]);
-    $spool = $stmt->fetch();
-    
-    echo json_encode($spool);
-    
-} catch (Exception $e) {
+} catch (PDOException $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
     http_response_code(500);
     echo json_encode(['error' => 'Server error: ' . $e->getMessage()]);
 }
-

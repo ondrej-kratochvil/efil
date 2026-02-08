@@ -1,0 +1,30 @@
+# Environment variables
+.env
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+
+# Node.js
+node_modules/
+package-lock.json
+
+# Build outputs (generated files)
+# Note: tailwind.css should be committed for production
+# assets/css/tailwind.css

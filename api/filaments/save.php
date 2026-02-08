@@ -1,5 +1,9 @@
 <?php
+declare(strict_types=1);
+
 require_once __DIR__ . '/../../config.php';
+require_once __DIR__ . '/../helpers/demo.php';
+require_once __DIR__ . '/../helpers/manufacturers.php';
 
 session_start();
 header('Content-Type: application/json');
@@ -24,15 +28,18 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $input = json_decode(file_get_contents('php://input'), true);
+if (!is_array($input)) {
+    jsonResponse(['error' => 'Invalid JSON'], 400);
+}
 $userId = $_SESSION['user_id'];
 
 // Get user's inventory (owned or shared with write/manage permission)
 $sql = "
-    SELECT i.id, 'owner' as role
+    SELECT i.id, i.is_demo, 'owner' as role
     FROM inventories i
     WHERE i.owner_id = ?
     UNION
-    SELECT i.id, im.role
+    SELECT i.id, i.is_demo, im.role
     FROM inventories i
     JOIN inventory_members im ON i.id = im.inventory_id
     WHERE im.user_id = ? AND im.role IN ('write', 'manage')
@@ -48,11 +55,14 @@ if (!$inv) {
 
 $inventoryId = $inv['id'];
 
+checkDemoModeAccess($pdo, (int) $userId, $inv['is_demo'] ?? null);
+
 // Determine if Update or Create
 $id = $input['id'] ?? null;
 $userDisplayId = !empty($input['user_display_id']) ? (int)$input['user_display_id'] : null;
 $mat = $input['mat'] ?? '';
 $man = $input['man'] ?? '';
+$manId = !empty($input['man_id']) ? (int) $input['man_id'] : null;
 $color = $input['color'] ?? '';
 $hex = $input['hex'] ?? '#000000';
 $weight = (int)($input['g'] ?? 1000);
@@ -69,16 +79,46 @@ if (!$mat || !$color) {
 }
 
 try {
-    // Ensure manufacturer exists in manufacturers table
-    if (!empty($man)) {
-        $stmtMan = $pdo->prepare("SELECT id FROM manufacturers WHERE name = ?");
-        $stmtMan->execute([$man]);
-        $existingMan = $stmtMan->fetch();
-
-        if (!$existingMan) {
-            // Create new manufacturer
-            $stmtInsert = $pdo->prepare("INSERT INTO manufacturers (name) VALUES (?)");
-            $stmtInsert->execute([$man]);
+    // Resolve manufacturer_id: z man_id nebo z man (název – najít / vytvořit)
+    $manufacturerId = null;
+    if ($manId !== null) {
+        $nameCheck = getManufacturerName($pdo, $manId, $userId);
+        if ($nameCheck === null) {
+            jsonResponse(['error' => 'Výrobce s tímto ID neexistuje nebo není k dispozici.'], 400);
+        }
+        $manufacturerId = $manId;
+    } elseif (trim((string) $man) !== '') {
+        $manName = trim($man);
+        $stmtFind = $pdo->prepare("
+            SELECT manufacturer_id FROM manufacturers
+            WHERE approved = 1 AND invalidated_at IS NULL AND LOWER(TRIM(name)) = LOWER(?)
+              AND (public = 1 OR (public = 0 AND created_by = ?))
+            LIMIT 1
+        ");
+        $stmtFind->execute([$manName, $userId]);
+        $existing = $stmtFind->fetchColumn();
+        if ($existing !== false) {
+            $manufacturerId = (int) $existing;
+        } else {
+            if (manufacturerNameDuplicateExists($pdo, $manName, $userId, null)) {
+                jsonResponse(['error' => 'Výrobce s tímto názvem již existuje (veřejný nebo ve vašem seznamu).'], 400);
+            }
+            $pdo->beginTransaction();
+            try {
+                $nextId = getNextManufacturerId($pdo);
+                $stmtInsert = $pdo->prepare("
+                    INSERT INTO manufacturers (manufacturer_id, name, public, approved, created_at, created_by)
+                    VALUES (?, ?, 0, 1, NOW(), ?)
+                ");
+                $stmtInsert->execute([$nextId, $manName, $userId]);
+                $pdo->commit();
+                $manufacturerId = $nextId;
+            } catch (PDOException $e) {
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
+                throw $e;
+            }
         }
     }
 
@@ -113,11 +153,11 @@ try {
 
         $sql = "UPDATE filaments SET
                 user_display_id = COALESCE(?, user_display_id),
-                material = ?, manufacturer = ?, color_name = ?, color_hex = ?,
+                material = ?, manufacturer_id = ?, color_name = ?, color_hex = ?,
                 location = ?, price = ?, seller = ?, purchase_date = ?, initial_weight_grams = ?, spool_type_id = ?
                 WHERE id = ?";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$userDisplayId, $mat, $man, $color, $hex, $loc, $price, $seller, $date, $weight, $spoolId, $id]);
+        $stmt->execute([$userDisplayId, $mat, $manufacturerId, $color, $hex, $loc, $price, $seller, $date, $weight, $spoolId, $id]);
 
         jsonResponse(['message' => 'Updated', 'id' => $id]);
 
@@ -140,12 +180,12 @@ try {
         }
 
         $sql = "INSERT INTO filaments (
-                    inventory_id, user_display_id, material, manufacturer,
+                    inventory_id, user_display_id, material, manufacturer_id,
                     color_name, color_hex, initial_weight_grams, location,
                     price, seller, purchase_date, spool_type_id
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute([$inventoryId, $finalDisplayId, $mat, $man, $color, $hex, $weight, $loc, $price, $seller, $date, $spoolId]);
+        $stmt->execute([$inventoryId, $finalDisplayId, $mat, $manufacturerId, $color, $hex, $weight, $loc, $price, $seller, $date, $spoolId]);
 
         jsonResponse(['message' => 'Created', 'id' => $pdo->lastInsertId()], 201);
     }

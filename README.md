@@ -4,17 +4,41 @@ Aplikace pro komplexní správu 3D tiskových materiálů (filamentů). Poskytuj
 
 ## 🚀 Funkce
 
+### Správa dat
 - **Správa filamentů** - Evidence materiálů s detailními informacemi (materiál, barva, výrobce, hmotnost)
-- **Sledování spotřeby** - Záznam čerpání materiálu s možností vážení nebo manuálního zadání
-- **Sdílení evidencí** - Sdílení skladu s dalšími uživateli pomocí přístupových kódů
-- **Statistiky** - Přehled celkové hmotnosti, hodnoty a spotřeby
+- **Sledování spotřeby** - Záznam čerpání materiálu s datem a možností vážení nebo manuálního zadání
+- **Historie čerpání** - Kompletní přehled všech čerpání s možností editace a mazání
+- **Statistiky** - Přehled celkové hmotnosti, hodnoty a spotřeby za různá období
 - **Chytré filtry** - Navigace MAT → BAR → VÝR pro snadné vyhledávání
-- **Knihovna cívek** - Správa typů cívek s tárou pro přesné vážení
+- **Knihovna cívek** - Správa typů cívek s tárou a vazbou na výrobce
+- **Groupování cívek** - Automatické seskupování více cívek stejného materiálu a barvy
+- **Chytré třídění** - Optgroups pro typy cívek podle vybraného výrobce
+
+### Multiuser funkce
+- **Sdílení evidencí** - Sdílení skladu s dalšími uživateli pomocí přístupových kódů nebo emailu
+- **Správa uživatelů** - Přidávání uživatelů, změna oprávnění (read/write/manage/owner)
+- **Email notifikace** - Automatické notifikace o změnách v evidenci, pozváních, změnách rolí
+- **Správa účtu** - Změna hesla, emailu, smazání účtu
+- **Zapomenuté heslo** - Obnovení hesla pomocí JWT tokenu v emailovém odkazu
+- **Přepínání evidencí** - Snadný přepínač mezi více evidencemi pro uživatele s přístupem k více skladům
+- **Demo režim** - Read-only režim pro vyzkoušení aplikace (admin má plná práva)
+- **Admin účet** - Speciální účet administrátora s přehledem všech evidencí a statistik systému
+
+### UI/UX vylepšení
+- **Více jazyků (i18n)** – Čeština a angličtina; překlady v `assets/i18n/` (cs.json, en.json); přepínač jazyka v menu
+- **Jednotky podle jazyka** – Zobrazení měny (Kč / CZK) a cen za kg podle zvoleného jazyka (bez konverze)
+- **Tmavý režim** – Přepínač světlý/tmavý v menu, preference v localStorage, respektování `prefers-color-scheme`
+- **Routování** - Podpora tlačítek Zpět/Vpřed v prohlížeči pomocí History API
 - **Chytré rozbalovací seznamy** - Optgroups s nejčastějšími hodnotami (materiály, výrobci)
-- **Automatické vytváření výrobců** - Noví výrobci se automaticky přidají do databáze při ukládání filamentu
-- **Vylepšené zobrazení cívek** - Detailní informace o cívkách (barva, materiál, průměr, šířka, hmotnost, popis)
-- **Režim vážení** - Volba mezi "Bez cívky" (netto) a "S cívkou" (brutto) s automatickým výpočtem
-- **Persistentní formuláře** - Hodnoty formuláře se zachovávají při přepínání mezi select/input módy
+- **Automatické vytváření výrobců** - Noví výrobci se automaticky přidají do databáze
+- **Vylepšené zobrazení cívek** - Detailní informace o cívkách s možností správy
+- **Režim vážení** - Volba mezi "Bez cívky" (netto) a "S cívkou" (brutto)
+- **Persistentní formuláře** - Hodnoty se zachovávají při přepínání mezi módy
+- **Smazání filamentů** - Možnost smazat filament s potvrzením
+- **Skrytí prázdných filamentů** - Automaticky se nezobrazují filamenty s nulovou hmotností
+- **Intro na login stránce** - Přehledné představení aplikace s funkcemi a kontaktem
+- **Nápověda** - Komplexní nápověda s návody k používání všech funkcí
+- **Intuitivní groupování** - Více cívek stejného typu zobrazeno jako jedna položka s možností rozbalení
 
 ## 📋 Požadavky
 
@@ -41,21 +65,31 @@ DB_HOST=localhost
 DB_NAME=efil_db
 DB_USER=root
 DB_PASS=
+
+# SMTP Configuration (volitelné - pro odesílání e-mailů)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=vas-email@gmail.com
+SMTP_PASSWORD=vase-heslo-nebo-app-password
+SMTP_FROM_EMAIL=noreply@efil.cz
+SMTP_FROM_NAME=eFil - Evidence Filamentů
 ```
 
 **Poznámka:** Soubor `.env` je v `.gitignore`, takže nebude commitován do repozitáře.
+
+**Poznámka k e-mailům:** Pro odesílání e-mailů (reset hesla, pozvánky, notifikace) je potřeba nastavit SMTP údaje. Podrobné instrukce naleznete v souboru `EMAIL_SETUP.md`.
 
 ### 3. Inicializace databáze
 
 Spusťte inicializační skript, který vytvoří databázi, tabulky a naplní je demo daty:
 
 ```bash
-php init_db.php
+php dev/sql/init_db.php
 ```
 
 Nebo v prohlížeči:
 ```
-http://localhost/a/efil-github/init_db.php
+http://localhost/a/efil-github/dev/sql/init_db.php
 ```
 
 **Poznámka:** Skript automaticky vytvoří databázi, pokud neexistuje, a smaže existující tabulky před vytvořením nových.
@@ -66,13 +100,13 @@ Pokud již máte databázi s daty a potřebujete aktualizovat schéma bez ztrát
 
 ```bash
 # Přidání tabulky inventory_members
-php update_schema.php
+php dev/sql/update_schema.php
 
 # Aktualizace tabulky spool_library (přidání nových polí)
-php update_spool_schema.php
+php dev/sql/update_spool_schema.php
 ```
 
-**Poznámka:** Pro nové instalace použijte `init_db.php`, který vytvoří kompletní schéma. Migrační skripty jsou určeny pouze pro aktualizaci existujících databází.
+**Poznámka:** Pro nové instalace použijte `dev/sql/init_db.php`, který vytvoří kompletní schéma. Migrační skripty jsou určeny pouze pro aktualizaci existujících databází.
 
 ## 🎯 Spuštění
 
@@ -80,47 +114,60 @@ php update_spool_schema.php
 
 2. **Otevřete aplikaci v prohlížeči:**
    ```
-   http://localhost/a/efil-github/index.html
+   http://localhost/a/efil-github/index.php
    ```
 
 3. **Přihlaste se pomocí demo účtu:**
    - **Email:** `demo@efil.cz`
    - **Heslo:** `demo1234`
 
+   Nebo vytvořte vlastní účet pomocí registrace.
+
+**Poznámka:** Demo účet je read-only. Pro plný přístup si vytvořte vlastní účet.
+
 ## 📁 Struktura projektu
 
 ```
 efil-github/
-├── api/                    # Backend API endpointy
-│   ├── auth/              # Autentizace (login, register, logout)
-│   ├── dashboard/         # Statistiky
-│   ├── data/              # Data pro selecty (materiály, výrobci, atd.)
-│   ├── filaments/        # Správa filamentů (list, save, consume)
-│   ├── inventory/        # Sdílení evidencí (join, share)
-│   └── spools/           # Knihovna cívek
+├── api/                           # Backend API endpointy
+│   ├── account/                  # Správa účtu (změna hesla, emailu, smazání)
+│   ├── admin/                    # Admin funkce (statistiky eFil)
+│   ├── auth/                     # Autentizace (login, register, logout, forgot-password, reset-password)
+│   ├── consumption/              # Historie čerpání (list, update, delete, get)
+│   ├── dashboard/                # Statistiky skladu
+│   ├── data/                     # Data pro selecty (materiály, výrobci, atd.)
+│   ├── filaments/               # Správa filamentů (list, save, consume, delete)
+│   ├── helpers/                  # Pomocné funkce (JWT, email)
+│   ├── inventory/               # Správa evidencí (list, switch, share, join)
+│   ├── spools/                  # Knihovna cívek (list, create, update, delete)
+│   └── users/                   # Správa uživatelů (list, add, update-role, remove)
 ├── assets/
-│   ├── css/              # Styly
-│   └── js/               # Frontend JavaScript
-├── database/
-│   └── schema.sql        # Databázové schéma
-├── config.php            # Konfigurace databáze
-├── init_db.php           # Inicializační skript
-├── update_schema.php     # Migrační skript
-├── index.html            # Hlavní HTML soubor
-└── README.md             # Tento soubor
+│   ├── css/                     # Styly (Tailwind CSS)
+│   ├── i18n/                    # Překlady (cs.json, en.json)
+│   └── js/                      # Frontend JavaScript (ES6+, History API)
+├── dev/                         # Vývojové soubory
+│   ├── docs/                    # Dokumentace
+│   ├── scripts/                 # Testovací skripty
+│   ├── sql/                     # SQL schémata a migrace
+│   └── tests/                   # Testovací skripty
+├── config.php                   # Konfigurace databáze a aplikace
+├── .env.example                 # Příklad konfigurace prostředí
+├── index.php                    # Vstupní bod aplikace
+└── README.md                    # Tento soubor
 ```
 
 ## 🗄️ Databázové schéma
 
 Aplikace používá následující hlavní tabulky:
 
-- **users** - Uživatelé systému
-- **inventories** - Evidence skladů
+- **users** - Uživatelé systému (role: user, admin_efil)
+- **inventories** - Evidence skladů (včetně demo režimu)
 - **inventory_access** - Přístupové kódy pro sdílení
-- **inventory_members** - Členové sdílených evidencí
+- **inventory_members** - Členové sdílených evidencí (role: read, write, manage, owner)
 - **filaments** - Filamenty ve skladu
-- **consumption_log** - Záznamy spotřeby
+- **consumption_log** - Záznamy spotřeby s datem a autorem
 - **spool_library** - Knihovna typů cívek
+- **spool_manufacturer** - Vazební tabulka M:N mezi cívkami a výrobci
 - **manufacturers** - Výrobci
 
 ## 🔐 API Endpointy
@@ -130,21 +177,50 @@ Aplikace používá následující hlavní tabulky:
 - `POST /api/auth/register.php` - Registrace
 - `GET /api/auth/logout.php` - Odhlášení
 - `GET /api/auth/me.php` - Informace o přihlášeném uživateli
+- `POST /api/auth/forgot-password.php` - Zapomenuté heslo
+- `POST /api/auth/reset-password.php` - Nastavení nového hesla
 
 ### Filamenty
 - `GET /api/filaments/list.php` - Seznam filamentů
 - `POST /api/filaments/save.php` - Uložení/úprava filamentu
-- `POST /api/filaments/consume.php` - Záznam spotřeby
+- `POST /api/filaments/consume.php` - Záznam spotřeby s datem
+- `POST /api/filaments/delete.php` - Smazání filamentu
+
+### Čerpání
+- `GET /api/consumption/list.php` - Historie čerpání (pro celý inventář nebo konkrétní filament)
+- `GET /api/consumption/get.php` - Detail jednoho záznamu čerpání
+- `POST /api/consumption/update.php` - Úprava záznamu čerpání
+- `POST /api/consumption/delete.php` - Smazání záznamu čerpání
 
 ### Data
 - `GET /api/data/options.php` - Možnosti pro selecty (materiály, výrobci, atd.) s optgroups pro nejčastější hodnoty
-- `GET /api/spools/list.php` - Seznam typů cívek
-- `POST /api/spools/save.php` - Uložení nového typu cívky
-- `GET /api/dashboard/stats.php` - Statistiky skladu
 
-### Sdílení
+### Cívky
+- `GET /api/spools/list.php` - Seznam typů cívek s vazbami na výrobce
+- `POST /api/spools/create.php` - Vytvoření nového typu cívky
+- `POST /api/spools/update.php` - Úprava typu cívky
+- `POST /api/spools/delete.php` - Smazání typu cívky
+
+### Statistiky
+- `GET /api/dashboard/stats.php` - Statistiky skladu
+- `GET /api/admin/stats.php` - Celkové statistiky eFil (pouze pro admin_efil)
+
+### Evidence
+- `GET /api/inventory/list.php` - Seznam evidencí uživatele
+- `POST /api/inventory/switch.php` - Přepnutí mezi evidencemi
 - `POST /api/inventory/share.php` - Vygenerování sdílecího kódu
 - `POST /api/inventory/join.php` - Připojení k evidenci pomocí kódu
+
+### Uživatelé
+- `GET /api/users/list.php` - Seznam uživatelů v evidenci
+- `POST /api/users/add.php` - Přidání uživatele do evidence
+- `POST /api/users/update-role.php` - Změna role uživatele
+- `POST /api/users/remove.php` - Odebrání uživatele z evidence
+
+### Účet
+- `POST /api/account/change-password.php` - Změna hesla
+- `POST /api/account/change-email.php` - Změna emailu
+- `POST /api/account/delete.php` - Smazání účtu
 
 ## 🎨 Funkce aplikace
 
@@ -155,7 +231,7 @@ Aplikace používá třístupňovou navigaci:
 3. **VÝR** (Výrobce/Detail) - Detailní seznam filamentů
 
 ### Správa filamentů
-- **Přidání** - Klikněte na "Přidat nový filament" v menu nebo na tlačítko, pokud není žádný filament
+- **Přidání** - Klikněte na "Přidat nový filament" v menu, nebo na položku **+** na kterékoliv obrazovce wizardu (MAT, BAR, VÝR). Na MAT se nic nepředvyplní, na BAR se předvyplní materiál, na VÝR materiál i barva.
 - **Úprava** - Klikněte na filament v detailním zobrazení
 - **Spotřeba** - Klikněte na hmotnost filamentu pro záznam spotřeby
 - **Číslování** - Každý filament má `user_display_id` začínající od #1 pro každou evidenci
@@ -203,30 +279,30 @@ Aplikace používá třístupňovou navigaci:
 
 ## 🧪 Testování
 
-Projekt obsahuje testovací skripty v adresáři `tests/`:
+Projekt obsahuje testovací skripty v adresáři `dev/tests/`:
 
 ```bash
 # Test výpočtu zůstatků
-php tests/balance_test.php
+php dev/tests/balance_test.php
 
 # Test automatického vytváření výrobců
-php tests/manufacturer_auto_create_test.php
+php dev/tests/manufacturer_auto_create_test.php
 
 # Test optgroups v options API
-php tests/options_optgroups_test.php
+php dev/tests/options_optgroups_test.php
 
 # Test správy cívek
-php tests/spool_management_test.php
+php dev/tests/spool_management_test.php
 
 # Test formulářových hodnot
-php tests/form_persistence_test.php
+php dev/tests/form_persistence_test.php
 ```
 
 Všechny testy automaticky vytvářejí testovací data a po dokončení je odstraňují.
 
 ## 📝 Poznámky
 
-- Aplikace automaticky vytvoří databázi při prvním spuštění `init_db.php`
+- Aplikace automaticky vytvoří databázi při prvním spuštění `dev/sql/init_db.php`
 - Demo data jsou vytvořena automaticky při inicializaci
 - Pro produkční nasazení upravte `config.php` pro lepší error handling
 - Noví výrobci se automaticky přidají do tabulky `manufacturers` při ukládání filamentu
@@ -235,7 +311,7 @@ Všechny testy automaticky vytvářejí testovací data a po dokončení je odst
 ## 🐛 Řešení problémů
 
 ### Databáze neexistuje
-Spusťte `init_db.php` - skript automaticky vytvoří databázi.
+Spusťte `dev/sql/init_db.php` - skript automaticky vytvoří databázi.
 
 ### Chyba s indexy (Index column size too large)
 Tento problém byl vyřešen v aktuální verzi schématu pomocí prefix indexů a `ROW_FORMAT=DYNAMIC`.

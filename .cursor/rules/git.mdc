@@ -1,0 +1,44 @@
+---
+description: "Git a GitHub workflow – atomické commity, PowerShell (středník místo &&), formát commit zpráv. Platí při jakékoli práci s gitem v tomto projektu."
+alwaysApply: true
+---
+
+# Git a GitHub workflow
+
+Při jakékoli práci s gitem (status, add, commit, push, branch, …) v tomto projektu dodržuj tato pravidla.
+
+## Atomické commity
+
+- **Princip**: Jedna úprava = jeden commit.
+- **Prefixy**:
+  - `feat:` – nová funkce
+  - `fix:` – oprava chyby
+  - `docs:` – změna dokumentace
+  - `refactor:` – refaktoring kódu
+  - `test:` – přidání nebo úprava testů
+
+## Git příkazy (PowerShell / Windows)
+
+Shell **PowerShell** nepoužívá `&&` pro řetězení. Používej **středník** `;`.
+
+**Řetězení příkazů:**
+```powershell
+cd "C:\cesta\k\projektu"; git status
+git add assets/js/ui.js; git commit -m "fix: popis"; git push
+```
+
+**Pravidla pro commit zprávy v PowerShellu:**
+- Uvnitř `-m "..."` se vyhni vnořeným uvozovkám a znakům, které láme PowerShell (např. `'` v českém textu).
+- Preferuj **krátký ASCII text** bez diakritiky, např. `fix(i18n): renderTextOutput legend uses t(legend.strings)`.
+
+**Typický workflow:**
+```powershell
+git status
+git add <soubor-nebo-.>
+git commit -m "feat: krátký popis změny"
+git push
+```
+
+## COMMIT (speciální příkaz)
+
+Před commitem: ověř, že testy procházejí; navrhni commit zprávu s vhodným prefixem; zkontroluj, že změny jsou atomické.

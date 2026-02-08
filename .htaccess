@@ -1,0 +1,40 @@
+# eFil - Apache Configuration
+# Minimalistická verze pro kompatibilitu s většinou hostingů
+
+# Zakázat přístup k .env souboru
+<Files ".env">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Zakázat přístup k dev/ složce na produkci a SPA routing (jeden blok mod_rewrite)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Na produkci (ne localhost) zakázat přístup k dev/
+    RewriteCond %{HTTP_HOST} !localhost [NC]
+    RewriteCond %{HTTP_HOST} !127\.0\.0\.1 [NC]
+    RewriteRule ^dev/ - [F,L]
+
+    # SPA Routing - neexistující cesty na index.php (po kontrole dev/ a api)
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} !/api/
+    RewriteCond %{REQUEST_URI} !\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ [NC]
+    RewriteCond %{REQUEST_URI} !/dev/
+    RewriteRule ^(.*)$ index.php [L]
+</IfModule>
+
+# Zakázat directory listing
+Options -Indexes
+
+# UTF-8 encoding
+AddDefaultCharset UTF-8
+
+DirectoryIndex index.php index.html
+
+# POZNÁMKA:
+# - php_value direktivy jsou často zakázané na shared hostingu
+# - Použijte nastavení PHP přímo v panelu hostingu místo těchto direktiv
+# - ServerSignature může být zakázán na některých hostinzích
+
